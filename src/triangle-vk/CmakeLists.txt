@@ -1,0 +1,6 @@
+
+
+addExe(triangle-vk
+SOURCES
+    main.c
+)

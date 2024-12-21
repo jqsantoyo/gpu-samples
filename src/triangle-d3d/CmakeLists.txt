@@ -1,0 +1,6 @@
+
+
+addExe(triangle-d3d
+SOURCES
+    main.c
+)
