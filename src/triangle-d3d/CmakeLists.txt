@@ -2,5 +2,11 @@
 
 addExe(triangle-d3d
 SOURCES
-    main.c
+    main.cpp
+LIBS
+    d3d12
+    dxgi
+    d3dcompiler
+SHADERS
+    shaders.hlsl
 )

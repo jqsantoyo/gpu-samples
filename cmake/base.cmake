@@ -77,7 +77,7 @@ endfunction()
 function(addExe targetName)
     set(options)
     set(oneArgs)
-    set(multiArgs SOURCES LIBS)
+    set(multiArgs SOURCES LIBS SHADERS)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
 
@@ -92,13 +92,18 @@ function(addExe targetName)
     printList("SOURCES"         arg_SOURCES)
     printList("LIBS"            arg_LIBS)
     
-    add_executable          (${targetName})
-    target_sources          (${targetName} PRIVATE ${arg_SOURCES})
-    target_link_libraries   (${targetName} PRIVATE ${arg_LIBS})
+    add_executable              (${targetName} WIN32)
+    target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src)
+    target_link_libraries       (${targetName} PRIVATE ${arg_LIBS})
+    target_sources              (${targetName} PRIVATE ${arg_SOURCES})
 
     install(
         TARGETS ${targetName}
         PUBLIC_HEADER DESTINATION include
         LIBRARY DESTINATION lib/${KRA_ARCH}
+    )
+    install(
+        FILES ${arg_SHADERS}
+        DESTINATION bin/${targetName}
     )
 endfunction()
