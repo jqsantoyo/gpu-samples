@@ -2,7 +2,7 @@
 //
 // Triangle Direct3D
 //
-// Sample that draws a Triangle based on Microsoft's Hello Triangle, but simplified and flattened.
+// Sample that draws a triangle based on Microsoft's Hello Triangle, but simplified and flattened.
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #define UNICODE
@@ -23,16 +23,7 @@
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
-static const int frameCount = 2;
-
-#define SUCCEEDED(hr)   (((HRESULT)(hr)) >= 0)
-#define FAILED(hr)      (((HRESULT)(hr)) < 0)
-
-inline void WINRES(HRESULT hr) {
-    if (FAILED(hr)) {
-        throw std::exception();
-    }
-}
+const int frameCount = 2;
 
 struct Vertex {
     XMFLOAT3 position;
@@ -59,6 +50,12 @@ struct Renderer {
     ComPtr<ID3D12Resource>              vb;
     D3D12_VERTEX_BUFFER_VIEW            vbView;
 };
+
+inline void WINRES(HRESULT hr) {
+    if (FAILED(hr)) {
+        throw std::exception();
+    }
+}
 
 std::wstring GetAssetsPath() {
     wchar_t exePath[MAX_PATH];
@@ -106,11 +103,13 @@ void GetHardwareAdapter(IDXGIFactory1* factory, IDXGIAdapter1** ppAdapter) {
     *ppAdapter = adapter.Detach();
 }
 
-int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int nCmdShow) {
+//int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int nCmdShow) {
+int main() {
     int screenWidth = 512;
     int screenHeight = 512;
     float screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
 
+    HINSTANCE instance = GetModuleHandle(NULL);
     WNDCLASSEX windowClass      = {};
     windowClass.cbSize          = sizeof(WNDCLASSEX);
     windowClass.style           = CS_HREDRAW | CS_VREDRAW; //CS_OWNDC;
