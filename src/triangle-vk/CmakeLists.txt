@@ -5,27 +5,7 @@ SOURCES
     main.cpp
 LIBS
     vulkan
-)
-
-
-add_custom_command(
-    TARGET triangle-vk PRE_BUILD
-    COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/shader.vert -o vert.spv
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shader.vert
-    BYPRODUCTS ${CMAKE_CURRENT_BINARY_DIR}/vert.spv
-    COMMENT "Compile shader.vert"
-    VERBATIM
-)
-add_custom_command(
-    TARGET triangle-vk PRE_BUILD
-    COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/shader.frag -o frag.spv
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shader.frag
-    BYPRODUCTS frag.spv
-    COMMENT "Compile shader.frag"
-    VERBATIM
-)
-
-install(
-    FILES ${CMAKE_CURRENT_BINARY_DIR}/vert.spv ${CMAKE_CURRENT_BINARY_DIR}/frag.spv
-    DESTINATION bin/triangle-vk
+SHADERS_VK
+    shader.vert
+    shader.frag
 )

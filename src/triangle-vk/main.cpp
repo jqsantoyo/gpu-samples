@@ -60,6 +60,11 @@ inline void exitError(const std::string& msg) {
     exit(EXIT_FAILURE);
 }
 
+template <typename T>
+const T& clamp(const T& value, const T& low, const T& high) {
+    return value < low ? low : (value > high ? high : value);
+}
+
 std::wstring GetAssetsPath() {
     wchar_t exePath[MAX_PATH];
     GetModuleFileName(nullptr, exePath, MAX_PATH);
@@ -82,7 +87,12 @@ std::vector<char> readFile(const std::wstring& filename) {
     return buffer;
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
+    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageTypeFlagsEXT messageType,
+    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+    void* pUserData
+) {
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
     return VK_FALSE;
 }
@@ -164,23 +174,23 @@ int main() {
         }
     }
 
+
     VkApplicationInfo appInfo{};
-    appInfo.sType               = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName    = "Hello Triangle";
-    appInfo.applicationVersion  = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName         = "No Engine";
-    appInfo.engineVersion       = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion          = VK_API_VERSION_1_0;
+    appInfo.sType                       = VK_STRUCTURE_TYPE_APPLICATION_INFO;
+    appInfo.pApplicationName            = "Hello Triangle";
+    appInfo.applicationVersion          = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.pEngineName                 = "No Engine";
+    appInfo.engineVersion               = VK_MAKE_VERSION(1, 0, 0);
+    appInfo.apiVersion                  = VK_API_VERSION_1_0;
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    debugCreateInfo = {};
-    debugCreateInfo.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    debugCreateInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    debugCreateInfo.messageType     = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                                    | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    debugCreateInfo.pfnUserCallback = debugCallback;
+    debugCreateInfo.sType               = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    debugCreateInfo.messageSeverity     = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                                        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                                        | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    debugCreateInfo.messageType         = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                                        | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                                        | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    debugCreateInfo.pfnUserCallback     = debugCallback;
     VkInstanceCreateInfo createInfo{};
     createInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo         = &appInfo;
@@ -324,8 +334,8 @@ int main() {
         int width, height;
         //glfwGetFramebufferSize(window, &width, &height);
         VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-        actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-        actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+        actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
         extent = actualExtent;
     }
     uint32_t imageCount = capabilities.minImageCount + 1;
@@ -423,8 +433,8 @@ int main() {
 
     // Create graphics pipeline
     std::wstring assetsPath = GetAssetsPath();
-    auto vertShaderCode = readFile(assetsPath + L"triangle-vk/vert.spv");
-    auto fragShaderCode = readFile(assetsPath + L"triangle-vk/frag.spv");
+    auto vertShaderCode = readFile(assetsPath + L"triangle-vk/shader.vert.spv");
+    auto fragShaderCode = readFile(assetsPath + L"triangle-vk/shader.frag.spv");
     VkShaderModule vertShaderModule;
     VkShaderModule fragShaderModule;
     VkShaderModuleCreateInfo vertCreateInfo{};

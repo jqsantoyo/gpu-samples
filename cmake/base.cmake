@@ -1,7 +1,7 @@
 
 # Prints a list.
 function(printList name list)
-    message(DEBUG "${name}:")
+    message(STATUS "${name}:")
     foreach(item IN LISTS ${list})
         message(STATUS "  ${item}")
     endforeach()
@@ -16,6 +16,7 @@ function(addLib targetName)
     list(APPEND multiArgs SOURCES_WIN SOURCES_MAC SOURCES_ANDROID SOURCES_IOS)
     list(APPEND multiArgs LIBS_WIN    LIBS_MAC    LIBS_ANDROID    LIBS_IOS)
     list(APPEND multiArgs FRAMEWORKS_MAC FRAMEWORKS_IOS)
+    list(APPEND multiArgs SHADERS_VK SHADERS_D3D SHADERS_MTL)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
     message(STATUS "----------------------------------------")
@@ -38,6 +39,7 @@ function(addLib targetName)
 
     message(STATUS "LIB STATIC")
     add_library                 (${targetName} STATIC)
+    target_compile_features     (${targetName} PRIVATE cxx_std_14)
     target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries       (${targetName} PUBLIC  ${arg_LIBS})
     target_sources              (${targetName} PUBLIC  ${arg_HEADERS})
@@ -57,6 +59,21 @@ function(addLib targetName)
         target_link_libraries   (${targetName} PUBLIC  ${arg_LIBS_IOS})
         target_link_libraries   (${targetName} PUBLIC  ${arg_FRAMEWORKS_IOS})
     endif()
+    
+    set(shadersSpv ${arg_SHADERS_VK})
+    list(TRANSFORM shadersSpv PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+    list(TRANSFORM shadersSpv APPEND .spv)
+    foreach(shader shaderSpv IN ZIP_LISTS arg_SHADERS_VK shadersSpv)
+        add_custom_command(
+            TARGET ${targetName} PRE_BUILD
+            COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/${shader} -o ${shader}.spv
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
+            BYPRODUCTS ${shaderSpv}
+            COMMENT "Compile ${shader}"
+            VERBATIM
+        )
+    endforeach()
+    install(FILES ${shadersSpv} DESTINATION bin/${targetName})
 
     
     set_target_properties(${targetName} PROPERTIES
@@ -78,6 +95,7 @@ function(addExe targetName)
     set(options)
     set(oneArgs)
     set(multiArgs SOURCES LIBS SHADERS)
+    list(APPEND multiArgs SHADERS_VK SHADERS_D3D SHADERS_MTL)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
 
@@ -91,20 +109,32 @@ function(addExe targetName)
     message(STATUS "EXE: ${targetName}")
     printList("SOURCES"         arg_SOURCES)
     printList("LIBS"            arg_LIBS)
+    printList("SHADERS_VK"      arg_SHADERS_VK)
     
     add_executable              (${targetName})
-    target_compile_features     (${targetName} PRIVATE cxx_std_17)
+    target_compile_features     (${targetName} PRIVATE cxx_std_14)
     target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src)
     target_link_libraries       (${targetName} PRIVATE ${arg_LIBS})
     target_sources              (${targetName} PRIVATE ${arg_SOURCES})
+    
+    set(shadersSpv ${arg_SHADERS_VK})
+    list(TRANSFORM shadersSpv PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
+    list(TRANSFORM shadersSpv APPEND .spv)
+    foreach(shader shaderSpv IN ZIP_LISTS arg_SHADERS_VK shadersSpv)
+        add_custom_command(
+            TARGET ${targetName} PRE_BUILD
+            COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/${shader} -o ${shader}.spv
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
+            BYPRODUCTS ${shaderSpv}
+            COMMENT "Compile ${shader}"
+            VERBATIM
+        )
+    endforeach()
+    install(FILES ${shadersSpv} DESTINATION bin/${targetName})
 
     install(
         TARGETS ${targetName}
         PUBLIC_HEADER DESTINATION include
         LIBRARY DESTINATION lib/${KRA_ARCH}
-    )
-    install(
-        FILES ${arg_SHADERS}
-        DESTINATION bin/${targetName}
     )
 endfunction()
