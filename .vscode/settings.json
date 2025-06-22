@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "charconv": "cpp",
+        "xmemory": "cpp",
+        "xiosbase": "cpp",
+        "system_error": "cpp"
+    }
+}

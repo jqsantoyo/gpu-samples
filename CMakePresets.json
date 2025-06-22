@@ -6,36 +6,16 @@
     "patch": 0
   },
   "configurePresets": [
-    {
-      "name": "debug",
-      "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Debug"
-      }
-    },
-    {
-      "name": "release",
-      "hidden": true,
-      "generator": "Ninja",
-      "binaryDir": "${sourceDir}/out/build/${presetName}",
-      "installDir": "${sourceDir}/out/install/${presetName}",
-      "cacheVariables": {
-        "CMAKE_BUILD_TYPE": "Release"
-      }
-    },
-    { "name": "win-x64-debug",     "inherits": "debug"   },
-    { "name": "win-x64-release",   "inherits": "release" },
-    { "name": "mac-arm64-debug",   "inherits": "debug"   },
-    { "name": "mac-arm64-release", "inherits": "release" }
+    { "name": "win-x64-debug",     "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug"} },
+    { "name": "win-x64-release",   "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release"}  },
+    { "name": "mac-arm64-debug",   "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug"}   },
+    { "name": "mac-arm64-release", "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release"}  }
   ],
   "buildPresets": [
-    { "name": "win-x64-debug",     "configurePreset": "win-x64-debug",     "targets": "install" },
-    { "name": "win-x64-release",   "configurePreset": "win-x64-release",   "targets": "install" },
-    { "name": "mac-arm64-debug",   "configurePreset": "mac-arm64-debug",   "targets": "install" },
-    { "name": "mac-arm64-release", "configurePreset": "mac-arm64-release", "targets": "install" }
+    { "name": "win-x64-debug",     "configurePreset": "win-x64-debug"},
+    { "name": "win-x64-release",   "configurePreset": "win-x64-release"},
+    { "name": "mac-arm64-debug",   "configurePreset": "mac-arm64-debug" },
+    { "name": "mac-arm64-release", "configurePreset": "mac-arm64-release" }
   ]
 }
 

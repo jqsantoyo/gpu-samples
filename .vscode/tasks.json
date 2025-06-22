@@ -1,0 +1,11 @@
+{
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Clean",
+            "command": "rm -rf .build/",
+            "group": "build",
+            "problemMatcher": [],
+        }
+    ]
+}

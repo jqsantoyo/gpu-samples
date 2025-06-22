@@ -1,15 +1,15 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// Triangle Direct3D
+// First-D3D
 //
-// Sample that draws a triangle based on Microsoft's Hello Triangle, but simplified and flattened.
+// Draws a triangle based on Microsoft's Hello Triangle, but simplified and flattened.
 //
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 #define UNICODE
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <d3dx12/d3dx12.h>
+#include <d3dx12.h>
 #include <d3d12.h>
 #include <d3dcommon.h>
 #include <d3dcompiler.h>
@@ -20,6 +20,7 @@
 #include <shellapi.h>
 #include <string>
 #include <stdio.h>
+
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -51,11 +52,9 @@ struct Renderer {
     D3D12_VERTEX_BUFFER_VIEW            vbView;
 };
 
-inline void WINRES(HRESULT hr) {
-    if (FAILED(hr)) {
-        throw std::exception();
-    }
-}
+
+#define GUARD(x) if (!x) { return 1; }
+#define WINGUARD(hr) if (FAILED(hr)) { return 1; }
 
 std::wstring GetAssetsPath() {
     wchar_t exePath[MAX_PATH];
@@ -66,15 +65,22 @@ std::wstring GetAssetsPath() {
     return assetPath;
 }
 
-void waitForPreviousFrame(Renderer& r) {
+int waitForPreviousFrame(Renderer& r) {
     const UINT64 fence = r.fenceValue;
-    WINRES(r.commandQueue->Signal(r.fence.Get(), fence));
+    HRESULT res = r.commandQueue->Signal(r.fence.Get(), fence);
+    if (FAILED(res)) {
+        return 0;
+    }
     r.fenceValue++;
     if (r.fence->GetCompletedValue() < fence) {
-        WINRES(r.fence->SetEventOnCompletion(fence, r.fenceEvent));
+        HRESULT res = r.fence->SetEventOnCompletion(fence, r.fenceEvent);
+        if (FAILED(res)) {
+            return 0;
+        }
         WaitForSingleObject(r.fenceEvent, INFINITE);
     }
     r.frameIdx = r.swapChain->GetCurrentBackBufferIndex();
+    return 1;
 }
 
 LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -105,6 +111,7 @@ void GetHardwareAdapter(IDXGIFactory1* factory, IDXGIAdapter1** ppAdapter) {
 
 //int WINAPI WinMain(HINSTANCE instance, HINSTANCE, LPSTR, int nCmdShow) {
 int main() {
+    printf("Sample: first-d3d\n");
     int screenWidth = 512;
     int screenHeight = 512;
     float screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
@@ -117,7 +124,7 @@ int main() {
     windowClass.hInstance       = instance;
     windowClass.hCursor         = LoadCursor(NULL, IDC_ARROW);
     windowClass.lpszClassName   = L"DXSampleClass";;
-    WINRES(RegisterClassEx(&windowClass));
+    WINGUARD(RegisterClassEx(&windowClass));
 
     RECT windowRect = { 0, 0, screenWidth, screenHeight };
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
@@ -150,14 +157,14 @@ int main() {
 
     ComPtr<IDXGIFactory4> factory;
     ComPtr<IDXGIAdapter1> hwAdapter;
-    WINRES(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
+    WINGUARD(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
     GetHardwareAdapter(factory.Get(), &hwAdapter);
-    WINRES(D3D12CreateDevice(hwAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&r.device)));
+    WINGUARD(D3D12CreateDevice(hwAdapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&r.device)));
 
     D3D12_COMMAND_QUEUE_DESC queueDesc = {};
     queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
     queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-    WINRES(r.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&r.commandQueue)));
+    WINGUARD(r.device->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&r.commandQueue)));
 
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
     swapChainDesc.BufferCount = frameCount;
@@ -170,10 +177,10 @@ int main() {
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFSDesc = {};
     swapChainFSDesc.Windowed = TRUE;
     ComPtr<IDXGISwapChain1> swapChain;
-    WINRES(factory->CreateSwapChainForHwnd(r.commandQueue.Get(), windowHandle, &swapChainDesc, nullptr, nullptr, &swapChain));
+    WINGUARD(factory->CreateSwapChainForHwnd(r.commandQueue.Get(), windowHandle, &swapChainDesc, nullptr, nullptr, &swapChain));
 
-    WINRES(swapChain.As(&r.swapChain));
-    WINRES(factory->MakeWindowAssociation(windowHandle, DXGI_MWA_NO_ALT_ENTER));
+    WINGUARD(swapChain.As(&r.swapChain));
+    WINGUARD(factory->MakeWindowAssociation(windowHandle, DXGI_MWA_NO_ALT_ENTER));
     r.frameIdx = r.swapChain->GetCurrentBackBufferIndex();
  
 
@@ -181,33 +188,32 @@ int main() {
     rtvHeapDesc.NumDescriptors = frameCount;
     rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
     rtvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-    WINRES(r.device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&r.rtvHeap)));
+    WINGUARD(r.device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&r.rtvHeap)));
     r.rtvDescriptorSize = r.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
     CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(r.rtvHeap->GetCPUDescriptorHandleForHeapStart());
     for (UINT n = 0; n < frameCount; n++) {
-        WINRES(r.swapChain->GetBuffer(n, IID_PPV_ARGS(&r.renderTargets[n])));
+        WINGUARD(r.swapChain->GetBuffer(n, IID_PPV_ARGS(&r.renderTargets[n])));
         r.device->CreateRenderTargetView(r.renderTargets[n].Get(), nullptr, rtvHandle);
         rtvHandle.Offset(1, r.rtvDescriptorSize);
     }
 
-    WINRES(r.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&r.commandAllocator)));
 
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     ComPtr<ID3DBlob> signature;
     ComPtr<ID3DBlob> error;
-    WINRES(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
-    WINRES(r.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&r.rootSignature)));
+    WINGUARD(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+    WINGUARD(r.device->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&r.rootSignature)));
     
 
     std::wstring assetsPath = GetAssetsPath();
-    std::wstring shaderName = assetsPath + L"triangle-d3d/shaders.hlsl";
+    std::wstring shaderName = assetsPath + L"shaders.hlsl";
     UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
     ComPtr<ID3DBlob> vertexShader;
     ComPtr<ID3DBlob> pixelShader;
-    WINRES(D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
-    WINRES(D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
+    WINGUARD(D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vertexShader, nullptr));
+    WINGUARD(D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pixelShader, nullptr));
 
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -227,12 +233,13 @@ int main() {
     psoDesc.NumRenderTargets = 1;
     psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
     psoDesc.SampleDesc.Count = 1;
-    WINRES(r.device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&r.pipelineState)));
+    WINGUARD(r.device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&r.pipelineState)));
 
-    WINRES(r.device->CreateCommandList(
+    WINGUARD(r.device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&r.commandAllocator)));
+    WINGUARD(r.device->CreateCommandList(
         0, D3D12_COMMAND_LIST_TYPE_DIRECT, r.commandAllocator.Get(),
         r.pipelineState.Get(), IID_PPV_ARGS(&r.commandList)));
-    WINRES(r.commandList.Get()->Close()); // By default in recording state, so close now.
+    WINGUARD(r.commandList.Get()->Close()); // By default in recording state, so close now.
 
 
     // Using upload heaps for now, but not recommended.
@@ -244,7 +251,7 @@ int main() {
     const UINT vertexBufferSize = sizeof(triangleVertices);
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
     auto desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-    WINRES(r.device->CreateCommittedResource(
+    WINGUARD(r.device->CreateCommittedResource(
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &desc,
@@ -254,7 +261,7 @@ int main() {
     );
     UINT8* vertexDataBegin;
     CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-    WINRES(r.vb->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
+    WINGUARD(r.vb->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
     memcpy(vertexDataBegin, triangleVertices, sizeof(triangleVertices));
     r.vb->Unmap(0, nullptr);
     r.vbView.BufferLocation = r.vb->GetGPUVirtualAddress();
@@ -263,13 +270,13 @@ int main() {
 
 
     // Wait for assets to upload to the GPU.
-    WINRES(r.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&r.fence)));
+    WINGUARD(r.device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&r.fence)));
     r.fenceValue = 1;
     r.fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
     if (r.fenceEvent == nullptr) {
-        WINRES(HRESULT_FROM_WIN32(GetLastError()));
+        WINGUARD(HRESULT_FROM_WIN32(GetLastError()));
     }
-    waitForPreviousFrame(r);
+    GUARD(waitForPreviousFrame(r));
 
     ShowWindow(windowHandle, true ? SW_NORMAL : SW_MAXIMIZE);
     MSG msg = {};
@@ -281,8 +288,8 @@ int main() {
         auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(r.renderTargets[r.frameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(r.rtvHeap->GetCPUDescriptorHandleForHeapStart(), r.frameIdx, r.rtvDescriptorSize);
         const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
-        WINRES(r.commandAllocator->Reset());
-        WINRES(r.commandList->Reset(r.commandAllocator.Get(), r.pipelineState.Get()));
+        WINGUARD(r.commandAllocator->Reset());
+        WINGUARD(r.commandList->Reset(r.commandAllocator.Get(), r.pipelineState.Get()));
         r.commandList->SetGraphicsRootSignature(r.rootSignature.Get());
         r.commandList->RSSetViewports(1, &r.viewport);
         r.commandList->RSSetScissorRects(1, &r.scissorRect);
@@ -294,19 +301,17 @@ int main() {
         r.commandList->DrawInstanced(3, 1, 0, 0);
         barrier = CD3DX12_RESOURCE_BARRIER::Transition(r.renderTargets[r.frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         r.commandList->ResourceBarrier(1, &barrier); // Use back buffer to present.
-        WINRES(r.commandList->Close());
+        WINGUARD(r.commandList->Close());
         ID3D12CommandList* cmdLists[] = { r.commandList.Get() };
         r.commandQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-        WINRES(r.swapChain->Present(1, 0));
-        waitForPreviousFrame(r);
+        WINGUARD(r.swapChain->Present(1, 0));
+        GUARD(waitForPreviousFrame(r));
     }
-    waitForPreviousFrame(r);
+    GUARD(waitForPreviousFrame(r));
     CloseHandle(r.fenceEvent);
     DestroyWindow(windowHandle);
     return 1;
 }
-
-
 
 
 
