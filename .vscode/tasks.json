@@ -7,5 +7,12 @@
             "group": "build",
             "problemMatcher": [],
         }
+        {
+            "type": "shell",
+            "label": "Format",
+            "command": "clang-format -i ${file}",
+            "group": "build",
+            "problemMatcher": [],
+        }
     ]
 }
