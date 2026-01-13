@@ -29,7 +29,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
 
 int main(int argc, char** argv) {
 
-    gpu::AppPtr app = gpu::createApp();
+    std::unique_ptr<gpu::IApp> app = gpu::createApp();
     int screenWidth = 512;
     int screenHeight = 512;
     float screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     AdjustWindowRect(&windowRect, WS_OVERLAPPEDWINDOW, FALSE);
     HWND windowHandle = CreateWindow(
         windowClass.lpszClassName,
-        L"Triangle",
+        L"Sample",
         WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT,
         CW_USEDEFAULT,

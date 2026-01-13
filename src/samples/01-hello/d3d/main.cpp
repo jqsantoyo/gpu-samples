@@ -1,6 +1,6 @@
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 //
-// First-D3D
+// Hello-D3D
 //
 // Draws a triangle based on Microsoft's Hello Triangle, but simplified and flattened.
 //
@@ -18,10 +18,8 @@
 #include <stdio.h>
 #include <windows.h>
 #include <wrl.h>
-
 #define GUARD(x)    if (!x)         {  std::cerr << "Error: "#x  << std::endl; exit(EXIT_FAILURE); }
 #define GUARDHR(hr) if (FAILED(hr)) {  std::cerr << "Error: "#hr << std::endl; exit(EXIT_FAILURE); }
-
 using namespace DirectX;
 using namespace Microsoft::WRL;
 

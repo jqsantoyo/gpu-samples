@@ -1,4 +1,4 @@
-#include "renderer.h"
+#include "../renderer.h"
 
 namespace gpu {
 
@@ -21,7 +21,7 @@ public:
 
 };
 
-RendererPtr createRendererVk() {
+std::unique_ptr<IRenderer> createRenderer() {
     return std::make_unique<RendererVk>();
 }
 }

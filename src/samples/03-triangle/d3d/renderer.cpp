@@ -1,4 +1,4 @@
-#include "renderer.h"
+#include "../renderer.h"
 #define UNICODE
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -259,7 +259,7 @@ public:
 
 };
 
-RendererPtr createRenderer() {
+std::unique_ptr<IRenderer> createRenderer() {
     return std::make_unique<RendererD3D>();
 }
 }

@@ -1,60 +1,48 @@
 # GPU Samples
 
-GPU samples using Direct3D, Vulkan, Metal.
+GPU samples using Direct3D, Vulkan, & Metal.
 
-| Sample |      |
-|--------|------|
-| first  |      |
-| hello  |      |
+Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan executables for MacOS; the Vulkan builds identified by the `-vk` suffix.
+
+The first 2 samples contain very minimum and flat code, whereas the rest have a more structured architecture and leverage the library `app` for easier program setup.
+
+| Samples           |
+|-------------------|
+| 01-hello          |
+| 02-hello-compute  |
 
 
-### Build and Run
 
-To build enter:
+## Build and Run
+
+Use cmake to build the project. 4 presets are provided:
+* `win-x64-debug`
+* `win-x64-release`
+* `mac-arm64-debug`
+* `mac-arm64-release`
+
+In `vscode` select the preset and build with `F7`, then select a launch configuration in `Run and Debug` and press `F5`.
+
+Or enter in the command line:
 ```
 # On windows
 cmake --preset=win-x64-debug
-cmake --preset=win-x64-release
 cmake --build --preset=win-x64-debug
-cmake --build --preset=win-x64-release
+.build/win-x64-debug/src/samples/01-hello/01-hello.exe        // Direct3D build
+.build/win-x64-debug/src/samples/01-hello/01-hello-vk.exe     // Vulkan build
 
 # On mac
 cmake --preset=mac-arm64-debug
-cmake --preset=mac-arm64-release
 cmake --build --preset=mac-arm64-debug
-cmake --build --preset=mac-arm64-release
+.build/mac-arm64-debug/src/samples/01-hello/01-hello          // Metal build
+.build/mac-arm64-debug/src/samples/01-hello/01-hello-vk       // Vulkan build
 ```
 
-Or go into VScode or Visual Studio and build with their cmake support out of the box.
 
 
-The first sample has separate builds for Direct3D, Vulkan and Metal. So to run enter:
-```
-# On windows
-.build/win-x64-debug/src/samples/hello/hello.exe      // Direct3D build
-.build/win-x64-debug/src/samples/hello/hello-vk.exe   // Vulkan build
 
-# On mac
-.build/mac-arm64-debug/src/samples/hello/hello          // Metal build
-.build/mac-arm64-debug/src/samples/hello/hello-vk       // Vulkan build
-```
-
-The rest of samples select between Direct3D/Vulkan and Metal/Vulkan at runtime via a command line argument. So to run enter:
-```
-# On windows
-.build/win-x64-debug/src/samples/triangle/triangle.exe      // selects Direct3D
-.build/win-x64-debug/src/samples/triangle/triangle.exe -vk  // selects Vulkan
-
-# On mac
-.build/mac-arm64-debug/src/samples/triangle/triangle          // selects Metal
-.build/mac-arm64-debug/src/samples/triangle/triangle -vk      // selects Vulkan
-```
-
-You can also run the samples directly from vscode, by selecting a launch configuration in `Run and Debug` and pressing `F5`.
-
-
-### FAQ
+## Notes
 
 ```
-powershell measure-command { cmake --preset=win-x64-debug --fresh; cmake --build --preset=win-x64-debug --clean-first }
+measure-command { cmake --preset=win-x64-debug --fresh; cmake --build --preset=win-x64-debug --clean-first }
 ```

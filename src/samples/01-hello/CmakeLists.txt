@@ -1,6 +1,6 @@
 
 
-addTarget(hello
+addTarget(01-hello
 TYPE
     EXE
 SOURCES_WIN
@@ -18,7 +18,7 @@ LIBRARIES
     d3dcompiler
 )
 
-addTarget(hello-vk
+addTarget(01-hello-vk
 TYPE
     EXE
 SOURCES

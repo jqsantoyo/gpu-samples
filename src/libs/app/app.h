@@ -21,8 +21,6 @@ public:
     virtual void stop() = 0;
 };
 
-using AppPtr = std::unique_ptr<IApp>;
-
-AppPtr createApp(); ///< Defined in application-code
+std::unique_ptr<IApp> createApp(); ///< Defined in application-code
 
 }

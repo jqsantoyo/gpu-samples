@@ -1,15 +1,15 @@
 #include "app/app.h"
-#include "renderer/renderer.h"
+#include "renderer.h"
 #include "string.h"
 
 namespace gpu {
 
 class App: public IApp {
 public:
-    RendererPtr renderer;
+    std::unique_ptr<IRenderer> renderer;
 
     int start(int argc, char** argv, void* window, int w, int h) {
-        renderer = (argc == 2 && strcmp(argv[1], "-vk") == 0) ? createRendererVk() : createRenderer();
+        renderer = createRenderer();
         return renderer->start(window, w, h);
     }
 
@@ -30,7 +30,7 @@ public:
     }
 };
 
-AppPtr createApp() {
+std::unique_ptr<IApp> createApp() {
     return std::make_unique<App>();
 }
 

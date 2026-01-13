@@ -11,10 +11,7 @@ public:
     virtual void stop() = 0;
 };
 
-using RendererPtr = std::unique_ptr<IRenderer>;
-
-RendererPtr createRenderer();
-RendererPtr createRendererVk();
+std::unique_ptr<IRenderer> createRenderer();
 
 
 }

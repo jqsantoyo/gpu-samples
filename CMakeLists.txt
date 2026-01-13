@@ -8,5 +8,8 @@ include(modules/d3d12)
 include(modules/vulkan)
 add_subdirectory(src/libs/d3dx12)
 add_subdirectory(src/libs/app)
-add_subdirectory(src/samples/hello)
-add_subdirectory(src/samples/triangle)
+add_subdirectory(src/samples/01-hello)
+add_subdirectory(src/samples/02-hello-compute)
+add_subdirectory(src/samples/03-triangle)
+
+
