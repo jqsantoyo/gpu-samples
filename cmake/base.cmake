@@ -1,66 +1,167 @@
 
 # Prints a list.
-function(printList name list)
-    message(STATUS "${name}:")
-    foreach(item IN LISTS ${list})
+function(printList)
+    foreach(item IN LISTS ${ARGN})
         message(STATUS "  ${item}")
     endforeach()
 endfunction()
 
 
-# Adds a library or executable target.
-function(addTarget targetName)
-    set(options)
-    set(oneArgs TYPE)
-    set(multiArgs HEADERS SOURCES LIBRARIES)
-    list(APPEND multiArgs SOURCES_WIN SOURCES_MAC)
-    list(APPEND multiArgs LIBRARIES_WIN    LIBRARIES_MAC)
-    list(APPEND multiArgs FRAMEWORKS_MAC)
-    list(APPEND multiArgs SHADERS_VK SHADERS_D3D SHADERS_MTL)
+
+# Adds an interface library target.
+# Early exits when platform options (WIN/MAC) are provided and do not match the platform.
+function(addImported targetName)
+    set(options WIN MAC)
+    set(oneArgs INC_DIR LIB)
+    set(multiArgs)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
+    if((arg_WIN OR arg_MAC) AND
+       (CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR
+       (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+       return()
+    endif()
+
     message(STATUS "----------------------------------------")
-    message(STATUS "${arg_TYPE}: ${targetName} processor:${CMAKE_SYSTEM_PROCESSOR} system:${CMAKE_SYSTEM_NAME}")
-    printList("HEADERS"         arg_HEADERS)
-    printList("SOURCES"         arg_SOURCES)
-    printList("SOURCES WIN"     arg_SOURCES_WIN)
-    printList("SOURCES MAC"     arg_SOURCES_MAC)
-    printList("SHADERS_D3D"     arg_SHADERS_D3D)
-    printList("SHADERS_VK"      arg_SHADERS_VK)
-    printList("SHADERS_MTL"     arg_SHADERS_MTL)
-    printList("LIBRARIES"       arg_LIBRARIES)
-    printList("LIBRARIES WIN"   arg_LIBRARIES_WIN)
-    printList("LIBRARIES MAC"   arg_LIBRARIES_MAC)
-    printList("FRAMEWORKS MAC"  arg_FRAMEWORKS_MAC)
-    list(TRANSFORM arg_FRAMEWORKS_MAC  PREPEND "-framework ")
+    message(STATUS "Library (Imported): ${targetName}")
+    message(STATUS "  Include Dir: ${arg_INC_DIR}")
+    message(STATUS "  Lib:         ${arg_LIB}")
+    add_library             (${targetName} STATIC IMPORTED)
+    set_target_properties   (${targetName} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES ${arg_INC_DIR}
+        IMPORTED_LOCATION             ${arg_LIB}
+    )
+endfunction()
 
-    if (${arg_TYPE} STREQUAL LIB)
-        add_library(${targetName} STATIC)
-    elseif(${arg_TYPE} STREQUAL EXE)
-        add_executable(${targetName})
-    endif()
-
-    target_compile_features     (${targetName} PRIVATE cxx_std_20)
-    target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src/libs)
-    target_link_libraries       (${targetName} PUBLIC  ${arg_LIBRARIES})
-    target_sources              (${targetName} PUBLIC  ${arg_HEADERS})
-    target_sources              (${targetName} PRIVATE ${arg_SOURCES})
-    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
-        target_sources          (${targetName} PRIVATE ${arg_SOURCES_WIN})
-        target_link_libraries   (${targetName} PUBLIC  ${arg_LIBRARIES_WIN})
-    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
-        target_sources          (${targetName} PRIVATE ${arg_SOURCES_MAC})
-        target_link_libraries   (${targetName} PUBLIC  ${arg_LIBRARIES_MAC})
-        target_link_libraries   (${targetName} PUBLIC  ${arg_FRAMEWORKS_MAC})
-    endif()
+# Adds an imported library target.
+# Early exits when platform options (WIN/MAC) are provided and do not match the platform.
+function(addInterface targetName)
+    set(options WIN MAC)
+    set(oneArgs)
+    set(multiArgs)
+    cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
     
-    file(COPY ${arg_SHADERS_D3D} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    if((arg_WIN OR arg_MAC) AND
+       (CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR
+       (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+       return()
+    endif()
+
+    set(INC_DIR ${CMAKE_SOURCE_DIR}/src/libs/${targetName})
+    message(STATUS "----------------------------------------")
+    message(STATUS "Library (Interface): ${targetName}")
+    message(STATUS "  Include Dir: ${INC_DIR}")
+    add_library             (${targetName} INTERFACE)
+    set_target_properties   (${targetName} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INC_DIR})
+endfunction()
+
+
+# Adds a static library target.
+# No platform switch provided.
+function(addLibrary targetName)
+    set(options)
+    set(oneArgs)
+    set(multiArgs LIBS LIBS_WIN LIBS_MAC FRAMES)
+    cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+    set(dir ${CMAKE_SOURCE_DIR}/src/libs/${targetName})
+    file(GLOB HEADERS CONFIGURE_DEPENDS ${dir}/*.h)
+    file(GLOB SOURCES CONFIGURE_DEPENDS ${dir}/*.cpp)
+    set(LIBS ${arg_LIBS})
+    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+        list(APPEND LIBS ${arg_LIBS_WIN})
+    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        list(TRANSFORM arg_FRAMES  PREPEND "-framework ")
+        list(APPEND LIBS ${arg_LIBS_MAC} ${arg_FRAMES})
+    endif()
+
+    message(STATUS "----------------------------------------")
+    message(STATUS "Library (Static): ${targetName}")
+    printList(HEADERS SOURCES LIBS)
+
+    add_library                 (${targetName} STATIC)
+    target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src/libs)
+    target_sources              (${targetName} PUBLIC  ${HEADERS})
+    target_sources              (${targetName} PRIVATE ${SOURCES})
+    target_link_libraries       (${targetName} PRIVATE ${LIBS})
+    target_compile_features     (${targetName} PRIVATE cxx_std_20)
+    set_target_properties       (${targetName} PROPERTIES
+        LINK_FLAGS "-undefined dynamic_lookup"
+    )
+endfunction()
+
+
+# Adds a sample target (D3D/Vulkan or Metal/Vulkan)
+# No platform switch provided.
+function(addSample targetName)
+    set(options)
+    set(oneArgs)
+    set(multiArgs LIBS LIBS_WIN LIBS_MAC FRAMES)
+    cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+    set(dir ${CMAKE_SOURCE_DIR}/src/samples/${targetName})
+    file(GLOB HEADERS CONFIGURE_DEPENDS ${dir}/*.h)
+    file(GLOB SOURCES_VK CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/vk/*.cpp)
+    file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/vk/*.vert ${dir}/vk/*.frag)
+    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+        file(GLOB SOURCES CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/d3d/*.cpp)
+        file(GLOB SHADERS CONFIGURE_DEPENDS ${dir}/d3d/*.hlsl)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        file(GLOB SOURCES CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/mtl/*.cpp)
+        file(GLOB SHADERS CONFIGURE_DEPENDS ${dir}/mtl/*.mtl)
+    endif()
+    set(LIBS ${arg_LIBS})
+    set(LIBS_VK ${arg_LIBS})
+    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+        list(APPEND LIBS ${arg_LIBS_WIN} d3d12 d3dx12 dxgi d3dcompiler)
+        list(APPEND LIBS_VK ${arg_LIBS_WIN} vulkan)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        list(TRANSFORM arg_FRAMES  PREPEND "-framework ")
+        list(APPEND LIBS ${arg_LIBS_MAC} ${arg_FRAMES})
+        list(APPEND LIBS_VK ${arg_LIBS_MAC} ${arg_FRAMES} vulkan)
+    endif()
+
+    message(STATUS "--------------------------------------------------------------------------------")
+    message(STATUS "Sample: ${targetName}")
+    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+        message(STATUS "DIRECT3D")
+    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        message(STATUS "METAL")
+    endif()
+    printList(HEADERS SOURCES SHADERS LIBS)
+    message(STATUS "VULKAN")
+    printList(HEADERS SOURCES_VK SHADERS_VK LIBS_VK)
+
+
+    add_executable(${targetName})
+    target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs)
+    target_sources              (${targetName} PRIVATE ${HEADERS})
+    target_sources              (${targetName} PRIVATE ${SOURCES})
+    target_link_libraries       (${targetName} PRIVATE ${LIBS})
+    target_compile_features     (${targetName} PRIVATE cxx_std_20)
+    file(COPY ${SHADERS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+    # install(FILES ${shadersSpv}      DESTINATION bin/${targetName})
+    # install(FILES ${arg_SHADERS_D3D} DESTINATION bin/${targetName})
+    # install(
+    #     TARGETS ${targetName}
+    #     EXPORT ${targetName}Targets
+    #     PUBLIC_HEADER DESTINATION include
+    #     LIBRARY DESTINATION lib
+    # )
+
+    set(targetNameVk ${targetName}-vk)
+    add_executable(${targetNameVk})
+    target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs)
+    target_sources              (${targetNameVk} PRIVATE ${HEADERS_VK})
+    target_sources              (${targetNameVk} PRIVATE ${SOURCES_VK})
+    target_link_libraries       (${targetNameVk} PRIVATE ${LIBS_VK})
+    target_compile_features     (${targetNameVk} PRIVATE cxx_std_20)
     set(shadersSpv ${arg_SHADERS_VK})
     list(TRANSFORM shadersSpv PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
     list(TRANSFORM shadersSpv APPEND .spv)
     foreach(shader shaderSpv IN ZIP_LISTS arg_SHADERS_VK shadersSpv)
         add_custom_command(
-            TARGET ${targetName} PRE_BUILD
+            TARGET ${targetNameVk} PRE_BUILD
             COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/${shader} -o ${shader}.spv
             # DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
             BYPRODUCTS ${shaderSpv}
@@ -68,9 +169,6 @@ function(addTarget targetName)
             VERBATIM
         )
     endforeach()
-    set_target_properties(${targetName} PROPERTIES
-        LINK_FLAGS "-undefined dynamic_lookup"
-    )
     # install(FILES ${shadersSpv}      DESTINATION bin/${targetName})
     # install(FILES ${arg_SHADERS_D3D} DESTINATION bin/${targetName})
     # install(
