@@ -23,12 +23,68 @@ using namespace Microsoft::WRL;
 
 namespace gpu {
 
-const int frameCount = 2;
 
 struct Vertex {
     XMFLOAT3 position;
     XMFLOAT4 color;
 };
+
+
+class Mesh {
+public:
+    Mesh() {};
+
+    bool set(ID3D12Device* device, const std::vector<Vertex>& vertices, const std::vector<uint16_t> indices) {
+        HRESULT res;
+
+        const UINT vertexBufferSize = sizeof(Vertex) * vertices.size();
+        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+        auto desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+        res = device->CreateCommittedResource(
+            &heapProps,
+            D3D12_HEAP_FLAG_NONE,
+            &desc,
+            D3D12_RESOURCE_STATE_GENERIC_READ,
+            nullptr,
+            IID_PPV_ARGS(&vertexBufferUpload)
+        );
+        if (FAILED(res)) {
+            return false;
+        }
+
+        
+        UINT8* vertexDataBegin;
+        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+        res = vertexBufferUpload->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin));
+        if (FAILED(res)) {
+            return false;
+        }
+        memcpy(vertexDataBegin, vertices.data(), vertexBufferSize);
+        vertexBufferUpload->Unmap(0, nullptr);
+        vertexBufferView = {
+            .BufferLocation = vertexBufferUpload->GetGPUVirtualAddress(),
+            .SizeInBytes = vertexBufferSize,
+            .StrideInBytes = sizeof(Vertex),
+        };
+        return true;
+    }
+
+    D3D12_VERTEX_BUFFER_VIEW getView() {
+        return vertexBufferView;
+    }
+
+
+private:
+    ComPtr<ID3D12Resource> vertexBuffer;
+    ComPtr<ID3D12Resource> indexBuffer;
+    ComPtr<ID3D12Resource> vertexBufferUpload;
+    ComPtr<ID3D12Resource> indexBufferUpload;
+    D3D12_VERTEX_BUFFER_VIEW vertexBufferView;
+    D3D12_VERTEX_BUFFER_VIEW indexBufferView;
+};
+
+const int frameCount = 2;
+
 
 std::wstring GetAssetsPath() {
     wchar_t exePath[MAX_PATH];
@@ -73,8 +129,7 @@ public:
     HANDLE                              fenceEvent;
     ComPtr<ID3D12Fence>                 fence;
     UINT64                              fenceValue;
-    ComPtr<ID3D12Resource>              vb;
-    D3D12_VERTEX_BUFFER_VIEW            vbView;
+    Mesh                                mesh;
 
 
     int start(void* window, int screenWidth, int screenHeight) {
@@ -178,31 +233,13 @@ public:
 
 
         // Using upload heaps for now, but not recommended.
-        Vertex triangleVertices[] = {
+        std::vector<Vertex> triangleVertices = {
             { { 0.0f, 0.25f * screenAR, 0.0f }, { 1.0f, 0.0f, 0.0f, 1.0f } },
             { { 0.25f, -0.25f * screenAR, 0.0f }, { 0.0f, 1.0f, 0.0f, 1.0f } },
             { { -0.25f, -0.25f * screenAR, 0.0f }, { 0.0f, 0.0f, 1.0f, 1.0f } }
         };
-        const UINT vertexBufferSize = sizeof(triangleVertices);
-        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-        auto desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-        WINGUARD(device->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&vb))
-        );
-        UINT8* vertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-        WINGUARD(vb->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
-        memcpy(vertexDataBegin, triangleVertices, sizeof(triangleVertices));
-        vb->Unmap(0, nullptr);
-        vbView.BufferLocation = vb->GetGPUVirtualAddress();
-        vbView.StrideInBytes = sizeof(Vertex);
-        vbView.SizeInBytes = vertexBufferSize;
 
+        mesh.set(device.Get(), triangleVertices, {});
 
         // Wait for assets to upload to the GPU.
         WINGUARD(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
@@ -216,6 +253,7 @@ public:
     }
 
     int update() {
+        auto view = mesh.getView();
         auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIdx, rtvDescriptorSize);
         const float clearColor[] = { 0.0f, 0.2f, 0.4f, 1.0f };
@@ -228,7 +266,7 @@ public:
         commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
         commandList->ClearRenderTargetView(rtvHandle, clearColor, 0, nullptr);
         commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        commandList->IASetVertexBuffers(0, 1, &vbView);
+        commandList->IASetVertexBuffers(0, 1, &view);
         commandList->DrawInstanced(3, 1, 0, 0);
         barrier = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         commandList->ResourceBarrier(1, &barrier); // Use back buffer to present.

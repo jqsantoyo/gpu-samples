@@ -30,5 +30,5 @@ addInterface(d3dx12 WIN)
 addLibrary  (app)
 addSample   (01-hello)
 addSample   (02-hello-compute)
-addSample   (03-triangle)
+addSample   (03-triangle LIBS app)
 
