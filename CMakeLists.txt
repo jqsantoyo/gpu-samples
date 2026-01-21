@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.29)
 project(gpuSamples)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+include(FetchContent)
 include(base)
 
 message(STATUS "----------------------------------------")
@@ -26,9 +27,14 @@ addImported(d3dcompiler WIN
     INC_DIR $ENV{WindowsSdkDir}/Include/$ENV{WindowsSdkVersion}/shared
     LIB     $ENV{WindowsSdkDir}/Lib/$ENV{WindowsSdkVersion}/um/x64/d3dcompiler.lib
 )
-addInterface(d3dx12 WIN)
-addLibrary  (app)
-addSample   (01-hello)
-addSample   (02-hello-compute)
-addSample   (03-triangle LIBS app)
+addExternal(tinygltf URL https://github.com/syoyo/tinygltf.git TAG v2.9.7)
 
+addInterface(d3dx12 WIN)
+addLibrary(utils)
+addInterface(renderer WIN)
+addLibrary(scene LIBS renderer)
+addLibrary(assets LIBS tinygltf utils renderer scene)
+addLibrary(app)
+
+addSample(01-hello LIBS app utils renderer)
+addSample(02-color LIBS app utils renderer assets scene)

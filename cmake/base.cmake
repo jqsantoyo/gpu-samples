@@ -55,6 +55,25 @@ function(addInterface targetName)
     set_target_properties   (${targetName} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${INC_DIR})
 endfunction()
 
+# Adds an interface library from an external source, using FetchContent
+function(addExternal targetName)
+    set(options)
+    set(oneArgs URL TAG)
+    set(multiArgs)
+    cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+    message(STATUS "----------------------------------------")
+    message(STATUS "Library (External): ${targetName}")
+    message(STATUS "  URL: ${arg_URL}")
+    message(STATUS "  Tag: ${arg_TAG}")
+
+    FetchContent_Declare(
+        ${targetName}
+        GIT_REPOSITORY ${arg_URL}
+        GIT_TAG ${arg_TAG}
+    )
+    FetchContent_MakeAvailable(${targetName})
+endfunction()
 
 # Adds a static library target.
 # No platform switch provided.
@@ -80,7 +99,7 @@ function(addLibrary targetName)
     printList(HEADERS SOURCES LIBS)
 
     add_library                 (${targetName} STATIC)
-    target_include_directories  (${targetName} PUBLIC  ${CMAKE_SOURCE_DIR}/src/libs)
+    target_include_directories  (${targetName} PUBLIC  ${dir}/..)
     target_sources              (${targetName} PUBLIC  ${HEADERS})
     target_sources              (${targetName} PRIVATE ${SOURCES})
     target_link_libraries       (${targetName} PRIVATE ${LIBS})
@@ -134,12 +153,31 @@ function(addSample targetName)
 
 
     add_executable(${targetName})
-    target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs)
+    target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs ${dir})
     target_sources              (${targetName} PRIVATE ${HEADERS})
     target_sources              (${targetName} PRIVATE ${SOURCES})
     target_link_libraries       (${targetName} PRIVATE ${LIBS})
     target_compile_features     (${targetName} PRIVATE cxx_std_20)
-    file(COPY ${SHADERS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+    set(shaderDir ${CMAKE_CURRENT_BINARY_DIR}/${targetName}-shaders)
+    set(outShaders)
+    foreach(inShader IN LISTS SHADERS)
+        cmake_path(GET inShader FILENAME shaderName)
+        set(outShader ${shaderDir}/${shaderName})
+        # message(STATUS "${targetName}: copy ${inShader} -> ${outShader}")
+        add_custom_command(
+            OUTPUT ${outShader}
+            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: copy: ${inShader} -> ${outShader}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDir}
+            COMMAND ${CMAKE_COMMAND} -E copy ${inShader} ${outShader}
+            DEPENDS ${inShader}
+        )
+        list(APPEND outShaders ${outShader})
+    endforeach()
+    add_custom_target(${targetName}-assets DEPENDS ${outShaders})
+    add_dependencies(${targetName} ${targetName}-assets)
+
+
     # install(FILES ${shadersSpv}      DESTINATION bin/${targetName})
     # install(FILES ${arg_SHADERS_D3D} DESTINATION bin/${targetName})
     # install(

@@ -1,7 +1,13 @@
+cbuffer ObjectData : register(b0)
+{
+    float4x4 mvp;
+    float4 v;
+};
+
 struct VSInput
 {
     float3 position : POSITION;
-    float4 color : COLOR;
+    float3 color : COLOR;
 };
 
 struct PSInput
@@ -13,8 +19,8 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput output;
-    output.position = float4(input.position, 1);
-    output.color = input.color;
+    output.position = mul(mvp, float4(input.position, 1));
+    output.color = float4(input.color, 1);
     return output;
 }
 

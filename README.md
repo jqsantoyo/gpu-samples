@@ -2,14 +2,15 @@
 
 GPU samples using Direct3D, Vulkan, & Metal.
 
-Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan executables for MacOS; the Vulkan builds identified by the `-vk` suffix.
+Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan executables for MacOS; the Vulkan builds have a `-vk` suffix.
 
-The first 2 samples contain very minimum and flat code, whereas the rest have a more structured architecture and leverage the library `app` for easier program setup.
+The samples leverage the library `app` for easier program setup.
 
-| Samples           |
-|-------------------|
-| 01-hello          |
-| 02-hello-compute  |
+| Sample         | Camera Control  | Shading                  |  |
+|----------------|-----------------|--------------------------|--|
+| **01-hello**   |                 |                          |
+| **02-color**   | ✓               | vertex color             |
+| **03-diffuse** | ✓               | diffuse + light + shadow |
 
 
 

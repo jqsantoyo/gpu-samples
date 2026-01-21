@@ -1,5 +1,5 @@
 #include "app/app.h"
-#include "renderer.h"
+#include "renderer/renderer.h"
 #include "string.h"
 
 namespace gpu {
@@ -10,11 +10,12 @@ public:
 
     int start(int argc, char** argv, void* window, int w, int h) {
         renderer = createRenderer();
-        return renderer->start(window, w, h);
+        renderer->start(window, w, h);
+        return true;
     }
 
     int update() {
-        return renderer->update();
+        return renderer->render({.1, .1, .1, 1}, {});
     }
 
     int mouseEvent(MouseEvent event) {
