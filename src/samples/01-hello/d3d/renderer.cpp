@@ -188,6 +188,13 @@ public:
         CloseHandle(fenceEvent);
     }
 
+    void setView(ViewDesc& desc) {
+    }
+    
+    void setProjection(ProjectionDesc& desc) {
+
+    }
+
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
         ComPtr<ID3D12Resource> target = renderTargets[frameIdx];
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);

@@ -1,6 +1,7 @@
 #include <app/app.h>
 #include <renderer/renderer.h>
 #include <assets/assets.h>
+#include <camera/camera.h>
 #include <string>
 
 namespace gpu {
@@ -10,11 +11,7 @@ public:
     std::unique_ptr<IRenderer> renderer;
     std::unique_ptr<IScene> scene;
     std::unique_ptr<IAssets> assets;
-    int shape0;
-    int shape1;
-    int shape2;
-    int shape3;
-    int shape4;
+    std::unique_ptr<ICamera> camera;
 
     int start(int argc, char** argv, void* window, int w, int h) {
         renderer = createRenderer();
@@ -23,58 +20,40 @@ public:
 
         scene = createScene();
 
-        
         assets = createAssets();
         assets->setup(renderer.get(), scene.get());
         // assets->load("cube.gltf");
         assets->load("shapes.gltf");
 
-        // shape0 = renderer->addMesh({ // triangle
-        //     { {  0.00f,  0.25f, 0.0f }, { 1.000f, 0.278f, 0.278f, 1.0f } },
-        //     { {  0.25f, -0.25f, 0.0f }, { 1.000f, 0.278f, 0.278f, 1.0f } },
-        //     { { -0.25f, -0.25f, 0.0f }, { 1.000f, 0.278f, 0.278f, 1.0f } },
-        // });
-        // shape1 = renderer->addMesh({ // square
-        //     { { -0.80f, -0.80f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        //     { { -0.40f, -0.40f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        //     { { -0.40f, -0.80f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        //     { { -0.80f, -0.80f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        //     { { -0.80f, -0.40f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        //     { { -0.40f, -0.40f, 0.0f }, { 1.000f, 0.902f, 0.278f, 1.0f } },
-        // });
-        // shape2 = renderer->addMesh({ // rhombus
-        //     { { -0.90f,  0.65f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        //     { { -0.60f,  0.90f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        //     { { -0.60f,  0.40f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        //     { { -0.60f,  0.90f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        //     { { -0.30f,  0.65f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        //     { { -0.60f,  0.40f, 0.0f }, { 0.396f, 0.922f, 0.349f, 1.0f } },
-        // });
-        // shape3 = renderer->addMesh({ // rectangle
-        //     { {  0.30f,  0.50f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        //     { {  0.30f,  0.80f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        //     { {  0.90f,  0.80f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        //     { {  0.30f,  0.50f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        //     { {  0.90f,  0.80f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        //     { {  0.90f,  0.50f, 0.0f }, { 0.349f, 0.894f, 0.922f, 1.0f } },
-        // });
-        // shape4 = renderer->addMesh({ // bow-tie
-        //     { {  0.30f, -0.40f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        //     { {  0.60f, -0.65f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        //     { {  0.30f, -0.90f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        //     { {  0.60f, -0.65f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        //     { {  0.90f, -0.40f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        //     { {  0.90f, -0.90f, 0.0f }, { 0.961f, 0.435f, 0.133f, 1.0f } },
-        // });
+        camera = createCamera();
+
         printf("Completed start\n");
         return true;
     }
 
     int update() {
+        float posX;
+        float posY;
+        float posZ;
+        camera->getCartesian(posX, posY, posZ);
+        ViewDesc viewDesc = {
+            { posX, posY, posZ },
+            { 0, 0, 0 },
+            { 0, 1, 0 },
+        };
+        ProjectionDesc projDesc = {
+            .fovAngleY = 3.14159 / 4.0f,
+            .aspectRatio = (float)512 / (float)512,
+            .nearZ = 0.1f,
+            .farZ = 100.0f,
+        };
+        renderer->setView(viewDesc);
+        renderer->setProjection(projDesc);
         return renderer->render({ 0.1f, 0.1f, 0.1f, 1.0f }, scene->get());
     }
 
     int mouseEvent(MouseEvent event) {
+        camera->mouseEvent(event);
         return 1;
     }
 

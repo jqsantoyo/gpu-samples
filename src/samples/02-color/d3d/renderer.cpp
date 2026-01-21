@@ -84,7 +84,7 @@ public:
         memcpy(data + elementSize * idx, &element, sizeof(T));
     }
 
-    D3D12_CONSTANT_BUFFER_VIEW_DESC getViewDesc(int idx) {
+    D3D12_CONSTANT_BUFFER_VIEW_DESC getBufferViewDesc(int idx) {
         return {
             .BufferLocation = cb->GetGPUVirtualAddress() + idx * elementSize,
             .SizeInBytes = elementSize,
@@ -221,7 +221,7 @@ public:
         };
         GUARDHR(device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
         for (int i = 0; i < 100; i++) {
-            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectCBuffers.getViewDesc(i);
+            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectCBuffers.getBufferViewDesc(i);
             CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, cbvDescSize);
             device->CreateConstantBufferView(&viewDesc, cbvView);
         }
@@ -326,6 +326,19 @@ public:
         CloseHandle(fenceEvent);
     }
 
+    void setView(ViewDesc& desc) {
+        XMVECTOR pos    = XMVectorSet(desc.pos[0],    desc.pos[1],    desc.pos[2],    1.0f);
+        XMVECTOR target = XMVectorSet(desc.target[0], desc.target[1], desc.target[2], 1.0f);
+        XMVECTOR up     = XMVectorSet(desc.up[0],     desc.up[1],     desc.up[2],     1.0f);
+        XMMATRIX view   = XMMatrixLookAtLH(pos, target, up);
+        XMStoreFloat4x4(&viewMat, view);
+    }
+    
+    void setProjection(ProjectionDesc& desc) {
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(desc.fovAngleY, desc.aspectRatio, desc.nearZ, desc.farZ);
+        XMStoreFloat4x4(&projMat, proj);
+    }
+
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -352,32 +365,17 @@ public:
                 {1, 0, 0, 1},
             };
             
-            // static float x = 5.1f;
-            static float t = .1f;
-            t += .0005f;
-
-            float posX = 4 * sin(t) + 8.0f;
-            float posY = -5 * sin(t) + 8.0f;
-            float posZ = -10;
-            XMVECTOR pos = XMVectorSet(posX, posY, posZ, 1.0f);
-            XMVECTOR target = XMVectorZero();
-            XMVECTOR up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-
             XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
             q = XMQuaternionNormalize(q);
             XMMATRIX S = XMMatrixScaling(item.scale[0], item.scale[1], -item.scale[2]);
             XMMATRIX R = XMMatrixRotationQuaternion(q);
             XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
             XMMATRIX model = S * R * T;
-            XMMATRIX view = XMMatrixLookAtLH(pos, target, up);
-            float fovAngleY = XM_PI / 4.0f;
-            float aspectRatio = (float)512 / (float)512;
-            float nearZ = 0.1f;
-            float farZ = 100.0f;
-            XMMATRIX proj = XMMatrixPerspectiveFovLH(fovAngleY, aspectRatio, nearZ, farZ);
             
-            // XMMATRIX mat = XMMatrixIdentity();
+            XMMATRIX view = XMLoadFloat4x4(&viewMat);
+            XMMATRIX proj = XMLoadFloat4x4(&projMat);
             XMMATRIX mat = model * view * proj;
+            // XMMATRIX mat = XMMatrixIdentity();
 
             XMStoreFloat4x4(&objectData.mvp, mat);
             // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
@@ -540,6 +538,8 @@ private:
     std::vector<Buffer>                 buffers;
     std::vector<Mesh>                   meshes;
     CBuffer<ObjectData>                 objectCBuffers;
+    XMFLOAT4X4                          viewMat;
+    XMFLOAT4X4                          projMat;
 };
 
 std::unique_ptr<IRenderer> createRenderer() {

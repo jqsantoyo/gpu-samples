@@ -4,6 +4,18 @@
 
 namespace gpu {
 
+struct ViewDesc {
+    float pos[3];
+    float target[3];
+    float up[3];
+};
+
+struct ProjectionDesc {
+    float fovAngleY;
+    float aspectRatio;
+    float nearZ;
+    float farZ;
+};
 
 struct BufferDesc {
     size_t offset;
@@ -11,7 +23,7 @@ struct BufferDesc {
     const uint8_t* data;
 }; 
 
-struct ViewDesc {
+struct BufferViewDesc {
     size_t offset;
     size_t size;
 };
@@ -19,11 +31,11 @@ struct ViewDesc {
 struct MeshDesc {
     int      bufferId;
     size_t   vCount;
-    ViewDesc indices;
-    ViewDesc position;
-    ViewDesc normal;
-    ViewDesc uv;
-    ViewDesc color;
+    BufferViewDesc indices;
+    BufferViewDesc position;
+    BufferViewDesc normal;
+    BufferViewDesc uv;
+    BufferViewDesc color;
 };
 
 struct Vertex {
@@ -56,6 +68,8 @@ public:
     virtual ~IRenderer() = default;
     virtual int start(void* window, uint32_t screenWidth, uint32_t screenHeight) = 0;
     virtual void stop() = 0;
+    virtual void setView(ViewDesc& desc) = 0;
+    virtual void setProjection(ProjectionDesc& desc) = 0;
     virtual int addBuffer(const BufferDesc& desc) = 0;
     virtual int addMesh(const MeshDesc& desc) = 0;
     virtual int render(const Color& clearColor, const std::vector<RenderItem>& items) = 0;

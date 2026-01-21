@@ -9,6 +9,7 @@
 #include <directxmath.h>
 #include <dxgi1_6.h>
 #include <windows.h>
+#include <windowsX.h>
 #include <wrl.h>
 #include <shellapi.h>
 #include <string>
@@ -17,19 +18,27 @@
 
 #define GUARD(x) if (!x) { return 1; }
 
+std::unique_ptr<gpu::IApp> app;
+
 LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
+    int w = GET_WHEEL_DELTA_WPARAM(wParam); // only valid on WM_MOUSEWHEEL
     switch (msg) {
-    case WM_CLOSE:
-        PostQuitMessage(0);
-        return 0;
-    default:
-        return DefWindowProc(window, msg, wParam, lParam);
+    case WM_CLOSE      : PostQuitMessage(0); break;;
+    case WM_MOUSEMOVE  : app->mouseEvent({ gpu::MouseEventType::Move,   GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   false }); break;
+    case WM_MOUSEWHEEL : app->mouseEvent({ gpu::MouseEventType::Wheel,  GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), w, gpu::MouseButton::Left,   false }); break;
+    case WM_LBUTTONDOWN: app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   true  }); break;
+    case WM_RBUTTONDOWN: app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Right,  true  }); break;
+    case WM_MBUTTONDOWN: app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Middle, true  }); break;
+    case WM_LBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   false }); break;
+    case WM_RBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Right,  false }); break;
+    case WM_MBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Middle, false }); break;
+    default: return DefWindowProc(window, msg, wParam, lParam);
     }
+    return 0;
 }
 
 int main(int argc, char** argv) {
-
-    std::unique_ptr<gpu::IApp> app = gpu::createApp();
+    app = gpu::createApp();
     int screenWidth = 512;
     int screenHeight = 512;
     float screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);

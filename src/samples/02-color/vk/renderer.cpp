@@ -14,6 +14,13 @@ public:
 
     void stop() {
     }
+
+    void setView(ViewDesc& desc) {
+    }
+    
+    void setProjection(ProjectionDesc& desc) {
+
+    }
     
     int addMesh(const std::vector<Vertex>& vertices) {
         return -1;

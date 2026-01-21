@@ -1,15 +1,10 @@
 #pragma once
 #include <memory>
+#include <input/input.h>
 
 namespace gpu {
 
-struct MouseEvent {
-    int x = 0;
-};
 
-struct KeyboardEvent {
-    int x = 0;
-};
 
 class IApp {
 public:

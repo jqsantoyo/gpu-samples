@@ -33,6 +33,12 @@ public:
     }
     void stop() {
     }
+
+    void setView(ViewDesc& desc) {
+    }
+    void setProjection(ProjectionDesc& desc) {
+
+    }
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
         return 1;
     }

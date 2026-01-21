@@ -30,11 +30,13 @@ addImported(d3dcompiler WIN
 addExternal(tinygltf URL https://github.com/syoyo/tinygltf.git TAG v2.9.7)
 
 addInterface(d3dx12 WIN)
+addInterface(input)
 addLibrary(utils)
 addInterface(renderer WIN)
+addLibrary(camera LIBS input)
 addLibrary(scene LIBS renderer)
 addLibrary(assets LIBS tinygltf utils renderer scene)
-addLibrary(app)
+addLibrary(app LIBS input)
 
-addSample(01-hello LIBS app utils renderer)
-addSample(02-color LIBS app utils renderer assets scene)
+addSample(01-hello LIBS app utils renderer input)
+addSample(02-color LIBS app utils renderer assets scene camera input)
