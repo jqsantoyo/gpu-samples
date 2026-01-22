@@ -161,10 +161,10 @@ public:
             printf("Debug layer enabled\n");
             debugController->EnableDebugLayer();
         }
-        ComPtr<ID3D12Debug1> debugController1;
-        if (SUCCEEDED(debugController.As(&debugController1))) {
-            debugController1->SetEnableGPUBasedValidation(TRUE);
-        }
+        // ComPtr<ID3D12Debug1> debugController1;
+        // if (SUCCEEDED(debugController.As(&debugController1))) {
+        //     debugController1->SetEnableGPUBasedValidation(TRUE);
+        // }
         ComPtr<IDXGIFactory4> factory;
         GUARDHR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory)));
         GUARDHR(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
@@ -195,8 +195,16 @@ public:
         dsvDescSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         cbvDescSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-
-
+        // D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels = {
+        //     .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        //     .SampleCount = 4,
+        //     .Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,
+        //     .NumQualityLevels = 0,
+        // };
+        // GUARDHR(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels, sizeof(qualityLevels)));
+        // GUARD((qualityLevels.NumQualityLevels > 0));
+        // DXGI_SAMPLE_DESC sampleDesc = { .Count = 4, .Quality = qualityLevels.NumQualityLevels - 1 }; 
+        DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
 
 
 
@@ -206,7 +214,7 @@ public:
             .Width       = screenWidth,
             .Height      = screenHeight,
             .Format      = DXGI_FORMAT_R8G8B8A8_UNORM,
-            .SampleDesc  = { .Count = 1, },
+            .SampleDesc  = { .Count = 1, .Quality = 0 },
             .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
             .BufferCount = frameCount,
             .SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
@@ -261,16 +269,16 @@ public:
         ////////////////////////////////////////////////////////////////////////////////////////////
         // Depth
         D3D12_RESOURCE_DESC depthDesc = {
-            .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-            .Alignment = 0,
-            .Width = screenWidth,
-            .Height = screenHeight,
-            .DepthOrArraySize = 1,
-            .MipLevels = 1,
-            .Format = DXGI_FORMAT_D32_FLOAT,
-            .SampleDesc = { 1, 0 },
-            .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-            .Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+            .Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            .Alignment          = 0,
+            .Width              = screenWidth,
+            .Height             = screenHeight,
+            .DepthOrArraySize   = 1,
+            .MipLevels          = 1,
+            .Format             = DXGI_FORMAT_D32_FLOAT,
+            .SampleDesc         = sampleDesc,
+            .Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            .Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
         };
         D3D12_CLEAR_VALUE optClear = {
             .Format = DXGI_FORMAT_D32_FLOAT,
@@ -294,10 +302,10 @@ public:
         GUARD(waitForPreviousFrame());
 
         D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
-            .Format = DXGI_FORMAT_D32_FLOAT,
-            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
-            .Flags = D3D12_DSV_FLAG_NONE,
-            .Texture2D = { .MipSlice = 0 },
+            .Format         = DXGI_FORMAT_D32_FLOAT,
+            .ViewDimension  = D3D12_DSV_DIMENSION_TEXTURE2D,
+            .Flags          = D3D12_DSV_FLAG_NONE,
+            .Texture2D      = { .MipSlice = 0 },
         };
         device->CreateDepthStencilView(depthTarget.Get(), &depthViewDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
@@ -387,7 +395,7 @@ public:
             .NumRenderTargets       = 1,
             .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
             .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
-            .SampleDesc             = { .Count = 1},
+            .SampleDesc             = sampleDesc,
         };
         GUARDHR(device->CreateGraphicsPipelineState(&psoFillDesc, IID_PPV_ARGS(&psoFill)));
 
@@ -417,7 +425,7 @@ public:
             .NumRenderTargets       = 1,
             .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
             .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
-            .SampleDesc             = { .Count = 1},
+            .SampleDesc             = sampleDesc,
         };
         GUARDHR(device->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&psoWire)));
 

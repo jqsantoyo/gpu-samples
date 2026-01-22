@@ -23,6 +23,33 @@ using namespace DirectX;
 using namespace Microsoft::WRL;
 namespace gpu {
 
+struct Shader {
+    ComPtr<ID3DBlob> blob;
+    D3D12_SHADER_BYTECODE bytecode;
+};
+
+bool loadShader(Shader& shader, std::string dir, std::string name) {
+    bool result = false;
+    std::string path = getAssetsPath() + dir + "\\" + name;
+    FILE* file;
+    errno_t err = fopen_s(&file, path.c_str(), "rb");
+    if (err != 0 || file == nullptr) {
+        return result;
+    }
+
+    fseek(file, 0, SEEK_END);
+    size_t size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    HRESULT res = D3DCreateBlob(size, shader.blob.GetAddressOf());
+    if (SUCCEEDED(res)) {
+        fread(shader.blob->GetBufferPointer(), size, 1, file);
+        shader.bytecode = { shader.blob->GetBufferPointer(), shader.blob->GetBufferSize() };
+        result = true;
+    }
+    fclose(file);
+    return result;
+}
 
 constexpr int frameCount = 2;
 class RendererD3D : public IRenderer {
@@ -38,11 +65,21 @@ public:
         // DEVICE
         ComPtr<ID3D12Debug> debugController;
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+            printf("Debug layer enabled\n");
             debugController->EnableDebugLayer();
         }
+        // ComPtr<ID3D12Debug1> debugController1;
+        // if (SUCCEEDED(debugController.As(&debugController1))) {
+        //     debugController1->SetEnableGPUBasedValidation(TRUE);
+        // }
         ComPtr<IDXGIFactory4> factory;
         GUARDHR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory)));
         GUARDHR(D3D12CreateDevice(nullptr, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&device)));
+        if (SUCCEEDED(device.As(&iq))) {
+            iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+            iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+            iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        }
 
         D3D12_COMMAND_QUEUE_DESC queueDesc = {
             .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -109,27 +146,11 @@ public:
         GUARDHR(device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
         
 
-        std::wstring assetsPath = getAssetsPathW() + L"01-hello-shaders\\";
-        std::wstring shaderName = assetsPath + L"shaders.hlsl";
-        printf("%ls\n", shaderName.c_str());
-        
-        UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-        ComPtr<ID3DBlob> vBlob;
-        ComPtr<ID3DBlob> vErrBlob;
-        ComPtr<ID3DBlob> pBlob;
-        HRESULT res = D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "VSMain", "vs_5_0", compileFlags, 0, &vBlob, &vErrBlob);
-        if (FAILED(res)) {
-            if (vErrBlob) {
-                const char* msg = static_cast<const char*>(vErrBlob->GetBufferPointer());
-                printf("%s\n", msg);
-            } else {
-                printf("D3DCompileFromFile error: %ld", res);
-            }
-        }
-
-        GUARDHR(D3DCompileFromFile(shaderName.c_str(), nullptr, nullptr, "PSMain", "ps_5_0", compileFlags, 0, &pBlob, nullptr));
-        D3D12_SHADER_BYTECODE vShader = { vBlob->GetBufferPointer(), vBlob->GetBufferSize() };
-        D3D12_SHADER_BYTECODE pShader = { pBlob->GetBufferPointer(), pBlob->GetBufferSize() };
+        Shader vShader;
+        Shader pShader;
+        std::string shaderDir = "01-hello-shaders";
+        GUARD(loadShader(vShader, shaderDir, "shaders_v.dxil"));
+        GUARD(loadShader(pShader, shaderDir, "shaders_p.dxil"));
 
     
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
@@ -138,8 +159,8 @@ public:
         };
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
             .pRootSignature         = rootSignature.Get(),
-            .VS                     = vShader,
-            .PS                     = pShader,
+            .VS                     = vShader.bytecode,
+            .PS                     = pShader.bytecode,
             .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
             .SampleMask             = UINT_MAX,
             .RasterizerState        = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
@@ -246,6 +267,7 @@ public:
 
 private:
     ComPtr<ID3D12Device>                device;
+    ComPtr<ID3D12InfoQueue>             iq;
     ComPtr<ID3D12CommandQueue>          cmdQueue;
     ComPtr<ID3D12CommandAllocator>      cmdAllocator;
     ComPtr<ID3D12GraphicsCommandList>   cmdList;
@@ -253,10 +275,10 @@ private:
     HANDLE                              fenceEvent;
     UINT64                              fenceValue;
     UINT                                rtvDescSize = 0;
+    ComPtr<ID3D12DescriptorHeap>        rtvHeap;
     ComPtr<IDXGISwapChain3>             swapChain;
     ComPtr<ID3D12Resource>              renderTargets[frameCount];
     ComPtr<ID3D12RootSignature>         rootSignature;
-    ComPtr<ID3D12DescriptorHeap>        rtvHeap;
     ComPtr<ID3D12PipelineState>         pso;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
