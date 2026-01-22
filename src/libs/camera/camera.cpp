@@ -26,7 +26,7 @@ public:
     }
 
     void getCartesian(float& x, float& y, float& z) {
-        printf("Camera:: theta: %f, phi: %f, z: %f\n", theta, phi, r);
+        // printf("Camera:: theta: %f, phi: %f, z: %f\n", theta, phi, r);
         float h = r * cos(phi);
         x = h * cos(theta);
         z = h * sin(theta);

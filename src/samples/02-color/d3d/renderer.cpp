@@ -129,9 +129,8 @@ public:
     int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
         auto hwnd = static_cast<HWND>(window);
         screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
-        viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight) };
+        viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight), 0, 1 };
         scissorRect = { 0, 0, long(screenWidth), long(screenHeight) };
-
 
         ////////////////////////////////////////////////////////////////////////////////////////////
         // DEVICE
@@ -161,6 +160,8 @@ public:
         GUARDHR(device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocator)));
         GUARDHR(device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
         GUARDHR(cmdList.Get()->Close());
+        GUARDHR(cmdAllocator->Reset());
+        GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
 
         GUARDHR(device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
         fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -225,6 +226,58 @@ public:
             CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, cbvDescSize);
             device->CreateConstantBufferView(&viewDesc, cbvView);
         }
+        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {
+            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+            .NumDescriptors = 1,
+            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        };
+        GUARDHR(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
+        
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////
+        // Depth
+        D3D12_RESOURCE_DESC depthDesc = {
+            .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+            .Alignment = 0,
+            .Width = screenWidth,
+            .Height = screenHeight,
+            .DepthOrArraySize = 1,
+            .MipLevels = 1,
+            .Format = DXGI_FORMAT_D32_FLOAT,
+            .SampleDesc = { 1, 0 },
+            .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+            .Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+        };
+        D3D12_CLEAR_VALUE optClear = {
+            .Format = DXGI_FORMAT_D32_FLOAT,
+            .DepthStencil = { .Depth = 1, .Stencil = 0 },
+        };
+        CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+        GUARDHR(device->CreateCommittedResource(
+            &defaultHeap,
+            D3D12_HEAP_FLAG_NONE,
+            &depthDesc,
+            D3D12_RESOURCE_STATE_COMMON,
+            &optClear,
+            IID_PPV_ARGS(depthTarget.GetAddressOf())
+        ));
+        auto barrDepth = CD3DX12_RESOURCE_BARRIER::Transition(depthTarget.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+
+        ID3D12CommandList* cmdLists[] = { cmdList.Get() };
+        cmdList->ResourceBarrier(1, &barrDepth);
+        GUARDHR(cmdList.Get()->Close());
+        cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+        GUARD(waitForPreviousFrame());
+
+        D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
+            .Format = DXGI_FORMAT_D32_FLOAT,
+            .ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D,
+            .Flags = D3D12_DSV_FLAG_NONE,
+            .Texture2D = { .MipSlice = 0 },
+        };
+        device->CreateDepthStencilView(depthTarget.Get(), &depthViewDesc, dsvHeap->GetCPUDescriptorHandleForHeapStart());
+
 
         ////////////////////////////////////////////////////////////////////////////////////////////
         // PSOs
@@ -261,8 +314,8 @@ public:
 
         D3D12_RASTERIZER_DESC fillRasterDesc = {
             .FillMode               = D3D12_FILL_MODE_SOLID,
-            // .CullMode               = D3D12_CULL_MODE_NONE,
-            .CullMode               = D3D12_CULL_MODE_BACK,
+            .CullMode               = D3D12_CULL_MODE_NONE,
+            // .CullMode               = D3D12_CULL_MODE_BACK,
             .FrontCounterClockwise  = FALSE,
             .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
             .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
@@ -273,6 +326,27 @@ public:
             .ForcedSampleCount      = 0,
             .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
         };
+        D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
+            .DepthEnable        = TRUE,
+            .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
+            .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+            .StencilEnable      = FALSE,
+            // .StencilReadMask    = 0,
+            // .StencilWriteMask   = 0,
+            // .FrontFace = {
+            //     .StencilFailOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilDepthFailOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilPassOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilFunc = D3D12_COMPARISON_FUNC_GREATER,
+            // },
+            // .BackFace = {
+            //     .StencilFailOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilDepthFailOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilPassOp = D3D12_STENCIL_OP_REPLACE,
+            //     .StencilFunc = D3D12_COMPARISON_FUNC_GREATER,
+            // },
+
+        };
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoFillDesc = {
             .pRootSignature         = rootSignature.Get(),
             .VS                     = vShader.bytecode,
@@ -280,11 +354,12 @@ public:
             .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
             .SampleMask             = UINT_MAX,
             .RasterizerState        = fillRasterDesc,
-            .DepthStencilState      = { .DepthEnable = FALSE, .StencilEnable = FALSE, },
+            .DepthStencilState      = depthStateDesc,
             .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
             .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets       = 1,
             .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
             .SampleDesc             = { .Count = 1},
         };
         GUARDHR(device->CreateGraphicsPipelineState(&psoFillDesc, IID_PPV_ARGS(&psoFill)));
@@ -309,11 +384,12 @@ public:
             .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
             .SampleMask             = UINT_MAX,
             .RasterizerState        = wireRasterDesc,
-            .DepthStencilState      = { .DepthEnable = FALSE, .StencilEnable = FALSE, },
+            .DepthStencilState      = depthStateDesc,
             .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
             .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
             .NumRenderTargets       = 1,
             .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
             .SampleDesc             = { .Count = 1},
         };
         GUARDHR(device->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&psoWire)));
@@ -340,6 +416,7 @@ public:
     }
 
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
+        D3D12_CPU_DESCRIPTOR_HANDLE depthView = dsvHeap->GetCPUDescriptorHandleForHeapStart();
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIdx, rtvDescSize);
@@ -350,8 +427,9 @@ public:
         cmdList->RSSetViewports(1, &viewport);
         cmdList->RSSetScissorRects(1, &scissorRect);
         cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
-        cmdList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
+        cmdList->OMSetRenderTargets(1, &rtvHandle, 1, &depthView);
         cmdList->ClearRenderTargetView(rtvHandle, clearColor.v, 0, nullptr);
+        cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
         ID3D12DescriptorHeap* heaps[] = { cbvHeap.Get() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
@@ -525,8 +603,10 @@ private:
     UINT                                cbvDescSize = 0;
     ComPtr<IDXGISwapChain3>             swapChain;
     ComPtr<ID3D12Resource>              renderTargets[frameCount];
+    ComPtr<ID3D12Resource>              depthTarget;
     ComPtr<ID3D12DescriptorHeap>        rtvHeap;
     ComPtr<ID3D12DescriptorHeap>        cbvHeap;
+    ComPtr<ID3D12DescriptorHeap>        dsvHeap;
     ComPtr<ID3D12RootSignature>         rootSignature;
     ComPtr<ID3D12PipelineState>         psoFill;
     ComPtr<ID3D12PipelineState>         psoWire;
