@@ -48,6 +48,28 @@ bool compileShader(Shader& shader, std::wstring dir, std::wstring name, const ch
     shader.bytecode = { shader.blob->GetBufferPointer(), shader.blob->GetBufferSize() };
     return true;
 }
+bool loadShader(Shader& shader, std::string dir, std::string name) {
+    bool result = false;
+    std::string path = getAssetsPath() + dir + "\\" + name;
+    FILE* file;
+    errno_t err = fopen_s(&file, path.c_str(), "rb");
+    if (err != 0 || file == nullptr) {
+        return result;
+    }
+
+    fseek(file, 0, SEEK_END);
+    size_t size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    HRESULT res = D3DCreateBlob(size, shader.blob.GetAddressOf());
+    if (SUCCEEDED(res)) {
+        fread(shader.blob->GetBufferPointer(), size, 1, file);
+        shader.bytecode = { shader.blob->GetBufferPointer(), shader.blob->GetBufferSize() };
+        result = true;
+    }
+    fclose(file);
+    return result;
+}
 
 
 template<typename T>
@@ -170,6 +192,7 @@ public:
         }
         fenceValue = 1;
         rtvDescSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+        dsvDescSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
         cbvDescSize = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
 
@@ -204,35 +227,35 @@ public:
             .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
             .NumDescriptors = frameCount,
             .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+            .NodeMask       = 0,
+        };
+        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {
+            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+            .NumDescriptors = 1,
+            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+            .NodeMask       = 0,
+        };
+        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {
+            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+            .NumDescriptors = 100,
+            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+            .NodeMask       = 0,
         };
         GUARDHR(device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
-        CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart());
-        for (UINT n = 0; n < frameCount; n++) {
-            GUARDHR(swapChain->GetBuffer(n, IID_PPV_ARGS(&renderTargets[n])));
-            device->CreateRenderTargetView(renderTargets[n].Get(), nullptr, rtvHandle);
-            rtvHandle.Offset(1, rtvDescSize);
-        }
-        
-        objectCBuffers.init(device.Get(), 100);
-        D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {
-            .Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-            .NumDescriptors = 100,
-            .Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-            .NodeMask = 0,
-        };
         GUARDHR(device->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
+        GUARDHR(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
+
+        for (int i = 0; i < frameCount; i++) {
+            CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), i, rtvDescSize);
+            GUARDHR(swapChain->GetBuffer(i, IID_PPV_ARGS(&renderTargets[i])));
+            device->CreateRenderTargetView(renderTargets[i].Get(), nullptr, rtvHandle);
+        }
+        objectCBuffers.init(device.Get(), 100);
         for (int i = 0; i < 100; i++) {
             D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectCBuffers.getBufferViewDesc(i);
             CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, cbvDescSize);
             device->CreateConstantBufferView(&viewDesc, cbvView);
         }
-        D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {
-            .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-            .NumDescriptors = 1,
-            .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        };
-        GUARDHR(device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
-        
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////
@@ -301,11 +324,15 @@ public:
         Shader pShader;
         Shader vShaderWire;
         Shader pShaderWire;
-        std::wstring shaderDir = L"02-color-shaders";
-        GUARD(compileShader(vShader,     shaderDir, L"shaders.hlsl",     "VSMain", "vs_5_0", compileFlags));
-        GUARD(compileShader(pShader,     shaderDir, L"shaders.hlsl",     "PSMain", "ps_5_0", compileFlags));
-        GUARD(compileShader(vShaderWire, shaderDir, L"shadersWire.hlsl", "VSMain", "vs_5_0", compileFlags));
-        GUARD(compileShader(pShaderWire, shaderDir, L"shadersWire.hlsl", "PSMain", "ps_5_0", compileFlags));
+        std::string shaderDir = "02-color-shaders";
+        GUARD(loadShader(vShader,     shaderDir, "shaders_v.dxil"));
+        GUARD(loadShader(pShader,     shaderDir, "shaders_p.dxil"));
+        GUARD(loadShader(vShaderWire, shaderDir, "shadersWire_v.dxil"));
+        GUARD(loadShader(pShaderWire, shaderDir, "shadersWire_p.dxil"));
+        // GUARD(compileShader(vShader,     shaderDir, L"shaders.hlsl",     "VSMain", "vs_5_0", compileFlags));
+        // GUARD(compileShader(pShader,     shaderDir, L"shaders.hlsl",     "PSMain", "ps_5_0", compileFlags));
+        // GUARD(compileShader(vShaderWire, shaderDir, L"shadersWire.hlsl", "VSMain", "vs_5_0", compileFlags));
+        // GUARD(compileShader(pShaderWire, shaderDir, L"shadersWire.hlsl", "PSMain", "ps_5_0", compileFlags));
 
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
@@ -421,6 +448,7 @@ public:
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(rtvHeap->GetCPUDescriptorHandleForHeapStart(), frameIdx, rtvDescSize);
         ID3D12CommandList* cmdLists[] = { cmdList.Get() };
+        ID3D12DescriptorHeap* heaps[] = { cbvHeap.Get() };
 
         GUARDHR(cmdAllocator->Reset());
         GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
@@ -430,7 +458,6 @@ public:
         cmdList->OMSetRenderTargets(1, &rtvHandle, 1, &depthView);
         cmdList->ClearRenderTargetView(rtvHandle, clearColor.v, 0, nullptr);
         cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-        ID3D12DescriptorHeap* heaps[] = { cbvHeap.Get() };
         cmdList->SetDescriptorHeaps(1, heaps);
 
         
@@ -600,13 +627,14 @@ private:
     HANDLE                              fenceEvent;
     UINT64                              fenceValue;
     UINT                                rtvDescSize = 0;
+    UINT                                dsvDescSize = 0;
     UINT                                cbvDescSize = 0;
+    ComPtr<ID3D12DescriptorHeap>        rtvHeap;
+    ComPtr<ID3D12DescriptorHeap>        dsvHeap;
+    ComPtr<ID3D12DescriptorHeap>        cbvHeap;
     ComPtr<IDXGISwapChain3>             swapChain;
     ComPtr<ID3D12Resource>              renderTargets[frameCount];
     ComPtr<ID3D12Resource>              depthTarget;
-    ComPtr<ID3D12DescriptorHeap>        rtvHeap;
-    ComPtr<ID3D12DescriptorHeap>        cbvHeap;
-    ComPtr<ID3D12DescriptorHeap>        dsvHeap;
     ComPtr<ID3D12RootSignature>         rootSignature;
     ComPtr<ID3D12PipelineState>         psoFill;
     ComPtr<ID3D12PipelineState>         psoWire;

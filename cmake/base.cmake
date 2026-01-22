@@ -159,23 +159,46 @@ function(addSample targetName)
     target_link_libraries       (${targetName} PRIVATE ${LIBS})
     target_compile_features     (${targetName} PRIVATE cxx_std_20)
 
+    # set(shaderDir ${CMAKE_CURRENT_BINARY_DIR}/${targetName}-shaders)
+    # set(outShaders)
+    # foreach(inShader IN LISTS SHADERS)
+    #     cmake_path(GET inShader FILENAME shaderName)
+    #     set(outShader ${shaderDir}/${shaderName})
+    #     # message(STATUS "${targetName}: copy ${inShader} -> ${outShader}")
+    #     add_custom_command(
+    #         OUTPUT ${outShader}
+    #         COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: copy: ${inShader} -> ${outShader}"
+    #         COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDir}
+    #         COMMAND ${CMAKE_COMMAND} -E copy ${inShader} ${outShader}
+    #         DEPENDS ${inShader}
+    #     )
+    #     list(APPEND outShaders ${outShader})
+    # endforeach()
+    # add_custom_target(${targetName}-assets DEPENDS ${outShaders})
+    # add_dependencies(${targetName} ${targetName}-assets)
+
+
     set(shaderDir ${CMAKE_CURRENT_BINARY_DIR}/${targetName}-shaders)
     set(outShaders)
     foreach(inShader IN LISTS SHADERS)
-        cmake_path(GET inShader FILENAME shaderName)
-        set(outShader ${shaderDir}/${shaderName})
-        # message(STATUS "${targetName}: copy ${inShader} -> ${outShader}")
+        cmake_path(GET inShader STEM shaderName)
+        set(outShaderV ${shaderDir}/${shaderName}_v.dxil)
+        set(outShaderP ${shaderDir}/${shaderName}_p.dxil)
+        message(STATUS "${targetName}: copy ${inShader} -> ${outShaderV}/${outShaderP}")
         add_custom_command(
-            OUTPUT ${outShader}
-            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: copy: ${inShader} -> ${outShader}"
+            OUTPUT ${outShaderV} ${outShaderP}
+            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: copy: ${inShader} -> ${outShaderV}/${outShaderP}"
             COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDir}
-            COMMAND ${CMAKE_COMMAND} -E copy ${inShader} ${outShader}
+            COMMAND $ENV{WindowsSdkDir}/bin/$ENV{WindowsSdkVersion}/x64/dxc.exe  -T vs_5_0 -E VSMain -Fo ${outShaderV} ${inShader}
+            COMMAND $ENV{WindowsSdkDir}/bin/$ENV{WindowsSdkVersion}/x64/dxc.exe  -T ps_5_0 -E PSMain -Fo ${outShaderP} ${inShader}
             DEPENDS ${inShader}
         )
-        list(APPEND outShaders ${outShader})
+        list(APPEND outShaders ${outShaderV} ${outShaderP})
     endforeach()
     add_custom_target(${targetName}-assets DEPENDS ${outShaders})
     add_dependencies(${targetName} ${targetName}-assets)
+
+
 
 
     # install(FILES ${shadersSpv}      DESTINATION bin/${targetName})
