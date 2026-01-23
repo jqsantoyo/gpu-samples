@@ -69,7 +69,7 @@ public:
 
         ////////////////////////////////////////////////////////////////////////////////////////////
         // DEVICE
-        const std::vector<const char*> validationLayers = { };//"VK_LAYER_KHRONOS_validation" };
+        const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
         const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
         const std::vector<const char*> extensions = {
             VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
@@ -79,54 +79,60 @@ public:
 
         uint32_t layerCount;
         vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-        std::vector<VkLayerProperties> availableLayers(layerCount);
-        vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-        for (const auto& layerProperties : availableLayers) {
-            std::cout << "Layer: " << layerProperties.layerName << std::endl;
+        std::vector<VkLayerProperties> layers(layerCount);
+        vkEnumerateInstanceLayerProperties(&layerCount, layers.data());
+        printf("Available layers:\n");
+        for (const auto& layerProperties : layers) {
+            printf("  %s\n", layerProperties.layerName);
         }
-        for (const char* layerName : validationLayers) {
+        printf("Required layers:\n");
+        for (const char* layerName : requiredLayers) {
             bool layerFound = false;
-            for (const auto& layerProperties : availableLayers) {
+            for (const auto& layerProperties : layers) {
                 if (strcmp(layerName, layerProperties.layerName) == 0) {
+                    printf("  %s : found\n", layerName);
                     layerFound = true;
                     break;
                 }
             }
             if (!layerFound) {
-                printf("validation layer not found");
+                    printf("  %s : not found\n", layerName);
                 return 0;
             }
         }
 
-
-        VkApplicationInfo appInfo{};
-        appInfo.sType                       = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-        appInfo.pApplicationName            = "01-Hello-Vk";
-        appInfo.applicationVersion          = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.pEngineName                 = "No Engine";
-        appInfo.engineVersion               = VK_MAKE_VERSION(1, 0, 0);
-        appInfo.apiVersion                  = VK_API_VERSION_1_0;
-        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-        debugCreateInfo.sType               = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-        debugCreateInfo.messageSeverity     = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
-                                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
-                                            | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-        debugCreateInfo.messageType         = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
-                                            | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
-                                            | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-        debugCreateInfo.pfnUserCallback     = debugCallback;
-        VkInstanceCreateInfo createInfo{};
-        createInfo.sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-        createInfo.pApplicationInfo         = &appInfo;
-        createInfo.enabledExtensionCount    = static_cast<uint32_t>(extensions.size());
-        createInfo.ppEnabledExtensionNames  = extensions.data();
-        createInfo.enabledLayerCount        = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames      = validationLayers.data();
-        createInfo.pNext                    = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+        VkApplicationInfo appInfo = {
+            .sType              = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pApplicationName   = "01-Hello-Vk",
+            .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
+            .pEngineName        = "No Engine",
+            .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
+            .apiVersion         = VK_API_VERSION_1_0,
+        };
+        VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{
+            .sType              = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
+            .messageSeverity    = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
+                                | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT
+                                | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT,
+            .messageType        = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT
+                                | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT
+                                | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT,
+            .pfnUserCallback    = debugCallback,
+        };
+        VkInstanceCreateInfo createInfo{
+            .sType                    = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pNext                    = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo,
+            .pApplicationInfo         = &appInfo,
+            .enabledLayerCount        = static_cast<uint32_t>(requiredLayers.size()),
+            .ppEnabledLayerNames      = requiredLayers.data(),
+            .enabledExtensionCount    = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames  = extensions.data(),
+        };
         if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
             printf("failed to create instance");
             return 0;
         }
+
         createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
         destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
         if (createDebugMessengerFn == nullptr || destroyDebugMessengerFn == nullptr) {
@@ -139,10 +145,11 @@ public:
         }
 
         // Create surface
-        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {};
-        surfaceCreateInfo.sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-        surfaceCreateInfo.hinstance = hInstance;
-        surfaceCreateInfo.hwnd      = hwnd;
+        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {
+            .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+            .hinstance = hInstance,
+            .hwnd      = hwnd,
+        };
         VkResult res = vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface);
         if (res != VK_SUCCESS) {
             printf("Error creating surface");
@@ -236,8 +243,8 @@ public:
         deviceCreateInfo.pEnabledFeatures           = &deviceFeatures;
         deviceCreateInfo.enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size());
         deviceCreateInfo.ppEnabledExtensionNames    = deviceExtensions.data();
-        deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(validationLayers.size());
-        deviceCreateInfo.ppEnabledLayerNames        = validationLayers.data();
+        deviceCreateInfo.enabledLayerCount          = static_cast<uint32_t>(requiredLayers.size());
+        deviceCreateInfo.ppEnabledLayerNames        = requiredLayers.data();
         if (vkCreateDevice(physicalDevice, &deviceCreateInfo, nullptr, &device) != VK_SUCCESS) {
             printf("failed to create logical device");
             return 0;
@@ -367,8 +374,8 @@ public:
 
         // Create graphics pipeline
         std::wstring assetsPath = getAssetsPathW();
-        auto vertShaderCode = readFile(assetsPath + L"triangle-vk/shader.vert.spv");
-        auto fragShaderCode = readFile(assetsPath + L"triangle-vk/shader.frag.spv");
+        auto vertShaderCode = readFile(assetsPath + L"01-hello-shaders-vk/shader.vert.spv");
+        auto fragShaderCode = readFile(assetsPath + L"01-hello-shaders-vk/shader.frag.spv");
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
         VkShaderModuleCreateInfo vertCreateInfo{};

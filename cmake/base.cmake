@@ -184,19 +184,20 @@ function(addSample targetName)
         cmake_path(GET inShader STEM shaderName)
         set(outShaderV ${shaderDir}/${shaderName}_v.dxil)
         set(outShaderP ${shaderDir}/${shaderName}_p.dxil)
-        message(STATUS "${targetName}: copy ${inShader} -> ${outShaderV}/${outShaderP}")
+        message(STATUS "${targetName}: dxc: ${inShader} -> ${outShaderV}/${outShaderP}")
         add_custom_command(
             OUTPUT ${outShaderV} ${outShaderP}
-            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: copy: ${inShader} -> ${outShaderV}/${outShaderP}"
+            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}: dxc: ${inShader} -> ${outShaderV}/${outShaderP}"
             COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDir}
             COMMAND $ENV{WindowsSdkDir}/bin/$ENV{WindowsSdkVersion}/x64/dxc.exe  -T vs_5_0 -E VSMain -Fo ${outShaderV} ${inShader}
             COMMAND $ENV{WindowsSdkDir}/bin/$ENV{WindowsSdkVersion}/x64/dxc.exe  -T ps_5_0 -E PSMain -Fo ${outShaderP} ${inShader}
             DEPENDS ${inShader}
+            VERBATIM
         )
         list(APPEND outShaders ${outShaderV} ${outShaderP})
     endforeach()
-    add_custom_target(${targetName}-assets DEPENDS ${outShaders})
-    add_dependencies(${targetName} ${targetName}-assets)
+    add_custom_target(${targetName}-shaders DEPENDS ${outShaders})
+    add_dependencies(${targetName} ${targetName}-shaders)
 
 
 
@@ -217,19 +218,25 @@ function(addSample targetName)
     target_sources              (${targetNameVk} PRIVATE ${SOURCES_VK})
     target_link_libraries       (${targetNameVk} PRIVATE ${LIBS_VK})
     target_compile_features     (${targetNameVk} PRIVATE cxx_std_20)
-    set(shadersSpv ${arg_SHADERS_VK})
-    list(TRANSFORM shadersSpv PREPEND ${CMAKE_CURRENT_BINARY_DIR}/)
-    list(TRANSFORM shadersSpv APPEND .spv)
-    foreach(shader shaderSpv IN ZIP_LISTS arg_SHADERS_VK shadersSpv)
+    set(shaderDirVk ${CMAKE_CURRENT_BINARY_DIR}/${targetName}-shaders-vk)
+    set(outShadersVk)
+    foreach(inShader IN LISTS SHADERS_VK)
+        cmake_path(GET inShader FILENAME shaderName)
+        set(outShaderVk ${shaderDirVk}/${shaderName}.spv)
+        message(STATUS "${targetName}-vk: glslc: ${inShader} -> ${outShaderVk}")
         add_custom_command(
-            TARGET ${targetNameVk} PRE_BUILD
-            COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${CMAKE_CURRENT_SOURCE_DIR}/${shader} -o ${shader}.spv
-            # DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${shader}
-            BYPRODUCTS ${shaderSpv}
-            COMMENT "Compile ${shader}"
+            OUTPUT ${outShaderVk}
+            COMMAND ${CMAKE_COMMAND} -E echo "${targetName}-vk: glslc: ${inShader} -> ${outShaderVk}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory ${shaderDirVk}
+            COMMAND $ENV{VK_SDK_PATH}/Bin/glslc.exe ${inShader} -o ${outShaderVk}
+            DEPENDS ${inShader}
             VERBATIM
         )
+        list(APPEND outShadersVk ${outShaderVk})
     endforeach()
+    add_custom_target(${targetName}-shaders-vk DEPENDS ${outShadersVk})
+    add_dependencies(${targetName}-vk ${targetName}-shaders-vk)
+
     # install(FILES ${shadersSpv}      DESTINATION bin/${targetName})
     # install(FILES ${arg_SHADERS_D3D} DESTINATION bin/${targetName})
     # install(
