@@ -39,4 +39,5 @@ addLibrary(assets LIBS tinygltf utils renderer scene)
 addLibrary(app LIBS input)
 
 addSample(01-hello LIBS app utils renderer input)
+addSample(02-info  LIBS app renderer)
 addSample(02-color LIBS app utils renderer assets scene camera input)
