@@ -19,6 +19,8 @@
 
         { "name": "[debug] 01-hello",         "program": "${workspaceFolder}/.build/x64-debug/01-hello.exe",        "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 01-hello-vk",      "program": "${workspaceFolder}/.build/x64-debug/01-hello-vk.exe",     "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 02-compute",       "program": "${workspaceFolder}/.build/x64-debug/02-compute.exe",      "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 02-compute-vk",    "program": "${workspaceFolder}/.build/x64-debug/02-compute-vk.exe",   "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 02-info",          "program": "${workspaceFolder}/.build/x64-debug/02-info.exe",         "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 02-info-vk",       "program": "${workspaceFolder}/.build/x64-debug/02-info-vk.exe",      "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 03-color",         "program": "${workspaceFolder}/.build/x64-debug/03-color.exe",        "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
@@ -27,6 +29,8 @@
         { "name": "[debug] 04-diffuse-vk",    "program": "${workspaceFolder}/.build/x64-debug/04-diffuse-vk.exe",   "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[release] 01-hello",       "program": "${workspaceFolder}/.build/x64-release/01-hello.exe",      "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[release] 01-hello-vk",    "program": "${workspaceFolder}/.build/x64-release/01-hello-vk.exe",   "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[release] 02-compute",     "program": "${workspaceFolder}/.build/x64-release/02-compute.exe",    "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[release] 02-compute-vk",  "program": "${workspaceFolder}/.build/x64-release/02-compute-vk.exe", "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[release] 02-info",        "program": "${workspaceFolder}/.build/x64-release/02-info.exe",       "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[release] 02-info-vk",     "program": "${workspaceFolder}/.build/x64-release/02-info-vk.exe",    "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[release] 03-color",       "program": "${workspaceFolder}/.build/x64-release/03-color.exe",      "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
