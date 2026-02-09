@@ -217,7 +217,7 @@ bool selectPhysicalDevice(
     VkInstance instance,
     VkSurfaceKHR surface,
     const std::vector<const char*>& extensions,
-    PhysicalDeviceData& data
+    PhysicalDeviceCtx& ctx
 ) {
     std::vector<int> physicalDeviceScores;
     std::vector<VkPhysicalDevice> physicalDevices;
@@ -235,9 +235,9 @@ bool selectPhysicalDevice(
         std::vector<VkQueueFamilyProperties> queueFamilies;
         std::vector<VkSurfaceFormatKHR>      formats;
         std::vector<VkPresentModeKHR>        presentModes;
-        std::vector<VkExtensionProperties>   extensions;
+        std::vector<VkExtensionProperties>   devExtensions;
 
-        enumerateDeviceExtensionProperties       (pd, nullptr, extensions);
+        enumerateDeviceExtensionProperties       (pd, nullptr, devExtensions);
         vkGetPhysicalDeviceProperties            (pd, &props);
         vkGetPhysicalDeviceFeatures              (pd, &features);
         vkGetPhysicalDeviceMemoryProperties      (pd, &memProps);
@@ -246,68 +246,68 @@ bool selectPhysicalDevice(
         getPhysicalDeviceSurfaceFormatsKHR       (pd, surface, formats);
         getPhysicalDeviceSurfacePresentModesKHR  (pd, surface, presentModes);
 
-    //     int graphicsFamilyIdx = -1;
-    //     int presentFamilyIdx = -1;
-    //     std::set<std::string> requiredExtensions(extensions.begin(), extensions.end());
-    //     for (const auto& extension : extensions) {
-    //         requiredExtensions.erase(extension.extensionName);
-    //     }
-    //     for (int i = 0; i < queueFamilies.size(); i++) {
-    //         if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-    //             graphicsFamilyIdx = i;
-    //             break;
-    //         }
-    //     }
-    //     for (int i = 0; i < queueFamilies.size(); i++) {
-    //         VkBool32 presentSupport = false;
-    //         vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface, &presentSupport);
-    //         if (presentSupport) {
-    //             presentFamilyIdx = i;
-    //             break;
-    //         }
-    //     }
-    //     if (selectedPhysicalDeviceIdx == -1 &&
-    //         graphicsFamilyIdx != -1 &&
-    //         presentFamilyIdx != -1 &&
-    //         requiredExtensions.empty()
-    //     ) {
-    //         selectedPhysicalDeviceIdx = i;
-    //         data.gIdx = graphicsFamilyIdx;
-    //         data.pIdx = presentFamilyIdx;
-    //         data.format = formats[0];
-    //         data.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-    //         for (const auto& x : formats) {
-    //             if (x.format == VK_FORMAT_B8G8R8A8_SRGB && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-    //                 data.format = x;
-    //             }
-    //         }
-    //         for (const auto& x : presentModes) {
-    //             if (x == VK_PRESENT_MODE_MAILBOX_KHR) {
-    //                 data.presentMode = x;
-    //             }
-    //         }
-    //         data.currTransform = capabilities.currentTransform;
-    //         if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-    //             data.extent =  capabilities.currentExtent;
-    //         } else {
-    //             int width, height;
-    //             //glfwGetFramebufferSize(window, &width, &height);
-    //             VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-    //             actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-    //             actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-    //             data.extent = actualExtent;
-    //         }
-    //         data.imageCount = capabilities.minImageCount + 1;
-    //         if (capabilities.maxImageCount > 0 && data.imageCount > capabilities.maxImageCount) {
-    //             data.imageCount = capabilities.maxImageCount;
-    //         }
-    //     }
+        int graphicsFamilyIdx = -1;
+        int presentFamilyIdx = -1;
+        std::set<const char*> requiredExtensions(extensions.begin(), extensions.end());
+        for (const auto& devExtension : devExtensions) {
+            requiredExtensions.erase(devExtension.extensionName);
+        }
+        for (int i = 0; i < queueFamilies.size(); i++) {
+            if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                graphicsFamilyIdx = i;
+                break;
+            }
+        }
+        for (int i = 0; i < queueFamilies.size(); i++) {
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface, &presentSupport);
+            if (presentSupport) {
+                presentFamilyIdx = i;
+                break;
+            }
+        }
+        if (selectedPhysicalDeviceIdx == -1 &&
+            graphicsFamilyIdx != -1 &&
+            presentFamilyIdx != -1
+            // requiredExtensions.empty()
+        ) {
+            selectedPhysicalDeviceIdx = i;
+            ctx.gIdx = graphicsFamilyIdx;
+            ctx.pIdx = presentFamilyIdx;
+            ctx.format = formats[0];
+            ctx.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+            for (const auto& x : formats) {
+                if (x.format == VK_FORMAT_B8G8R8A8_SRGB && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+                    ctx.format = x;
+                }
+            }
+            for (const auto& x : presentModes) {
+                if (x == VK_PRESENT_MODE_MAILBOX_KHR) {
+                    ctx.presentMode = x;
+                }
+            }
+            ctx.currTransform = capabilities.currentTransform;
+            if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+                ctx.extent =  capabilities.currentExtent;
+            } else {
+                int width, height;
+                //glfwGetFramebufferSize(window, &width, &height);
+                VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+                actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+                actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+                ctx.extent = actualExtent;
+            }
+            ctx.imageCount = capabilities.minImageCount + 1;
+            if (capabilities.maxImageCount > 0 && ctx.imageCount > capabilities.maxImageCount) {
+                ctx.imageCount = capabilities.maxImageCount;
+            }
+        }
     }
     if (selectedPhysicalDeviceIdx != -1) {
-        data.physicalDevice = physicalDevices[selectedPhysicalDeviceIdx];
+        ctx.physicalDevice = physicalDevices[selectedPhysicalDeviceIdx];
         return true;
     } else {
-        data.physicalDevice = VK_NULL_HANDLE;
+        ctx.physicalDevice = VK_NULL_HANDLE;
         return false;
     }
 }
@@ -351,7 +351,7 @@ bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const ch
     return false;
 }
 
-bool createDevice(VkPhysicalDevice pd, uint32_t gIdx, uint32_t pIdx, VkDevice& device, VkQueue& gQ, VkQueue& pQ) {
+bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ) {
     const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
@@ -369,7 +369,7 @@ bool createDevice(VkPhysicalDevice pd, uint32_t gIdx, uint32_t pIdx, VkDevice& d
     // }
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { gIdx, pIdx };
+    std::set<uint32_t> uniqueQueueFamilies = { pdCtx.gIdx, pdCtx.pIdx };
     float queuePriority = 1.0f;
     for (uint32_t queueFamily : uniqueQueueFamilies) {
         VkDeviceQueueCreateInfo queueCreateInfo = {
@@ -391,9 +391,9 @@ bool createDevice(VkPhysicalDevice pd, uint32_t gIdx, uint32_t pIdx, VkDevice& d
         .ppEnabledExtensionNames    = deviceExtensions.data(),
         .pEnabledFeatures           = &deviceFeatures,
     };
-    GUARDV(vkCreateDevice(pd, &deviceCreateInfo, nullptr, &device));
-    vkGetDeviceQueue(device, gIdx, 0, &gQ);
-    vkGetDeviceQueue(device, pIdx, 0, &pQ);
+    GUARDV(vkCreateDevice(pdCtx.physicalDevice, &deviceCreateInfo, nullptr, &device));
+    vkGetDeviceQueue(device, pdCtx.gIdx, 0, &gQ);
+    vkGetDeviceQueue(device, pdCtx.pIdx, 0, &pQ);
     return true;
 }
 
@@ -439,60 +439,49 @@ bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, V
     return true;
 }
 
-bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceData& data, SwapchainCtx& swapchainCtx) {
+bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceCtx& pdCtx, SwapchainCtx& ctx) {
+    bool uniqueQueue = pdCtx.gIdx == pdCtx.pIdx;
+    uint32_t queueIndices[] = { pdCtx.gIdx, pdCtx.pIdx };
+    ctx.imageFormat = pdCtx.format.format;
+    ctx.extent = pdCtx.extent;
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
-        .sType            = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface          = surface,
-        .minImageCount    = data.imageCount,
-        .imageFormat      = data.format.format,
-        .imageColorSpace  = data.format.colorSpace,
-        .imageExtent      = data.extent,
-        .imageArrayLayers = 1,
-        .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-        .preTransform    = data.currTransform,
-        .compositeAlpha  = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode     = data.presentMode,
-        .clipped         = VK_TRUE,
-        .oldSwapchain    = VK_NULL_HANDLE,
+        .sType                  = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+        .surface                = surface,
+        .minImageCount          = pdCtx.imageCount,
+        .imageFormat            = pdCtx.format.format,
+        .imageColorSpace        = pdCtx.format.colorSpace,
+        .imageExtent            = pdCtx.extent,
+        .imageArrayLayers       = 1,
+        .imageUsage             = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+        .imageSharingMode       = uniqueQueue ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT,
+        .queueFamilyIndexCount  = uniqueQueue ? 1u : 2u,
+        .pQueueFamilyIndices    = queueIndices,
+        .preTransform           = pdCtx.currTransform,
+        .compositeAlpha         = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+        .presentMode            = pdCtx.presentMode,
+        .clipped                = VK_TRUE,
+        .oldSwapchain           = VK_NULL_HANDLE,
     };
-
-    uint32_t queueFamilyIndicesValues[] = { data.gIdx, data.pIdx };
-    if (data.gIdx != data.pIdx) {
-        swapchainCreateInfo.imageSharingMode        = VK_SHARING_MODE_CONCURRENT;
-        swapchainCreateInfo.queueFamilyIndexCount   = 2;
-        swapchainCreateInfo.pQueueFamilyIndices     = queueFamilyIndicesValues;
-    } else {
-        swapchainCreateInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    }
-
-    GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchainCtx.swapchain));
-    GUARD(getSwapchainImagesKHR(device, swapchainCtx.swapchain, swapchainCtx.images));
-
-    swapchainCtx.imageViews.resize(swapchainCtx.images.size());
-    for (size_t i = 0; i < swapchainCtx.images.size(); i++) {
-            VkComponentMapping components = {
-            .r = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .g = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .b = VK_COMPONENT_SWIZZLE_IDENTITY,
-            .a = VK_COMPONENT_SWIZZLE_IDENTITY,
-        };
-        VkImageSubresourceRange subresourceRange = {
-            .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
-            .baseMipLevel    = 0,
-            .levelCount      = 1,
-            .baseArrayLayer  = 0,
-            .layerCount      = 1,
-        };
+    GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &ctx.swapchain));
+    GUARD(getSwapchainImagesKHR(device, ctx.swapchain, ctx.images));
+    ctx.imageViews.resize(ctx.images.size());
+    for (size_t i = 0; i < ctx.images.size(); i++) {
         VkImageViewCreateInfo createInfo = {
-            .sType                            = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
-            .pNext                            = nullptr,
-            .image                            = swapchainCtx.images[i],
-            .viewType                         = VK_IMAGE_VIEW_TYPE_2D,
-            .format                           = data.format.format,
-            .components                       = components,
-            .subresourceRange                 = subresourceRange,
+            .sType              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext              = nullptr,
+            .image              = ctx.images[i],
+            .viewType           = VK_IMAGE_VIEW_TYPE_2D,
+            .format             = pdCtx.format.format,
+            .components         = {},
+            .subresourceRange   = {
+                .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel    = 0,
+                .levelCount      = 1,
+                .baseArrayLayer  = 0,
+                .layerCount      = 1,
+            },
         };
-        GUARDV(vkCreateImageView(device, &createInfo, nullptr, &swapchainCtx.imageViews[i]));
+        GUARDV(vkCreateImageView(device, &createInfo, nullptr, &ctx.imageViews[i]));
     }
     return true;
 }

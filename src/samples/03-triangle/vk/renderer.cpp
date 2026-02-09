@@ -64,19 +64,9 @@ public:
 
         GUARD(createInstance("01-Hello-Vk", VK_MAKE_VERSION(1, 0, 0), layers, extensions, instance));
         GUARD(createSurface(instance, window, surface));
-        
-
-        PhysicalDeviceData physicalDeviceData;
-        GUARD(selectPhysicalDevice(
-            instance,
-            surface,
-            { VK_KHR_SWAPCHAIN_EXTENSION_NAME },
-            physicalDeviceData
-        ));
-        GUARD(createDevice(physicalDevice, physicalDeviceData.gIdx, physicalDeviceData.pIdx, device, graphicsQueue, presentQueue));
-
-        SwapchainCtx swapchainCtx;
-        GUARD(createSwapchain(device, surface, physicalDeviceData, swapchainCtx));
+        GUARD(selectPhysicalDevice(instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
+        GUARD(createDevice(pdCtx, device, graphicsQueue, presentQueue));
+        GUARD(createSwapchain(device, surface, pdCtx, swapchainCtx));
         // GUARD(createCommandObjects());
 
 
@@ -85,7 +75,7 @@ public:
 
         // Create render pass
         VkAttachmentDescription colorAttachment = {
-            .format                 = swapchainImageFormat,
+            .format                 = swapchainCtx.imageFormat,
             .samples                = VK_SAMPLE_COUNT_1_BIT,
             .loadOp                 = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp                = VK_ATTACHMENT_STORE_OP_STORE,
@@ -120,15 +110,12 @@ public:
             .dependencyCount        = 1,
             .pDependencies          = &dependency,
         };
-        if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-            printf("failed to create render pass");
-            return 0;
-        }
+        GUARDV(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
 
         // Create graphics pipeline
         std::wstring assetsPath = getAssetsPathW();
-        auto vertShaderCode = readFile(assetsPath + L"01-hello-shaders-vk/shader.vert.spv");
-        auto fragShaderCode = readFile(assetsPath + L"01-hello-shaders-vk/shader.frag.spv");
+        auto vertShaderCode = readFile(assetsPath + L"03-triangle-shaders-vk/shader.vert.spv");
+        auto fragShaderCode = readFile(assetsPath + L"03-triangle-shaders-vk/shader.frag.spv");
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
         VkShaderModuleCreateInfo vertCreateInfo = {
@@ -246,21 +233,21 @@ public:
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
 
         // Create frame buffers
-        swapchainFramebuffers.resize(swapchainImageViews.size());
-        for (size_t i = 0; i < swapchainImageViews.size(); i++) {
+        swapchainCtx.framebuffers.resize(swapchainCtx.imageViews.size());
+        for (size_t i = 0; i < swapchainCtx.imageViews.size(); i++) {
             VkImageView attachments[] = {
-                swapchainImageViews[i],
+                swapchainCtx.imageViews[i],
             };
             VkFramebufferCreateInfo framebufferInfo = {
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = renderPass,
                 .attachmentCount = 1,
                 .pAttachments = attachments,
-                .width = swapchainExtent.width,
-                .height = swapchainExtent.height,
+                .width = swapchainCtx.extent.width,
+                .height = swapchainCtx.extent.height,
                 .layers = 1,
             };
-            if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainFramebuffers[i]) != VK_SUCCESS) {
+            if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapchainCtx.framebuffers[i]) != VK_SUCCESS) {
                 printf("failed to create framebuffer");
                 return 0;
             }
@@ -270,7 +257,7 @@ public:
         VkCommandPoolCreateInfo poolInfo = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = graphicsFamilyIdx,
+            .queueFamilyIndex = pdCtx.gIdx,
         };
         if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
             printf("failed to create command pool");
@@ -312,16 +299,16 @@ public:
         vkDestroySemaphore       (device, imageAvailableSemaphore, nullptr);
         vkDestroyFence           (device, inFlightFence, nullptr);
         vkDestroyCommandPool     (device, commandPool, nullptr);
-        for (auto framebuffer : swapchainFramebuffers) {
+        for (auto framebuffer : swapchainCtx.framebuffers) {
             vkDestroyFramebuffer (device, framebuffer, nullptr);
         }
         vkDestroyPipeline        (device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
         vkDestroyRenderPass      (device, renderPass, nullptr);
-        for (auto imageView : swapchainImageViews) {
+        for (auto imageView : swapchainCtx.imageViews) {
             vkDestroyImageView   (device, imageView, nullptr);
         }
-        vkDestroySwapchainKHR    (device, swapchain, nullptr);
+        vkDestroySwapchainKHR    (device, swapchainCtx.swapchain, nullptr);
         vkDestroyDevice          (device, nullptr);
         destroyDebugMessengerFn(instance, debugMessenger, nullptr);
         vkDestroySurfaceKHR      (instance, surface, nullptr);
@@ -338,7 +325,7 @@ public:
         vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
         vkResetFences(device, 1, &inFlightFence);
         uint32_t imageIndex;
-        vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        vkAcquireNextImageKHR(device, swapchainCtx.swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
         vkResetCommandBuffer(commandBuffer, /*VkCommandBufferResetFlagBits*/ 0);
 
         // Record command buffer
@@ -352,8 +339,8 @@ public:
         VkRenderPassBeginInfo renderPassInfo = {
             .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass           = renderPass,
-            .framebuffer          = swapchainFramebuffers[imageIndex],
-            .renderArea           = { .offset    = { 0, 0 }, .extent = swapchainExtent },
+            .framebuffer          = swapchainCtx.framebuffers[imageIndex],
+            .renderArea           = { .offset    = { 0, 0 }, .extent = swapchainCtx.extent },
             .clearValueCount      = 1,
             .pClearValues         = &vkClearColor,
         };
@@ -362,15 +349,15 @@ public:
         VkViewport viewport = {
             .x          = 0.0f,
             .y          = 0.0f,
-            .width      = static_cast<float>(swapchainExtent.width),
-            .height     = static_cast<float>(swapchainExtent.height),
+            .width      = static_cast<float>(swapchainCtx.extent.width),
+            .height     = static_cast<float>(swapchainCtx.extent.height),
             .minDepth   = 0.0f,
             .maxDepth   = 1.0f,
         };
         vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
         VkRect2D scissor = {
             .offset = { 0, 0 },
-            .extent = swapchainExtent,
+            .extent = swapchainCtx.extent,
         };
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
         vkCmdDraw(commandBuffer, 3, 1, 0, 0);
@@ -396,7 +383,7 @@ public:
             printf("failed to submit draw command buffer");
             return 0;
         }
-        VkSwapchainKHR swapchains[] = { swapchain };
+        VkSwapchainKHR swapchains[] = { swapchainCtx.swapchain };
         VkPresentInfoKHR presentInfo = {
             .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount  = 1,
@@ -421,23 +408,16 @@ public:
     }
 
 private:
+    VkInstance                          instance;
     PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
     PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    VkInstance                          instance;
     VkDebugUtilsMessengerEXT            debugMessenger;
     VkSurfaceKHR                        surface;
-    VkPhysicalDevice                    physicalDevice = VK_NULL_HANDLE;
+    PhysicalDeviceCtx                   pdCtx;
+    SwapchainCtx                        swapchainCtx;
     VkDevice                            device;
-    uint32_t                            graphicsFamilyIdx;
-    uint32_t                            presentFamilyIdx;
     VkQueue                             graphicsQueue;
     VkQueue                             presentQueue;
-    VkSwapchainKHR                      swapchain;
-    std::vector<VkImage>                swapchainImages;
-    VkFormat                            swapchainImageFormat;
-    VkExtent2D                          swapchainExtent;
-    std::vector<VkImageView>            swapchainImageViews;
-    std::vector<VkFramebuffer>          swapchainFramebuffers;
     VkRenderPass                        renderPass;
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;

@@ -6,11 +6,13 @@ Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan exe
 
 The samples leverage the library `app` for easier program setup.
 
-| Sample         | Camera Control  | Shading                  |  |
-|----------------|-----------------|--------------------------|--|
-| **01-hello**   |                 |                          |
-| **02-color**   | ✓               | vertex color             |
-| **03-diffuse** | ✓               | diffuse + light + shadow |
+| Sample          | Camera Control  | Shading                  |  |
+|-----------------|-----------------|--------------------------|--|
+| **01-info**     |                 |                          |  |
+| **02-compute**  |                 |                          |  |
+| **03-triangle** |                 | vertex color             |  |
+| **04-objects**  | ✓               | vertex color             |  |
+| **05-diffuse**  | ✓               | diffuse + light + shadow |  |
 
 
 

@@ -148,7 +148,7 @@ public:
 
         Shader vShader;
         Shader pShader;
-        std::string shaderDir = "01-hello-shaders";
+        std::string shaderDir = "03-triangle-shaders";
         GUARD(loadShader(vShader, shaderDir, "shaders_v.dxil"));
         GUARD(loadShader(pShader, shaderDir, "shaders_p.dxil"));
 

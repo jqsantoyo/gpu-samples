@@ -278,7 +278,7 @@ public:
         Shader pShader;
         Shader vShaderWire;
         Shader pShaderWire;
-        std::string shaderDir = "02-color-shaders";
+        std::string shaderDir = "04-objects-shaders";
         GUARD(loadShader(vShader,     shaderDir, "shaders_v.dxil"));
         GUARD(loadShader(pShader,     shaderDir, "shaders_p.dxil"));
         GUARD(loadShader(vShaderWire, shaderDir, "shadersWire_v.dxil"));

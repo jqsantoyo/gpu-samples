@@ -43,7 +43,7 @@ namespace gpu {
 
     bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface);
     
-    struct PhysicalDeviceData {
+    struct PhysicalDeviceCtx {
         VkPhysicalDevice physicalDevice;
         uint32_t gIdx;
         uint32_t pIdx;
@@ -58,7 +58,7 @@ namespace gpu {
         VkInstance instance,
         VkSurfaceKHR surface,
         const std::vector<const char*>& extensions,
-        PhysicalDeviceData& data
+        PhysicalDeviceCtx& pd
     );
 
     struct ComputePhysicalDeviceWrap {
@@ -67,20 +67,20 @@ namespace gpu {
     };
     bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w);
 
-    bool createDevice(VkPhysicalDevice pd, uint32_t gIdx, uint32_t pIdx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
+    bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
     bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ);
 
 
     struct SwapchainCtx {
         VkSwapchainKHR              swapchain;
-        std::vector<VkImage>        images;
         VkFormat                    imageFormat;
         VkExtent2D                  extent;
+        std::vector<VkImage>        images;
         std::vector<VkImageView>    imageViews;
         std::vector<VkFramebuffer>  framebuffers;
     };
 
-    bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceData& data, SwapchainCtx& swapchainCtx);
+    bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceCtx& pdCtx, SwapchainCtx& ctx);
 
 
     bool createCommandObjects();
