@@ -56,7 +56,16 @@ namespace gpu {
         VkPipelineShaderStageCreateInfo info;
     };
 
+    struct Frame {
+        VkCommandBuffer& cmdBuffer;
+        VkSemaphore&     imageReady;
+        VkSemaphore&     renderReady;
+        VkFence&         execution;
+    };
+
     struct FrameControl {
+        int                           frameCount;
+        int                           frameIdx;
         std::vector<VkCommandPool>    cmdPool;
         std::vector<VkCommandBuffer>  cmdBuffer;
         std::vector<VkSemaphore>      imageReady;
@@ -106,8 +115,11 @@ namespace gpu {
     bool createSwapchainFramebuffers(VkDevice device, SwapchainCtx& ctx, VkRenderPass renderPass);
     bool destroySwapchain(VkDevice device, SwapchainCtx& ctx);
 
-    bool createFrameControl(FrameControl& frameControl);
-    bool deatroyFrameControl(FrameControl& frameControl);
+    bool createFrameControl(VkDevice device, uint32_t graphicsQueueIdx, int frameCount, FrameControl& frameControl);
+    Frame nextFrame(FrameControl& frameControl, VkDevice device);
+    bool beginFrame(Frame& frame, VkDevice device);
+    bool endFrame(Frame& frame, VkQueue gQ);
+    void destroyFrameControl(VkDevice device, FrameControl& frameControl);
 
     bool loadShader(VkDevice device, const char* dir, const char* name, Shader& shader, VkShaderStageFlagBits stage);
 }

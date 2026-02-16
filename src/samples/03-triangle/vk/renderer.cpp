@@ -49,36 +49,14 @@ public:
         GUARD(createSwapchain(device, surface, pdCtx, swapchainCtx));
         GUARD(createPipeline());
         GUARD(createSwapchainFramebuffers(device, swapchainCtx, renderPass));
-
-        // Create command pool
-        VkCommandPoolCreateInfo poolInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = pdCtx.gIdx,
-        };
-        GUARDV(vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool));
-        VkCommandBufferAllocateInfo allocInfo = {
-            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .commandPool        = commandPool,
-            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = 1,
-        };
-        GUARDV(vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer));
-
-
-        GUARDV(createSemaphore(device, imageAvailableSemaphore));
-        GUARDV(createSemaphore(device, renderFinishedSemaphore));
-        GUARDV(createFence(device, inFlightFence, true));
+        GUARD(createFrameControl(device, pdCtx.gIdx, 2, frameControl));
         return 1;
     }
 
     void stop() {
         vkDeviceWaitIdle         (device);
+        destroyFrameControl      (device, frameControl);
         destroySwapchain         (device, swapchainCtx);
-        vkDestroySemaphore       (device, renderFinishedSemaphore, nullptr);
-        vkDestroySemaphore       (device, imageAvailableSemaphore, nullptr);
-        vkDestroyFence           (device, inFlightFence, nullptr);
-        vkDestroyCommandPool     (device, commandPool, nullptr);
         vkDestroyPipeline        (device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
         vkDestroyRenderPass      (device, renderPass, nullptr);
@@ -101,9 +79,10 @@ public:
     }
 
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
+        Frame frame = nextFrame(frameControl, device);
+        
         uint32_t imageIndex;
-        vkWaitForFences(device, 1, &inFlightFence, VK_TRUE, UINT64_MAX);
-        VkResult res = vkAcquireNextImageKHR(device, swapchainCtx.swapchain, UINT64_MAX, imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+        VkResult res = vkAcquireNextImageKHR(device, swapchainCtx.swapchain, UINT64_MAX, frame.imageReady, VK_NULL_HANDLE, &imageIndex);
         if (res == VK_ERROR_OUT_OF_DATE_KHR || sizeChanged) {
             sizeChanged = false;
             createSwapchain(device, surface, pdCtx, swapchainCtx);
@@ -112,25 +91,21 @@ public:
             printf("Acquire image error\n");
             return 0;
         }
+        VkFramebuffer fb = swapchainCtx.framebuffers[imageIndex];
+        beginFrame(frame, device);
         
-        vkResetFences(device, 1, &inFlightFence);
-        vkResetCommandBuffer(commandBuffer, 0);
-
-        // Record command buffer
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        GUARDV(vkBeginCommandBuffer(commandBuffer, &beginInfo));
+    
         VkClearValue vkClearColor = { {{clearColor.v[0], clearColor.v[1], clearColor.v[2], clearColor.v[3]}} };
         VkRenderPassBeginInfo renderPassInfo = {
             .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass           = renderPass,
-            .framebuffer          = swapchainCtx.framebuffers[imageIndex],
+            .framebuffer          = fb,
             .renderArea           = { .offset    = { 0, 0 }, .extent = swapchainCtx.extent },
             .clearValueCount      = 1,
             .pClearValues         = &vkClearColor,
         };
-        vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+        vkCmdBeginRenderPass(frame.cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
         VkViewport viewport = {
             .x          = 0.0f,
             .y          = 0.0f,
@@ -139,36 +114,23 @@ public:
             .minDepth   = 0.0f,
             .maxDepth   = 1.0f,
         };
-        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
         VkRect2D scissor = {
             .offset = { 0, 0 },
             .extent = swapchainCtx.extent,
         };
-        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-        vkCmdDraw(commandBuffer, 3, 1, 0, 0);
-        vkCmdEndRenderPass(commandBuffer);
-        GUARDV(vkEndCommandBuffer(commandBuffer))
-
-        VkSemaphore signalSemaphores[]    = { renderFinishedSemaphore };
-        VkSemaphore waitSemaphores[]      = { imageAvailableSemaphore };
-        VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-        VkSubmitInfo submitInfo = {
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount   = 1,
-            .pWaitSemaphores      = waitSemaphores,
-            .pWaitDstStageMask    = waitStages,
-            .commandBufferCount   = 1,
-            .pCommandBuffers      = &commandBuffer,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores    = signalSemaphores,
-        };
-        GUARDV(vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFence));
+        vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+        vkCmdDraw(frame.cmdBuffer, 3, 1, 0, 0);
+        vkCmdEndRenderPass(frame.cmdBuffer);
+        GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
+        
+        endFrame(frame, graphicsQueue);
 
         VkSwapchainKHR swapchains[] = { swapchainCtx.swapchain };
         VkPresentInfoKHR presentInfo = {
             .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .waitSemaphoreCount  = 1,
-            .pWaitSemaphores     = signalSemaphores,
+            .pWaitSemaphores     = &frame.renderReady,
             .swapchainCount      = 1,
             .pSwapchains         = swapchains,
             .pImageIndices       = &imageIndex,
@@ -199,11 +161,7 @@ private:
     VkRenderPass                        renderPass;
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;
-    // FrameControl                        frameControl;
-    VkCommandPool                       commandPool;
-    VkCommandBuffer                     commandBuffer;
-    VkSemaphore                         imageAvailableSemaphore;
-    VkSemaphore                         renderFinishedSemaphore;
+    FrameControl                        frameControl;
     VkFence                             inFlightFence;
     int                                 width;
     int                                 height;

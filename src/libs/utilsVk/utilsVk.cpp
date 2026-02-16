@@ -521,12 +521,84 @@ bool destroySwapchain(VkDevice device, SwapchainCtx& ctx) {
     return true;
 }
 
-bool createFrameControl(FrameControl& frameControl) {
+bool createFrameControl(VkDevice device, uint32_t graphicsQueueIdx, int frameCount, FrameControl& frameControl) {
+    frameControl.frameCount = frameCount;
+    frameControl.frameIdx = -1;
+    frameControl.cmdPool.resize(frameCount);
+    frameControl.cmdBuffer.resize(frameCount);
+    frameControl.imageReady.resize(frameCount);
+    frameControl.renderReady.resize(frameCount);
+    frameControl.execution.resize(frameCount);
+    for (int i = 0; i < frameCount; i++) {
+        VkCommandPoolCreateInfo poolInfo = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = graphicsQueueIdx,
+        };
+        GUARDV(vkCreateCommandPool(device, &poolInfo, nullptr, &frameControl.cmdPool[i]));
+        VkCommandBufferAllocateInfo allocInfo = {
+            .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool        = frameControl.cmdPool[i],
+            .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = 1,
+        };
+        GUARDV(vkAllocateCommandBuffers(device, &allocInfo, &frameControl.cmdBuffer[i]));
+
+
+        GUARDV(createSemaphore(device, frameControl.imageReady[i]));
+        GUARDV(createSemaphore(device, frameControl.renderReady[i]));
+        GUARDV(createFence(device, frameControl.execution[i], true));
+    }
     return true;
 }
 
-bool deatroyFrameControl(FrameControl& frameControl) {
+Frame nextFrame(FrameControl& frameControl, VkDevice device) {
+    frameControl.frameIdx = (frameControl.frameIdx + 1) % frameControl.frameCount;
+    Frame frame = {
+        .cmdBuffer   = frameControl.cmdBuffer  [frameControl.frameIdx],
+        .imageReady  = frameControl.imageReady [frameControl.frameIdx],
+        .renderReady = frameControl.renderReady[frameControl.frameIdx],
+        .execution   = frameControl.execution  [frameControl.frameIdx],
+    };
+    vkWaitForFences(device, 1, &frame.execution, VK_TRUE, UINT64_MAX);
+    printf("Active frame: %d\n", frameControl.frameIdx);
+    return frame;
+}
+
+
+bool beginFrame(Frame& frame, VkDevice device) {
+    vkResetFences(device, 1, &frame.execution);
+    vkResetCommandBuffer(frame.cmdBuffer, 0);
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+    };
+    GUARDV(vkBeginCommandBuffer(frame.cmdBuffer, &beginInfo));
     return true;
+}
+
+bool endFrame(Frame& frame, VkQueue gQ) {
+    VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+    VkSubmitInfo submitInfo = {
+        .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .waitSemaphoreCount   = 1,
+        .pWaitSemaphores      = &frame.imageReady,
+        .pWaitDstStageMask    = waitStages,
+        .commandBufferCount   = 1,
+        .pCommandBuffers      = &frame.cmdBuffer,
+        .signalSemaphoreCount = 1,
+        .pSignalSemaphores    = &frame.renderReady,
+    };
+    GUARDV(vkQueueSubmit(gQ, 1, &submitInfo, frame.execution));
+    return true;
+}
+
+void destroyFrameControl(VkDevice device, FrameControl& frameControl) {
+    for (int i = 0; i < frameControl.frameCount; i++) {
+        vkDestroySemaphore       (device, frameControl.imageReady[i], nullptr);
+        vkDestroySemaphore       (device, frameControl.renderReady[i], nullptr);
+        vkDestroyFence           (device, frameControl.execution[i], nullptr);
+        vkDestroyCommandPool     (device, frameControl.cmdPool[i], nullptr);
+    }
 }
 
 
