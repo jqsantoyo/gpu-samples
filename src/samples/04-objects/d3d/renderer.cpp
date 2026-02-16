@@ -383,6 +383,10 @@ public:
         CloseHandle(fenceEvent);
     }
 
+    int resize(int width, int height) {
+        return 1;
+    }
+
     void setView(ViewDesc& desc) {
         XMVECTOR pos    = XMVectorSet(desc.pos[0],    desc.pos[1],    desc.pos[2],    1.0f);
         XMVECTOR target = XMVectorSet(desc.target[0], desc.target[1], desc.target[2], 1.0f);

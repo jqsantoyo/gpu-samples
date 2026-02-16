@@ -68,6 +68,7 @@ public:
     virtual ~IRenderer() = default;
     virtual int start(void* window, uint32_t screenWidth, uint32_t screenHeight) = 0;
     virtual void stop() = 0;
+    virtual int resize(int width, int height) = 0;
     virtual void setView(ViewDesc& desc) = 0;
     virtual void setProjection(ProjectionDesc& desc) = 0;
     virtual int addBuffer(const BufferDesc& desc) = 0;

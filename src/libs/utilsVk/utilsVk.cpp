@@ -79,6 +79,20 @@ bool getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, std::vecto
     return true;
 }
 
+VkResult createSemaphore(VkDevice device, VkSemaphore& semaphore) {
+    VkSemaphoreCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    return vkCreateSemaphore(device, &info, nullptr, &semaphore);
+}
+
+VkResult createFence(VkDevice device, VkFence& fence, bool signaled) {
+    VkFenceCreateInfo info = {
+        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+        .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+    };
+    return vkCreateFence(device, &info, nullptr, &fence);
+}
 
 
 
@@ -152,7 +166,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
     void* pUserData
 ) {
-    printf("Validation layer: %s\n", pCallbackData->pMessage);
+    printf("Validation layers: %s\n", pCallbackData->pMessage);
     return VK_FALSE;
 }
 
@@ -161,7 +175,7 @@ bool createInstance(
     uint32_t version,
     const std::vector<const char*>& layers,
     const std::vector<const char*>& extensions,
-    VkInstance& instance
+    InstanceCtx& ctx
 ) {
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{
         .sType              = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
@@ -190,8 +204,21 @@ bool createInstance(
         .enabledExtensionCount    = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames  = extensions.data(),
     };
-    GUARDV(vkCreateInstance(&createInfo, nullptr, &instance));
+    GUARDV(vkCreateInstance(&createInfo, nullptr, &ctx.instance));
+    
+    PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
+    PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
+    createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(ctx.instance, "vkCreateDebugUtilsMessengerEXT");
+    destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
+    GUARD(createDebugMessengerFn != nullptr);
+    GUARD(destroyDebugMessengerFn != nullptr);
+    GUARDV(createDebugMessengerFn(ctx.instance, &debugCreateInfo, nullptr, &ctx.debugMessenger));
     return true;
+}
+
+void destroyInstance(InstanceCtx& ctx) {
+    ctx.destroyDebugMessengerFn(ctx.instance, ctx.debugMessenger, nullptr);
+    vkDestroyInstance(ctx.instance, nullptr);
 }
 
 bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface) {
@@ -211,6 +238,13 @@ bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface) {
     return true;
 }
 
+bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surfaceInfo) {
+    GUARDV(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &surfaceInfo.capabilities));
+    GUARD(getPhysicalDeviceSurfaceFormatsKHR        (pd, surface, surfaceInfo.formats));
+    GUARD(getPhysicalDeviceSurfacePresentModesKHR   (pd, surface, surfaceInfo.presentModes));
+    return true;
+}
+
 
 
 bool selectPhysicalDevice(
@@ -226,25 +260,19 @@ bool selectPhysicalDevice(
     int selectedPhysicalDeviceIdx = -1;
     for (int i = 0; i < physicalDevices.size(); i++) {
         VkPhysicalDevice& pd = physicalDevices[i];
-
-        
         VkPhysicalDeviceProperties           props;
         VkPhysicalDeviceFeatures             features;
         VkPhysicalDeviceMemoryProperties     memProps;
         VkSurfaceCapabilitiesKHR             capabilities;
         std::vector<VkQueueFamilyProperties> queueFamilies;
-        std::vector<VkSurfaceFormatKHR>      formats;
-        std::vector<VkPresentModeKHR>        presentModes;
         std::vector<VkExtensionProperties>   devExtensions;
-
+        SurfaceInfo surfaceInfo;
         enumerateDeviceExtensionProperties       (pd, nullptr, devExtensions);
         vkGetPhysicalDeviceProperties            (pd, &props);
         vkGetPhysicalDeviceFeatures              (pd, &features);
         vkGetPhysicalDeviceMemoryProperties      (pd, &memProps);
-        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &capabilities);
         getPhysicalDeviceQueueFamilyProperties   (pd, queueFamilies);
-        getPhysicalDeviceSurfaceFormatsKHR       (pd, surface, formats);
-        getPhysicalDeviceSurfacePresentModesKHR  (pd, surface, presentModes);
+        getSurfaceInfo                           (pd, surface, surfaceInfo);
 
         int graphicsFamilyIdx = -1;
         int presentFamilyIdx = -1;
@@ -268,39 +296,14 @@ bool selectPhysicalDevice(
         }
         if (selectedPhysicalDeviceIdx == -1 &&
             graphicsFamilyIdx != -1 &&
-            presentFamilyIdx != -1
-            // requiredExtensions.empty()
+            presentFamilyIdx != -1 && 
+            // requiredExtensions.empty() &&
+            surfaceInfo.formats.size() > 0 &&
+            surfaceInfo.presentModes.size() > 0
         ) {
             selectedPhysicalDeviceIdx = i;
             ctx.gIdx = graphicsFamilyIdx;
             ctx.pIdx = presentFamilyIdx;
-            ctx.format = formats[0];
-            ctx.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-            for (const auto& x : formats) {
-                if (x.format == VK_FORMAT_B8G8R8A8_SRGB && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-                    ctx.format = x;
-                }
-            }
-            for (const auto& x : presentModes) {
-                if (x == VK_PRESENT_MODE_MAILBOX_KHR) {
-                    ctx.presentMode = x;
-                }
-            }
-            ctx.currTransform = capabilities.currentTransform;
-            if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-                ctx.extent =  capabilities.currentExtent;
-            } else {
-                int width, height;
-                //glfwGetFramebufferSize(window, &width, &height);
-                VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
-                actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-                actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-                ctx.extent = actualExtent;
-            }
-            ctx.imageCount = capabilities.minImageCount + 1;
-            if (capabilities.maxImageCount > 0 && ctx.imageCount > capabilities.maxImageCount) {
-                ctx.imageCount = capabilities.maxImageCount;
-            }
         }
     }
     if (selectedPhysicalDeviceIdx != -1) {
@@ -355,36 +358,19 @@ bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueu
     const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-    // PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
-    // PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    // createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    // destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    // if (createDebugMessengerFn == nullptr || destroyDebugMessengerFn == nullptr) {
-    //     printf("Debug messenger extensions not found");
-    //     return 0;
-    // }
-    // if (createDebugMessengerFn(instance, &debugCreateInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-    //     printf("failed to set up debug messenger");
-    //     return 0;
-    // }
-
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = { pdCtx.gIdx, pdCtx.pIdx };
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo = {
-            .sType               = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex    = queueFamily,
-            .queueCount          = 1,
-            .pQueuePriorities    = &queuePriority,
-        };
-        queueCreateInfos.push_back(queueCreateInfo);
+    float queuePriority = 1.0f;    
+    std::vector<VkDeviceQueueCreateInfo> queueInfos = {
+        { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, 0, pdCtx.gIdx, 1, &queuePriority },
+        { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, 0, pdCtx.pIdx, 1, &queuePriority },
+    };
+    if (pdCtx.gIdx == pdCtx.pIdx) {
+        queueInfos.resize(1);
     }
     VkPhysicalDeviceFeatures deviceFeatures{};
     VkDeviceCreateInfo deviceCreateInfo = {
         .sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount       = static_cast<uint32_t>(queueCreateInfos.size()),
-        .pQueueCreateInfos          = queueCreateInfos.data(),
+        .queueCreateInfoCount       = static_cast<uint32_t>(queueInfos.size()),
+        .pQueueCreateInfos          = queueInfos.data(),
         .enabledLayerCount          = static_cast<uint32_t>(requiredLayers.size()),
         .ppEnabledLayerNames        = requiredLayers.data(),
         .enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()),
@@ -400,19 +386,6 @@ bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueu
 bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ) {
     const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
     const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-    // PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
-    // PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    // createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    // destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    // if (createDebugMessengerFn == nullptr || destroyDebugMessengerFn == nullptr) {
-    //     printf("Debug messenger extensions not found");
-    //     return 0;
-    // }
-    // if (createDebugMessengerFn(instance, &debugCreateInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
-    //     printf("failed to set up debug messenger");
-    //     return 0;
-    // }
 
     float queuePriority = 1.0f;
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = {
@@ -440,25 +413,54 @@ bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, V
 }
 
 bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceCtx& pdCtx, SwapchainCtx& ctx) {
+    destroySwapchain(device, ctx);
+
+    SurfaceInfo surfaceInfo;
+    getSurfaceInfo(pdCtx.physicalDevice, surface, surfaceInfo);
+    VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+    VkFormat format = surfaceInfo.formats[0].format;
+    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    for (const auto& x : surfaceInfo.formats) {
+        if (x.format == VK_FORMAT_B8G8R8A8_SRGB && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            ctx.format = x.format;
+        }
+    }
+    for (const auto& x : surfaceInfo.presentModes) {
+        if (x == VK_PRESENT_MODE_MAILBOX_KHR) {
+            ctx.presentMode = x;
+        }
+    }
+    VkSurfaceTransformFlagBitsKHR currTransform = surfaceInfo.capabilities.currentTransform;
+    if (surfaceInfo.capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+        ctx.extent =  surfaceInfo.capabilities.currentExtent;
+    } else {
+        // VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+        // actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+        // actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+        // ctx.extent = actualExtent;
+    }
+    uint32_t imageCount = surfaceInfo.capabilities.minImageCount + 1;
+    if (surfaceInfo.capabilities.maxImageCount > 0 && imageCount > surfaceInfo.capabilities.maxImageCount) {
+        imageCount = surfaceInfo.capabilities.maxImageCount;
+    }
+    
     bool uniqueQueue = pdCtx.gIdx == pdCtx.pIdx;
     uint32_t queueIndices[] = { pdCtx.gIdx, pdCtx.pIdx };
-    ctx.imageFormat = pdCtx.format.format;
-    ctx.extent = pdCtx.extent;
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
         .sType                  = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface                = surface,
-        .minImageCount          = pdCtx.imageCount,
-        .imageFormat            = pdCtx.format.format,
-        .imageColorSpace        = pdCtx.format.colorSpace,
-        .imageExtent            = pdCtx.extent,
+        .minImageCount          = imageCount,
+        .imageFormat            = format,
+        .imageColorSpace        = colorSpace,
+        .imageExtent            = ctx.extent,
         .imageArrayLayers       = 1,
         .imageUsage             = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .imageSharingMode       = uniqueQueue ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT,
         .queueFamilyIndexCount  = uniqueQueue ? 1u : 2u,
         .pQueueFamilyIndices    = queueIndices,
-        .preTransform           = pdCtx.currTransform,
+        .preTransform           = currTransform,
         .compositeAlpha         = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
-        .presentMode            = pdCtx.presentMode,
+        .presentMode            = presentMode,
         .clipped                = VK_TRUE,
         .oldSwapchain           = VK_NULL_HANDLE,
     };
@@ -471,7 +473,7 @@ bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDevice
             .pNext              = nullptr,
             .image              = ctx.images[i],
             .viewType           = VK_IMAGE_VIEW_TYPE_2D,
-            .format             = pdCtx.format.format,
+            .format             = format,
             .components         = {},
             .subresourceRange   = {
                 .aspectMask      = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -486,46 +488,49 @@ bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDevice
     return true;
 }
 
-bool createCommandObjects() {
-    // // Create command pool
-    // VkCommandPoolCreateInfo poolInfo = {
-    //     .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-    //     .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-    //     .queueFamilyIndex = graphicsFamilyIdx,
-    // };
-    // if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
-    //     printf("failed to create command pool");
-    //     return 0;
-    // }
+bool createSwapchainFramebuffers(VkDevice device, SwapchainCtx& ctx, VkRenderPass renderPass) {
+    ctx.framebuffers.resize(ctx.imageViews.size());
+    for (size_t i = 0; i < ctx.imageViews.size(); i++) {
+        VkImageView attachments[] = {
+            ctx.imageViews[i],
+        };
+        VkFramebufferCreateInfo framebufferInfo = {
+            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+            .renderPass = renderPass,
+            .attachmentCount = 1,
+            .pAttachments = attachments,
+            .width = ctx.extent.width,
+            .height = ctx.extent.height,
+            .layers = 1,
+        };
+        GUARDV(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &ctx.framebuffers[i]));
+    }
+    return true;
+}
 
-    // // Create command buffer
-    // VkCommandBufferAllocateInfo allocInfo = {
-    //     .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-    //     .commandPool        = commandPool,
-    //     .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-    //     .commandBufferCount = 1,
-    // };
-    // GUARDV(vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer));
+bool destroySwapchain(VkDevice device, SwapchainCtx& ctx) {
+    for (auto framebuffer : ctx.framebuffers) {
+        vkDestroyFramebuffer(device, framebuffer, nullptr);
+    }
+    for (auto imageView : ctx.imageViews) {
+        vkDestroyImageView(device, imageView, nullptr);
+    }
+    if (ctx.swapchain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(device, ctx.swapchain, nullptr);
+    }
+    return true;
+}
 
-    // // Create sync objects
-    // VkSemaphoreCreateInfo semaphoreInfo = {
-    //     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-    // };
-    // VkFenceCreateInfo fenceInfo = {
-    //     .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-    //     .flags = VK_FENCE_CREATE_SIGNALED_BIT,
-    // };
-    // if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &imageAvailableSemaphore) != VK_SUCCESS ||
-    //     vkCreateSemaphore(device, &semaphoreInfo, nullptr, &renderFinishedSemaphore) != VK_SUCCESS ||
-    //     vkCreateFence    (device, &fenceInfo, nullptr, &inFlightFence) != VK_SUCCESS) {
-    //     printf("failed to create synchronization objects for a frame");
-    //     return 0;
-    // }
+bool createFrameControl(FrameControl& frameControl) {
+    return true;
+}
+
+bool deatroyFrameControl(FrameControl& frameControl) {
     return true;
 }
 
 
-bool loadShader(VkDevice device, const char* dir, const char* name, Shader& shader) {
+bool loadShader(VkDevice device, const char* dir, const char* name, Shader& shader, VkShaderStageFlagBits stage) {
     std::string path = getAssetsPath() + dir + "\\" + name;
     FILE* file;
     errno_t err = fopen_s(&file, path.c_str(), "rb");
@@ -547,6 +552,15 @@ bool loadShader(VkDevice device, const char* dir, const char* name, Shader& shad
         .pCode = reinterpret_cast<uint32_t*>(shader.data.data()),
     };
     GUARDV(vkCreateShaderModule(device, &info, nullptr, &shader.module));
+    shader.info = {
+        .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+        .pNext               = nullptr,
+        .flags               = 0,
+        .stage               = stage,
+        .module              = shader.module,
+        .pName               = "main",
+        .pSpecializationInfo = nullptr,
+    };
     return true;
 }
 

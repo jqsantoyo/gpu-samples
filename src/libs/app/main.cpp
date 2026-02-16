@@ -24,6 +24,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
     int w = GET_WHEEL_DELTA_WPARAM(wParam); // only valid on WM_MOUSEWHEEL
     switch (msg) {
     case WM_CLOSE      : PostQuitMessage(0); break;;
+    case WM_SIZE       : app->resize(LOWORD(lParam), HIWORD(lParam)); break;
     case WM_MOUSEMOVE  : app->mouseEvent({ gpu::MouseEventType::Move,   GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   false }); break;
     case WM_MOUSEWHEEL : app->mouseEvent({ gpu::MouseEventType::Wheel,  GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), w, gpu::MouseButton::Left,   false }); break;
     case WM_LBUTTONDOWN: app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   true  }); break;
@@ -77,7 +78,7 @@ int main(int argc, char** argv) {
         ShowWindow(windowHandle, true ? SW_NORMAL : SW_MAXIMIZE);
         MSG msg = {};
         while (run && msg.message != WM_QUIT) {
-            if (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
+            while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }

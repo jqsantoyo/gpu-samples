@@ -52,6 +52,11 @@ public:
         return renderer->render({ 0.1f, 0.1f, 0.1f, 1.0f }, scene->get());
     }
 
+    int resize(int width, int height) {
+        renderer->resize(width, height);
+        return 1;
+    }
+
     int mouseEvent(MouseEvent event) {
         camera->mouseEvent(event);
         return 1;

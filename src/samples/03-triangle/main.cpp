@@ -18,6 +18,11 @@ public:
         return renderer->render({.1, .1, .1, 1}, {});
     }
 
+    int resize(int width, int height) {
+        renderer->resize(width, height);
+        return 1;
+    }
+
     int mouseEvent(MouseEvent event) {
         return 1;
     }

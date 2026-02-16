@@ -296,6 +296,10 @@ public:
         vkDestroyInstance        (instance, nullptr);
     }
 
+    int resize(int width, int height) {
+        return 1;
+    }
+
     void setView(ViewDesc& desc) {
     }
 
