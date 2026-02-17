@@ -7,28 +7,13 @@ namespace gpu {
 class Compute : public ICompute {
 public:
     int start(int argc, char** argv) {
-        std::vector<const char*> layers;
-        std::vector<const char*> extensions;
-        GUARD(validateLayers(
-            {
-                "VK_LAYER_KHRONOS_validation"
-            },
-            {
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            },
-            {
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-            },
-            layers,
-            extensions
-        ));
 
-        GUARD(createInstance("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), layers, extensions, instanceCtx));
+        GUARD(instance.init("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), false, {}, {}));
         
 
         ComputePhysicalDeviceWrap computeWrap;
         std::vector<const char*> deviceExtensions = {};
-        GUARD(selectComputePhysicalDevice(instanceCtx.instance, deviceExtensions, computeWrap));
+        GUARD(selectComputePhysicalDevice(instance.instance, deviceExtensions, computeWrap));
 
         GUARD(createComputeDevice(computeWrap.physicalDevice, computeWrap.cIdx, device, computeQueue));
 
@@ -50,12 +35,12 @@ public:
         return 1;
     }
     int stop() {
-        destroyInstance(instanceCtx);
+        instance.deinit();
         return 1;
     }
 
 private:
-    InstanceCtx instanceCtx;
+    Instance instance;
     VkDevice device;
     VkQueue computeQueue;
     VkPipeline computePipeline;

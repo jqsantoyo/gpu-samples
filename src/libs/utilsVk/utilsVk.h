@@ -16,12 +16,6 @@
 
 namespace gpu {
 
-    struct InstanceCtx {
-        VkInstance                          instance;
-        VkDebugUtilsMessengerEXT            debugMessenger;
-        PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
-        PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    };
 
     struct PhysicalDeviceCtx {
         VkPhysicalDevice physicalDevice;
@@ -52,35 +46,50 @@ namespace gpu {
     VkResult createFence(VkDevice device, VkFence& fence, bool signaled);
     
 
-    bool validateLayers(
-        const std::vector<const char*>& requiredLayers,
-        const std::vector<const char*>& requiredExtensionsWin,
-        const std::vector<const char*>& requiredExtensionsMac,
-        std::vector<const char*>& layers,
-        std::vector<const char*>& extensions
-    );
-    bool createInstance(
+
+
+class Instance {
+public:
+    VkInstance                instance;
+    std::vector<const char*>  layers;
+    std::vector<const char*>  extensions;
+
+    bool init(
         const char* name,
         uint32_t version,
-        const std::vector<const char*>& layers,
-        const std::vector<const char*>& extensions,
-        InstanceCtx& ctx
+        bool graphical,
+        const std::vector<const char*>& extWin,
+        const std::vector<const char*>& extMac
     );
-    void destroyInstance(InstanceCtx& ctx);
+    void deinit();
 
-    bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface);
-    bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surfaceInfo);
-
-    bool selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, const std::vector<const char*>& extensions, PhysicalDeviceCtx& pd);
-    bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w);
-
-    bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
-    bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ);
+private:
+    VkDebugUtilsMessengerEXT            debugMessenger;
+    PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
+    PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
+};
 
 
+bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface);
+bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surfaceInfo);
 
+bool selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, const std::vector<const char*>& extensions, PhysicalDeviceCtx& pd);
+bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w);
 
+bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
+bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ);
     
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Swapchain
+
 class Swapchain {
 public:
     bool init(VkDevice device, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);

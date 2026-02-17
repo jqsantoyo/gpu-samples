@@ -98,14 +98,7 @@ VkResult createFence(VkDevice device, VkFence& fence, bool signaled) {
 
 
 
-
-
-
-
-
-
-
-
+// Obsolete
 bool validateLayers(
     const std::vector<const char*>& requiredLayers,
     const std::vector<const char*>& requiredExtensionsWin,
@@ -160,6 +153,7 @@ bool validateLayers(
 
 
 
+
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -170,13 +164,27 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     return VK_FALSE;
 }
 
-bool createInstance(
+
+bool Instance::init(
     const char* name,
     uint32_t version,
-    const std::vector<const char*>& layers,
-    const std::vector<const char*>& extensions,
-    InstanceCtx& ctx
+    bool graphical,
+    const std::vector<const char*>& extWin,
+    const std::vector<const char*>& extMac
 ) {
+#ifndef NDEBUG
+        layers.push_back("VK_LAYER_KHRONOS_validation");
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+#endif
+    if (graphical) {
+        extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+#ifdef WIN32
+        extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#else
+        // extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+#endif
+    }
+
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{
         .sType              = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT,
         .messageSeverity    = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT
@@ -204,22 +212,26 @@ bool createInstance(
         .enabledExtensionCount    = static_cast<uint32_t>(extensions.size()),
         .ppEnabledExtensionNames  = extensions.data(),
     };
-    GUARDV(vkCreateInstance(&createInfo, nullptr, &ctx.instance));
+    GUARDV(vkCreateInstance(&createInfo, nullptr, &instance));
     
     PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
     PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(ctx.instance, "vkCreateDebugUtilsMessengerEXT");
-    destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(ctx.instance, "vkDestroyDebugUtilsMessengerEXT");
+    createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     GUARD(createDebugMessengerFn != nullptr);
     GUARD(destroyDebugMessengerFn != nullptr);
-    GUARDV(createDebugMessengerFn(ctx.instance, &debugCreateInfo, nullptr, &ctx.debugMessenger));
+    GUARDV(createDebugMessengerFn(instance, &debugCreateInfo, nullptr, &debugMessenger));
     return true;
 }
 
-void destroyInstance(InstanceCtx& ctx) {
-    ctx.destroyDebugMessengerFn(ctx.instance, ctx.debugMessenger, nullptr);
-    vkDestroyInstance(ctx.instance, nullptr);
+void Instance::deinit() {
+    destroyDebugMessengerFn(instance, debugMessenger, nullptr);
+    vkDestroyInstance(instance, nullptr);
 }
+
+
+
+
 
 bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface) {
     #ifdef WIN32

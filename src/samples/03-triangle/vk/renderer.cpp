@@ -23,28 +23,10 @@ const int frameCount = 2;
 class RendererVk : public IRenderer {
 public:
     int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
-        std::vector<const char*> layers;
-        std::vector<const char*> extensions;
-        GUARD(validateLayers(
-            {
-                "VK_LAYER_KHRONOS_validation"
-            },
-            {
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-                VK_KHR_SURFACE_EXTENSION_NAME,
-                VK_KHR_WIN32_SURFACE_EXTENSION_NAME
-            },
-            {
-                VK_EXT_DEBUG_UTILS_EXTENSION_NAME,
-                VK_KHR_SURFACE_EXTENSION_NAME,
-            },
-            layers,
-            extensions
-        ));
 
-        GUARD(createInstance("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), layers, extensions, instanceCtx));
-        GUARD(createSurface(instanceCtx.instance, window, surface));
-        GUARD(selectPhysicalDevice(instanceCtx.instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
+        GUARD(instance.init("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
+        GUARD(createSurface(instance.instance, window, surface));
+        GUARD(selectPhysicalDevice(instance.instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
         GUARD(createDevice(pdCtx, device, graphicsQueue, presentQueue));
         GUARD(swapchain.init(device, surface, pdCtx.physicalDevice, pdCtx.gIdx, pdCtx.pIdx, presentQueue));
         GUARD(createPipeline());
@@ -77,8 +59,8 @@ public:
         vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
         vkDestroyRenderPass      (device, renderPass, nullptr);
         vkDestroyDevice          (device, nullptr);
-        vkDestroySurfaceKHR      (instanceCtx.instance, surface, nullptr);
-        destroyInstance          (instanceCtx);
+        vkDestroySurfaceKHR      (instance.instance, surface, nullptr);
+        instance.deinit();
     }
 
     int resize(int width, int height) {
@@ -149,7 +131,7 @@ public:
     }
 
 private:
-    InstanceCtx                         instanceCtx;
+    Instance                            instance;
     VkSurfaceKHR                        surface;
     PhysicalDeviceCtx                   pdCtx;
     Swapchain                           swapchain;
