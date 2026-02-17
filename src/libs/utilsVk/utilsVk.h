@@ -131,7 +131,7 @@ public:
     void resize();
     bool next(VkSemaphore signal);
     bool recreated();
-    bool present(VkSemaphore wait);
+    bool present();
 
     VkSwapchainKHR              swapchain;
     VkFormat                    format;
@@ -140,6 +140,7 @@ public:
     std::vector<VkImage>        images;
     std::vector<VkImageView>    imageViews;
     uint32_t                    idx;
+    VkSemaphore                 renderReady;
 private:
     VkDevice                    device;
     Surface*                    surface;
@@ -149,6 +150,7 @@ private:
     VkQueue                     pQueue;
     bool                        resizedFlag = false;
     bool                        recreatedFlag = false;
+    std::vector<VkSemaphore>    renderReadyVec;
 };
 
 
@@ -185,7 +187,6 @@ private:
 struct Frame {
     VkCommandBuffer cmdBuffer;
     VkSemaphore imageReady;
-    VkSemaphore renderReady;
 };
 
 class FrameControl {
@@ -194,7 +195,7 @@ public:
     void deinit();
     Frame next();
     bool begin();
-    bool end();
+    bool end(VkSemaphore renderReady);
 private:
     VkDevice                      device;
     VkQueue                       queue;
@@ -203,7 +204,6 @@ private:
     std::vector<VkCommandPool>    cmdPool;
     std::vector<VkCommandBuffer>  cmdBuffer;
     std::vector<VkSemaphore>      imageReady;
-    std::vector<VkSemaphore>      renderReady;
     std::vector<VkFence>          execution;
 };
 }

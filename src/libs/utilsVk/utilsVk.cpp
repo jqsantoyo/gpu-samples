@@ -501,6 +501,9 @@ bool Swapchain::init(VkDevice device, Surface* surface, VkPhysicalDevice physica
 }
 
 void Swapchain::deinit() {
+    for (auto v : renderReadyVec) {
+        vkDestroySemaphore(device, v, nullptr);
+    }
     for (auto imageView : imageViews) {
         vkDestroyImageView(device, imageView, nullptr);
     }
@@ -563,6 +566,7 @@ bool Swapchain::recreate() {
     };
     GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain));
     GUARD(getSwapchainImagesKHR(device, swapchain, images));
+    renderReadyVec.resize(images.size());
     imageViews.resize(images.size());
     for (size_t i = 0; i < images.size(); i++) {
         VkImageViewCreateInfo createInfo = {
@@ -581,6 +585,7 @@ bool Swapchain::recreate() {
             },
         };
         GUARDV(vkCreateImageView(device, &createInfo, nullptr, &imageViews[i]));
+        GUARDV(createSemaphore(device, renderReadyVec[i]));
     }
     return true;
 }
@@ -591,7 +596,8 @@ void Swapchain::resize() {
 
 bool Swapchain::next(VkSemaphore signal) {
     VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &idx);
-    printf("Swapchain index %d\n", idx);
+    // printf("Swapchain index %d\n", idx);
+    renderReady = renderReadyVec[idx];
     if (res == VK_ERROR_OUT_OF_DATE_KHR || resizedFlag) {
         resizedFlag = false;
         recreatedFlag = true;
@@ -610,11 +616,11 @@ bool Swapchain::recreated() {
     return temp;
 }
 
-bool Swapchain::present(VkSemaphore wait) {
+bool Swapchain::present() {
     VkPresentInfoKHR presentInfo = {
         .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount  = 1,
-        .pWaitSemaphores     = &wait,
+        .pWaitSemaphores     = &renderReady,
         .swapchainCount      = 1,
         .pSwapchains         = &swapchain,
         .pImageIndices       = &idx,
@@ -646,7 +652,6 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
     cmdPool.resize(frameCount);
     cmdBuffer.resize(frameCount);
     imageReady.resize(frameCount);
-    renderReady.resize(frameCount);
     execution.resize(frameCount);
     VkCommandPoolCreateInfo poolInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -656,10 +661,6 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
     for (int i = 0; i < frameCount; i++) {
         GUARDV(vkCreateCommandPool(device, &poolInfo, nullptr, &cmdPool[i]));
 
-
-
-
-
         VkCommandBufferAllocateInfo allocInfo = {
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .commandPool        = cmdPool[i],
@@ -668,7 +669,6 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
         };
         GUARDV(vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer[i]));
         GUARDV(createSemaphore(device, imageReady[i]));
-        GUARDV(createSemaphore(device, renderReady[i]));
         GUARDV(createFence(device, execution[i], true));
 
 
@@ -679,7 +679,6 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
 void FrameControl::deinit() {
     for (int i = 0; i < frameCount; i++) {
         vkDestroySemaphore       (device, imageReady[i], nullptr);
-        vkDestroySemaphore       (device, renderReady[i], nullptr);
         vkDestroyFence           (device, execution[i], nullptr);
         vkDestroyCommandPool     (device, cmdPool[i], nullptr);
     }
@@ -688,8 +687,8 @@ void FrameControl::deinit() {
 Frame FrameControl::next() {
     frameIdx = (frameIdx + 1) % frameCount;
     vkWaitForFences(device, 1, &execution[frameIdx], VK_TRUE, UINT64_MAX);
-    printf("Active frame: %d\n", frameIdx);
-    return { cmdBuffer[frameIdx], imageReady[frameIdx], renderReady[frameIdx] };
+    // printf("Active frame: %d\n", frameIdx);
+    return { cmdBuffer[frameIdx], imageReady[frameIdx] };
 }
 
 
@@ -703,7 +702,7 @@ bool FrameControl::begin() {
     return true;
 }
 
-bool FrameControl::end() {
+bool FrameControl::end(VkSemaphore renderReady) {
     VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
     VkSubmitInfo submitInfo = {
         .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
@@ -713,7 +712,7 @@ bool FrameControl::end() {
         .commandBufferCount   = 1,
         .pCommandBuffers      = &cmdBuffer[frameIdx],
         .signalSemaphoreCount = 1,
-        .pSignalSemaphores    = &renderReady[frameIdx],
+        .pSignalSemaphores    = &renderReady,
     };
     GUARDV(vkQueueSubmit(queue, 1, &submitInfo, execution[frameIdx]));
     return true;

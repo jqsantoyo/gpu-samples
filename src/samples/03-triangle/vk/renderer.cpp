@@ -114,8 +114,8 @@ public:
         vkCmdEndRenderPass(frame.cmdBuffer);
         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
         
-        frameControl.end();
-        swapchain.present(frame.renderReady);
+        frameControl.end(swapchain.renderReady);
+        swapchain.present();
         return 1;
     }
     
