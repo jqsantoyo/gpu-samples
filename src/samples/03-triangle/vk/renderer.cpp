@@ -26,11 +26,11 @@ public:
 
         GUARD(instance.init("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
         GUARD(surface.init(instance.instance, window));
-        GUARD(selectPhysicalDevice(instance.instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
-        GUARD(device.init(pdCtx, true, false));
-        GUARD(swapchain.init(device.device, &surface, pdCtx.physicalDevice, pdCtx.gIdx, pdCtx.pIdx, device.pQ));
+        GUARD(physicalDevice.init(instance.instance, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, true, false, &surface));
+        GUARD(device.init(physicalDevice, true, false));
+        GUARD(swapchain.init(device.device, &surface, physicalDevice.physicalDevice, physicalDevice.gIdx, physicalDevice.pIdx, device.pQ));
+        GUARD(frameControl.init(device.device, physicalDevice.gIdx, device.gQ, 2));
         GUARD(createPipeline());
-        GUARD(frameControl.init(device.device, pdCtx.gIdx, device.gQ, 2));
         
         framebuffers.resize(swapchain.imageViews.size());
         for (size_t i = 0; i < swapchain.imageViews.size(); i++) {
@@ -53,11 +53,11 @@ public:
 
     void stop() {
         vkDeviceWaitIdle (device.device);
-        frameControl.deinit();
-        swapchain.deinit();
         vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout (device.device, pipelineLayout, nullptr);
         vkDestroyRenderPass (device.device, renderPass, nullptr);
+        frameControl.deinit();
+        swapchain.deinit();
         device.deinit();
         surface.deinit();
         instance.deinit();
@@ -133,7 +133,7 @@ public:
 private:
     Instance                            instance;
     Surface                             surface;
-    PhysicalDeviceCtx                   pdCtx;
+    PhysicalDevice                      physicalDevice;
     Swapchain                           swapchain;
     Device                              device;
     VkRenderPass                        renderPass;

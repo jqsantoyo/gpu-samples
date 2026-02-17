@@ -304,12 +304,8 @@ bool Surface::info(VkPhysicalDevice pd, SurfaceInfo& surfaceInfo) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // PHYSICAL DEVICE
 
-bool selectPhysicalDevice(
-    VkInstance instance,
-    Surface& surface,
-    const std::vector<const char*>& extensions,
-    PhysicalDeviceCtx& ctx
-) {
+
+bool PhysicalDevice::init(VkInstance instance, const std::vector<const char*>& extensions, bool graphics, bool compute, Surface* surface) {
     std::vector<int> physicalDeviceScores;
     std::vector<VkPhysicalDevice> physicalDevices;
     enumeratePhysicalDevices(instance, physicalDevices);
@@ -320,7 +316,6 @@ bool selectPhysicalDevice(
         VkPhysicalDeviceProperties           props;
         VkPhysicalDeviceFeatures             features;
         VkPhysicalDeviceMemoryProperties     memProps;
-        VkSurfaceCapabilitiesKHR             capabilities;
         std::vector<VkQueueFamilyProperties> queueFamilies;
         std::vector<VkExtensionProperties>   devExtensions;
         enumerateDeviceExtensionProperties       (pd, nullptr, devExtensions);
@@ -329,90 +324,66 @@ bool selectPhysicalDevice(
         vkGetPhysicalDeviceMemoryProperties      (pd, &memProps);
         getPhysicalDeviceQueueFamilyProperties   (pd, queueFamilies);
         
-        SurfaceInfo surfaceInfo;
-        surface.info(pd, surfaceInfo);
 
         int graphicsFamilyIdx = -1;
         int presentFamilyIdx = -1;
+        int computeFamilyIdx = -1;
         std::set<const char*> requiredExtensions(extensions.begin(), extensions.end());
         for (const auto& devExtension : devExtensions) {
             requiredExtensions.erase(devExtension.extensionName);
         }
         for (int i = 0; i < queueFamilies.size(); i++) {
-            if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+            VkQueueFlags flags = queueFamilies[i].queueFlags;
+            if (graphicsFamilyIdx == -1 && flags & VK_QUEUE_GRAPHICS_BIT) {
                 graphicsFamilyIdx = i;
-                break;
+            }
+            if (computeFamilyIdx == -1 && flags & VK_QUEUE_COMPUTE_BIT) {
+                computeFamilyIdx = i;
+            }
+            if (presentFamilyIdx == -1) {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface->surface, &presentSupport);
+                if (presentSupport) {
+                    presentFamilyIdx = i;
+                }
             }
         }
-        for (int i = 0; i < queueFamilies.size(); i++) {
-            VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface.surface, &presentSupport);
-            if (presentSupport) {
-                presentFamilyIdx = i;
-                break;
-            }
+        bool graphicsCond = true;
+        if (graphics) {
+            SurfaceInfo surfaceInfo;
+            surface->info(pd, surfaceInfo);
+            graphicsCond =
+                graphicsFamilyIdx != -1 &&
+                presentFamilyIdx != -1 &&
+                surfaceInfo.formats.size() > 0 &&
+                surfaceInfo.presentModes.size() > 0;
         }
+
+        bool computeCond = true;
+        if (compute) {
+            computeCond = computeFamilyIdx != -1;
+        }
+
         if (selectedPhysicalDeviceIdx == -1 &&
-            graphicsFamilyIdx != -1 &&
-            presentFamilyIdx != -1 && 
             // requiredExtensions.empty() &&
-            surfaceInfo.formats.size() > 0 &&
-            surfaceInfo.presentModes.size() > 0
+            graphicsCond &&
+            computeCond
         ) {
             selectedPhysicalDeviceIdx = i;
-            ctx.gIdx = graphicsFamilyIdx;
-            ctx.pIdx = presentFamilyIdx;
+            gIdx = graphicsFamilyIdx;
+            pIdx = presentFamilyIdx;
+            cIdx = computeFamilyIdx;
         }
     }
     if (selectedPhysicalDeviceIdx != -1) {
-        ctx.physicalDevice = physicalDevices[selectedPhysicalDeviceIdx];
+        physicalDevice = physicalDevices[selectedPhysicalDeviceIdx];
         return true;
     } else {
-        ctx.physicalDevice = VK_NULL_HANDLE;
+        physicalDevice = VK_NULL_HANDLE;
         return false;
     }
+    return true;
 }
-
-bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w) {
-    std::vector<VkPhysicalDevice> physicalDevices;
-    enumeratePhysicalDevices(instance, physicalDevices);
-
-    for (int i = 0; i < physicalDevices.size(); i++) {
-        VkPhysicalDevice& pd = physicalDevices[i];
-
-        VkPhysicalDeviceProperties           props;
-        VkPhysicalDeviceFeatures             features;
-        VkPhysicalDeviceMemoryProperties     memProps;
-        std::vector<VkQueueFamilyProperties> queueFamilies;
-        std::vector<VkExtensionProperties>   availableExtensions;
-
-        enumerateDeviceExtensionProperties       (pd, nullptr, availableExtensions);
-        vkGetPhysicalDeviceProperties            (pd, &props);
-        vkGetPhysicalDeviceFeatures              (pd, &features);
-        vkGetPhysicalDeviceMemoryProperties      (pd, &memProps);
-        getPhysicalDeviceQueueFamilyProperties   (pd, queueFamilies);
-
-        int computeFamilyIdx = -1;
-        std::set<std::string> requiredExtensions(extensions.begin(), extensions.end());
-        for (const auto& extension : availableExtensions) {
-            requiredExtensions.erase(extension.extensionName);
-        }
-        for (int i = 0; i < queueFamilies.size(); i++) {
-            if (queueFamilies[i].queueFlags & VK_QUEUE_COMPUTE_BIT) {
-                computeFamilyIdx = i;
-                break;
-            }
-        }
-        if (requiredExtensions.empty() && computeFamilyIdx != -1) {
-            w.physicalDevice = physicalDevices[i];
-            w.cIdx = computeFamilyIdx;
-            return true;
-        }
-    }
-    return false;
-}
-
-
 
 
 
@@ -424,7 +395,7 @@ bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const ch
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEVICE
 
-bool Device::init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute) {
+bool Device::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) {
     std::vector<const char*> layers;
     std::vector<const char*> extensions;
     float queuePriority = 1.0f;
@@ -434,11 +405,11 @@ bool Device::init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute) {
 #endif
     if (graphical) {
         extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
-        queueFamilyIdcs.insert(pdCtx.gIdx);
-        queueFamilyIdcs.insert(pdCtx.pIdx);
+        queueFamilyIdcs.insert(physicalDevice.gIdx);
+        queueFamilyIdcs.insert(physicalDevice.pIdx);
     }
     if (compute) {
-        queueFamilyIdcs.insert(pdCtx.cIdx);
+        queueFamilyIdcs.insert(physicalDevice.cIdx);
     }
  
     std::vector<VkDeviceQueueCreateInfo> queueInfos;
@@ -457,13 +428,13 @@ bool Device::init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute) {
         .ppEnabledExtensionNames    = extensions.data(),
         .pEnabledFeatures           = &deviceFeatures,
     };
-    GUARDV(vkCreateDevice(pdCtx.physicalDevice, &deviceCreateInfo, nullptr, &device));
+    GUARDV(vkCreateDevice(physicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &device));
     if (graphical) {
-        vkGetDeviceQueue(device, pdCtx.gIdx, 0, &gQ);
-        vkGetDeviceQueue(device, pdCtx.pIdx, 0, &pQ);
+        vkGetDeviceQueue(device, physicalDevice.gIdx, 0, &gQ);
+        vkGetDeviceQueue(device, physicalDevice.pIdx, 0, &pQ);
     }
     if (compute) {
-        vkGetDeviceQueue(device, pdCtx.cIdx, 0, &cQ);
+        vkGetDeviceQueue(device, physicalDevice.cIdx, 0, &cQ);
     }
     return true;
 }

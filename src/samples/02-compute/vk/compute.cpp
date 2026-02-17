@@ -10,10 +10,8 @@ public:
 
         GUARD(instance.init("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), false, {}, {}));
         
-
-        ComputePhysicalDeviceWrap computeWrap;
         std::vector<const char*> deviceExtensions = {};
-        GUARD(selectComputePhysicalDevice(instance.instance, deviceExtensions, computeWrap));
+        GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
 
         // GUARD(device.init(computeWrap.physicalDevice, computeWrap.cIdx, device, computeQueue));
 
@@ -40,10 +38,11 @@ public:
     }
 
 private:
-    Instance instance;
-    Device device;
-    VkQueue computeQueue;
-    VkPipeline computePipeline;
+    Instance        instance;
+    PhysicalDevice  physicalDevice;
+    Device          device;
+    VkQueue         computeQueue;
+    VkPipeline      computePipeline;
 
 
 };

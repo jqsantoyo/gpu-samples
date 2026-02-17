@@ -86,18 +86,16 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // PHYSICAL DEVICE
 
-struct PhysicalDeviceCtx {
+class PhysicalDevice {
+public:
     VkPhysicalDevice physicalDevice;
     uint32_t gIdx;
     uint32_t pIdx;
     uint32_t cIdx;
+
+    bool init(VkInstance instance, const std::vector<const char*>& extensions, bool graphics, bool compute, Surface* surface);
+
 };
-struct ComputePhysicalDeviceWrap {
-    VkPhysicalDevice physicalDevice;
-    uint32_t cIdx;
-};
-bool selectPhysicalDevice(VkInstance instance, Surface& surface, const std::vector<const char*>& extensions, PhysicalDeviceCtx& pd);
-bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w);
 
 
 
@@ -112,7 +110,7 @@ public:
     VkQueue gQ;
     VkQueue pQ;
     VkQueue cQ;
-    bool init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute);
+    bool init(PhysicalDevice& physicalDevice, bool graphical, bool compute);
     void deinit();
 };
 
