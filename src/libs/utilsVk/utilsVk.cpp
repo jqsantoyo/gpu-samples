@@ -412,47 +412,84 @@ bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, V
     return true;
 }
 
-bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceCtx& pdCtx, SwapchainCtx& ctx) {
-    destroySwapchain(device, ctx);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SWAPCHAIN
+
+bool Swapchain::init(VkDevice device, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
+    this->device = device;
+    this->surface = surface;
+    this->physicalDevice = physicalDevice;
+    this->gIdx = gIdx;
+    this->pIdx = pIdx;
+    this->pQueue = pQueue;
+    recreate();
+    return true;
+}
+
+void Swapchain::deinit() {
+    for (auto imageView : imageViews) {
+        vkDestroyImageView(device, imageView, nullptr);
+    }
+    if (swapchain != VK_NULL_HANDLE) {
+        vkDestroySwapchainKHR(device, swapchain, nullptr);
+    }
+}
+
+bool Swapchain::recreate() {
+    deinit();
 
     SurfaceInfo surfaceInfo;
-    getSurfaceInfo(pdCtx.physicalDevice, surface, surfaceInfo);
+    getSurfaceInfo(physicalDevice, surface, surfaceInfo);
     VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
-    VkFormat format = surfaceInfo.formats[0].format;
-    VkPresentModeKHR presentMode = VK_PRESENT_MODE_FIFO_KHR;
+    format = surfaceInfo.formats[0].format;
+    presentMode = VK_PRESENT_MODE_FIFO_KHR;
     for (const auto& x : surfaceInfo.formats) {
-        if (x.format == VK_FORMAT_B8G8R8A8_SRGB && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            ctx.format = x.format;
+        if (x.format == VK_FORMAT_B8G8R8A8_UNORM && x.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            format = x.format;
         }
     }
     for (const auto& x : surfaceInfo.presentModes) {
         if (x == VK_PRESENT_MODE_MAILBOX_KHR) {
-            ctx.presentMode = x;
+            presentMode = x;
         }
     }
     VkSurfaceTransformFlagBitsKHR currTransform = surfaceInfo.capabilities.currentTransform;
     if (surfaceInfo.capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
-        ctx.extent =  surfaceInfo.capabilities.currentExtent;
+        extent =  surfaceInfo.capabilities.currentExtent;
     } else {
         // VkExtent2D actualExtent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
         // actualExtent.width = clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
         // actualExtent.height = clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-        // ctx.extent = actualExtent;
+        // extent = actualExtent;
     }
     uint32_t imageCount = surfaceInfo.capabilities.minImageCount + 1;
     if (surfaceInfo.capabilities.maxImageCount > 0 && imageCount > surfaceInfo.capabilities.maxImageCount) {
         imageCount = surfaceInfo.capabilities.maxImageCount;
     }
     
-    bool uniqueQueue = pdCtx.gIdx == pdCtx.pIdx;
-    uint32_t queueIndices[] = { pdCtx.gIdx, pdCtx.pIdx };
+    bool uniqueQueue = gIdx == pIdx;
+    uint32_t queueIndices[] = { gIdx, pIdx };
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
         .sType                  = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
         .surface                = surface,
         .minImageCount          = imageCount,
         .imageFormat            = format,
         .imageColorSpace        = colorSpace,
-        .imageExtent            = ctx.extent,
+        .imageExtent            = extent,
         .imageArrayLayers       = 1,
         .imageUsage             = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
         .imageSharingMode       = uniqueQueue ? VK_SHARING_MODE_EXCLUSIVE : VK_SHARING_MODE_CONCURRENT,
@@ -464,14 +501,14 @@ bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDevice
         .clipped                = VK_TRUE,
         .oldSwapchain           = VK_NULL_HANDLE,
     };
-    GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &ctx.swapchain));
-    GUARD(getSwapchainImagesKHR(device, ctx.swapchain, ctx.images));
-    ctx.imageViews.resize(ctx.images.size());
-    for (size_t i = 0; i < ctx.images.size(); i++) {
+    GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain));
+    GUARD(getSwapchainImagesKHR(device, swapchain, images));
+    imageViews.resize(images.size());
+    for (size_t i = 0; i < images.size(); i++) {
         VkImageViewCreateInfo createInfo = {
             .sType              = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext              = nullptr,
-            .image              = ctx.images[i],
+            .image              = images[i],
             .viewType           = VK_IMAGE_VIEW_TYPE_2D,
             .format             = format,
             .components         = {},
@@ -483,43 +520,59 @@ bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDevice
                 .layerCount      = 1,
             },
         };
-        GUARDV(vkCreateImageView(device, &createInfo, nullptr, &ctx.imageViews[i]));
+        GUARDV(vkCreateImageView(device, &createInfo, nullptr, &imageViews[i]));
     }
     return true;
 }
 
-bool createSwapchainFramebuffers(VkDevice device, SwapchainCtx& ctx, VkRenderPass renderPass) {
-    ctx.framebuffers.resize(ctx.imageViews.size());
-    for (size_t i = 0; i < ctx.imageViews.size(); i++) {
-        VkImageView attachments[] = {
-            ctx.imageViews[i],
-        };
-        VkFramebufferCreateInfo framebufferInfo = {
-            .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-            .renderPass = renderPass,
-            .attachmentCount = 1,
-            .pAttachments = attachments,
-            .width = ctx.extent.width,
-            .height = ctx.extent.height,
-            .layers = 1,
-        };
-        GUARDV(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &ctx.framebuffers[i]));
+void Swapchain::resize() {
+    resizedFlag = true;
+}
+
+bool Swapchain::next(VkSemaphore signal) {
+    VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &idx);
+    printf("Swapchain index %d\n", idx);
+    if (res == VK_ERROR_OUT_OF_DATE_KHR || resizedFlag) {
+        resizedFlag = false;
+        recreatedFlag = true;
+        recreate();
+        // createSwapchainFramebuffers(device, swapchainCtx, renderPass);
+    } else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
+        printf("Acquire image error\n");
+        return false;
     }
     return true;
 }
 
-bool destroySwapchain(VkDevice device, SwapchainCtx& ctx) {
-    for (auto framebuffer : ctx.framebuffers) {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
-    }
-    for (auto imageView : ctx.imageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
-    }
-    if (ctx.swapchain != VK_NULL_HANDLE) {
-        vkDestroySwapchainKHR(device, ctx.swapchain, nullptr);
-    }
+bool Swapchain::recreated() {
+    bool temp = recreatedFlag;
+    recreatedFlag = false;
+    return temp;
+}
+
+bool Swapchain::present(VkSemaphore wait) {
+    VkPresentInfoKHR presentInfo = {
+        .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+        .waitSemaphoreCount  = 1,
+        .pWaitSemaphores     = &wait,
+        .swapchainCount      = 1,
+        .pSwapchains         = &swapchain,
+        .pImageIndices       = &idx,
+    };
+    vkQueuePresentKHR(pQueue, &presentInfo);
     return true;
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

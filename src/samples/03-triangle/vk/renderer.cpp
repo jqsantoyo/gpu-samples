@@ -46,17 +46,33 @@ public:
         GUARD(createSurface(instanceCtx.instance, window, surface));
         GUARD(selectPhysicalDevice(instanceCtx.instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
         GUARD(createDevice(pdCtx, device, graphicsQueue, presentQueue));
-        GUARD(createSwapchain(device, surface, pdCtx, swapchainCtx));
+        GUARD(swapchain.init(device, surface, pdCtx.physicalDevice, pdCtx.gIdx, pdCtx.pIdx, presentQueue));
         GUARD(createPipeline());
-        GUARD(createSwapchainFramebuffers(device, swapchainCtx, renderPass));
         GUARD(frameControl.init(device, pdCtx.gIdx, graphicsQueue, 2));
+        
+        framebuffers.resize(swapchain.imageViews.size());
+        for (size_t i = 0; i < swapchain.imageViews.size(); i++) {
+            VkImageView attachments[] = {
+                swapchain.imageViews[i],
+            };
+            VkFramebufferCreateInfo framebufferInfo = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = renderPass,
+                .attachmentCount = 1,
+                .pAttachments = attachments,
+                .width = swapchain.extent.width,
+                .height = swapchain.extent.height,
+                .layers = 1,
+            };
+            GUARDV(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]));
+        }
         return 1;
     }
 
     void stop() {
         vkDeviceWaitIdle         (device);
         frameControl.deinit();
-        destroySwapchain         (device, swapchainCtx);
+        swapchain.deinit();
         vkDestroyPipeline        (device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
         vkDestroyRenderPass      (device, renderPass, nullptr);
@@ -80,18 +96,10 @@ public:
 
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
         Frame frame = frameControl.next();
-        
-        uint32_t imageIndex;
-        VkResult res = vkAcquireNextImageKHR(device, swapchainCtx.swapchain, UINT64_MAX, frame.imageReady, VK_NULL_HANDLE, &imageIndex);
-        if (res == VK_ERROR_OUT_OF_DATE_KHR || sizeChanged) {
-            sizeChanged = false;
-            createSwapchain(device, surface, pdCtx, swapchainCtx);
-            createSwapchainFramebuffers(device, swapchainCtx, renderPass);
-        } else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
-            printf("Acquire image error\n");
-            return 0;
+        GUARD(swapchain.next(frame.imageReady));
+        if (swapchain.recreated()) {
+            // renderTarget.recreateFramebuffers(swapchain);
         }
-        VkFramebuffer fb = swapchainCtx.framebuffers[imageIndex];
         frameControl.begin();
         
     
@@ -99,8 +107,8 @@ public:
         VkRenderPassBeginInfo renderPassInfo = {
             .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass           = renderPass,
-            .framebuffer          = fb,
-            .renderArea           = { .offset    = { 0, 0 }, .extent = swapchainCtx.extent },
+            .framebuffer          = framebuffers[swapchain.idx],
+            .renderArea           = { .offset = { 0, 0 }, .extent = swapchain.extent },
             .clearValueCount      = 1,
             .pClearValues         = &vkClearColor,
         };
@@ -109,15 +117,15 @@ public:
         VkViewport viewport = {
             .x          = 0.0f,
             .y          = 0.0f,
-            .width      = static_cast<float>(swapchainCtx.extent.width),
-            .height     = static_cast<float>(swapchainCtx.extent.height),
+            .width      = static_cast<float>(swapchain.extent.width),
+            .height     = static_cast<float>(swapchain.extent.height),
             .minDepth   = 0.0f,
             .maxDepth   = 1.0f,
         };
         vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
         VkRect2D scissor = {
             .offset = { 0, 0 },
-            .extent = swapchainCtx.extent,
+            .extent = swapchain.extent,
         };
         vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
         vkCmdDraw(frame.cmdBuffer, 3, 1, 0, 0);
@@ -125,17 +133,7 @@ public:
         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
         
         frameControl.end();
-
-        VkSwapchainKHR swapchains[] = { swapchainCtx.swapchain };
-        VkPresentInfoKHR presentInfo = {
-            .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .waitSemaphoreCount  = 1,
-            .pWaitSemaphores     = &frame.renderReady,
-            .swapchainCount      = 1,
-            .pSwapchains         = swapchains,
-            .pImageIndices       = &imageIndex,
-        };
-        vkQueuePresentKHR(presentQueue, &presentInfo);
+        swapchain.present(frame.renderReady);
         return 1;
     }
     
@@ -154,11 +152,12 @@ private:
     InstanceCtx                         instanceCtx;
     VkSurfaceKHR                        surface;
     PhysicalDeviceCtx                   pdCtx;
-    SwapchainCtx                        swapchainCtx;
+    Swapchain                           swapchain;
     VkDevice                            device;
     VkQueue                             graphicsQueue;
     VkQueue                             presentQueue;
     VkRenderPass                        renderPass;
+    std::vector<VkFramebuffer>          framebuffers;
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;
     FrameControl                        frameControl;
@@ -169,7 +168,7 @@ private:
 
     bool createPipeline() {
         VkAttachmentDescription colorAttachment = {
-            .format                 = swapchainCtx.format,
+            .format                 = swapchain.format,
             .samples                = VK_SAMPLE_COUNT_1_BIT,
             .loadOp                 = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp                = VK_ATTACHMENT_STORE_OP_STORE,

@@ -39,16 +39,6 @@ namespace gpu {
         std::vector<VkSurfaceFormatKHR> formats;
     };
 
-    struct SwapchainCtx {
-        VkSwapchainKHR              swapchain;
-        VkFormat                    format;
-        VkPresentModeKHR            presentMode;
-        VkExtent2D                  extent;
-        std::vector<VkImage>        images;
-        std::vector<VkImageView>    imageViews;
-        std::vector<VkFramebuffer>  framebuffers;
-    };
-
 
     bool enumerateInstanceLayerProperties(std::vector<VkLayerProperties>& v);
     bool enumerateInstanceExtensionProperties(std::vector<VkExtensionProperties>& v);
@@ -87,10 +77,37 @@ namespace gpu {
     bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
     bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ);
 
-    bool createSwapchain(VkDevice device, VkSurfaceKHR surface, const PhysicalDeviceCtx& pdCtx, SwapchainCtx& ctx);
-    bool createSwapchainFramebuffers(VkDevice device, SwapchainCtx& ctx, VkRenderPass renderPass);
-    bool destroySwapchain(VkDevice device, SwapchainCtx& ctx);
 
+
+
+    
+class Swapchain {
+public:
+    bool init(VkDevice device, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
+    void deinit();
+    bool recreate();
+    void resize();
+    bool next(VkSemaphore signal);
+    bool recreated();
+    bool present(VkSemaphore wait);
+
+    VkSwapchainKHR              swapchain;
+    VkFormat                    format;
+    VkPresentModeKHR            presentMode;
+    VkExtent2D                  extent;
+    std::vector<VkImage>        images;
+    std::vector<VkImageView>    imageViews;
+    uint32_t                    idx;
+private:
+    VkDevice                    device;
+    VkSurfaceKHR                surface;
+    VkPhysicalDevice            physicalDevice;
+    uint32_t                    gIdx;
+    uint32_t                    pIdx;
+    VkQueue                     pQueue;
+    bool                        resizedFlag = false;
+    bool                        recreatedFlag = false;
+};
 
 
 class Shader {
