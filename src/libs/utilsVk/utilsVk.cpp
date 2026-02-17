@@ -11,6 +11,14 @@
 
 namespace gpu {
 
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// UTLITIES
+
 template <typename T>
 const T& clamp(const T& value, const T& low, const T& high) {
     return value < low ? low : (value > high ? high : value);
@@ -98,6 +106,14 @@ VkResult createFence(VkDevice device, VkFence& fence, bool signaled) {
 
 
 
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// INSTANCE
+
 // Obsolete
 bool validateLayers(
     const std::vector<const char*>& requiredLayers,
@@ -163,7 +179,6 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     printf("Validation layers: %s\n", pCallbackData->pMessage);
     return VK_FALSE;
 }
-
 
 bool Instance::init(
     const char* name,
@@ -233,7 +248,23 @@ void Instance::deinit() {
 
 
 
-bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface) {
+
+
+
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SURFACE
+
+bool Surface::init(VkInstance instance, void* window) {
+    this->instance = instance;
     #ifdef WIN32
         HINSTANCE hInstance = GetModuleHandle(nullptr);
         auto hwnd = static_cast<HWND>(window);
@@ -250,7 +281,10 @@ bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface) {
     return true;
 }
 
-bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surfaceInfo) {
+void Surface::deinit() {
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+}
+bool Surface::info(VkPhysicalDevice pd, SurfaceInfo& surfaceInfo) {
     GUARDV(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(pd, surface, &surfaceInfo.capabilities));
     GUARD(getPhysicalDeviceSurfaceFormatsKHR        (pd, surface, surfaceInfo.formats));
     GUARD(getPhysicalDeviceSurfacePresentModesKHR   (pd, surface, surfaceInfo.presentModes));
@@ -259,9 +293,20 @@ bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surf
 
 
 
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// PHYSICAL DEVICE
+
 bool selectPhysicalDevice(
     VkInstance instance,
-    VkSurfaceKHR surface,
+    Surface& surface,
     const std::vector<const char*>& extensions,
     PhysicalDeviceCtx& ctx
 ) {
@@ -278,13 +323,14 @@ bool selectPhysicalDevice(
         VkSurfaceCapabilitiesKHR             capabilities;
         std::vector<VkQueueFamilyProperties> queueFamilies;
         std::vector<VkExtensionProperties>   devExtensions;
-        SurfaceInfo surfaceInfo;
         enumerateDeviceExtensionProperties       (pd, nullptr, devExtensions);
         vkGetPhysicalDeviceProperties            (pd, &props);
         vkGetPhysicalDeviceFeatures              (pd, &features);
         vkGetPhysicalDeviceMemoryProperties      (pd, &memProps);
         getPhysicalDeviceQueueFamilyProperties   (pd, queueFamilies);
-        getSurfaceInfo                           (pd, surface, surfaceInfo);
+        
+        SurfaceInfo surfaceInfo;
+        surface.info(pd, surfaceInfo);
 
         int graphicsFamilyIdx = -1;
         int presentFamilyIdx = -1;
@@ -300,7 +346,7 @@ bool selectPhysicalDevice(
         }
         for (int i = 0; i < queueFamilies.size(); i++) {
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, surface.surface, &presentSupport);
             if (presentSupport) {
                 presentFamilyIdx = i;
                 break;
@@ -366,62 +412,64 @@ bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const ch
     return false;
 }
 
-bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ) {
-    const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
 
-    float queuePriority = 1.0f;    
-    std::vector<VkDeviceQueueCreateInfo> queueInfos = {
-        { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, 0, pdCtx.gIdx, 1, &queuePriority },
-        { VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, 0, pdCtx.pIdx, 1, &queuePriority },
-    };
-    if (pdCtx.gIdx == pdCtx.pIdx) {
-        queueInfos.resize(1);
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// DEVICE
+
+bool Device::init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute) {
+    std::vector<const char*> layers;
+    std::vector<const char*> extensions;
+    float queuePriority = 1.0f;
+    std::set<uint32_t> queueFamilyIdcs;
+#ifndef NDEBUG
+    layers.push_back("VK_LAYER_KHRONOS_validation");
+#endif
+    if (graphical) {
+        extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+        queueFamilyIdcs.insert(pdCtx.gIdx);
+        queueFamilyIdcs.insert(pdCtx.pIdx);
     }
+    if (compute) {
+        queueFamilyIdcs.insert(pdCtx.cIdx);
+    }
+ 
+    std::vector<VkDeviceQueueCreateInfo> queueInfos;
+    for (auto idx : queueFamilyIdcs) {
+        queueInfos.push_back({ VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO, nullptr, 0, idx, 1, &queuePriority });
+    }
+
     VkPhysicalDeviceFeatures deviceFeatures{};
     VkDeviceCreateInfo deviceCreateInfo = {
         .sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
         .queueCreateInfoCount       = static_cast<uint32_t>(queueInfos.size()),
         .pQueueCreateInfos          = queueInfos.data(),
-        .enabledLayerCount          = static_cast<uint32_t>(requiredLayers.size()),
-        .ppEnabledLayerNames        = requiredLayers.data(),
-        .enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()),
-        .ppEnabledExtensionNames    = deviceExtensions.data(),
+        .enabledLayerCount          = static_cast<uint32_t>(layers.size()),
+        .ppEnabledLayerNames        = layers.data(),
+        .enabledExtensionCount      = static_cast<uint32_t>(extensions.size()),
+        .ppEnabledExtensionNames    = extensions.data(),
         .pEnabledFeatures           = &deviceFeatures,
     };
     GUARDV(vkCreateDevice(pdCtx.physicalDevice, &deviceCreateInfo, nullptr, &device));
-    vkGetDeviceQueue(device, pdCtx.gIdx, 0, &gQ);
-    vkGetDeviceQueue(device, pdCtx.pIdx, 0, &pQ);
+    if (graphical) {
+        vkGetDeviceQueue(device, pdCtx.gIdx, 0, &gQ);
+        vkGetDeviceQueue(device, pdCtx.pIdx, 0, &pQ);
+    }
+    if (compute) {
+        vkGetDeviceQueue(device, pdCtx.cIdx, 0, &cQ);
+    }
     return true;
 }
 
-bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ) {
-    const std::vector<const char*> requiredLayers = { "VK_LAYER_KHRONOS_validation" };
-    const std::vector<const char*> deviceExtensions = { VK_KHR_SWAPCHAIN_EXTENSION_NAME };
-
-    float queuePriority = 1.0f;
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos = {
-        {
-        .sType               = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-        .queueFamilyIndex    = cIdx,
-        .queueCount          = 1,
-        .pQueuePriorities    = &queuePriority,
-        },
-    };
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    VkDeviceCreateInfo deviceCreateInfo = {
-        .sType                      = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-        .queueCreateInfoCount       = static_cast<uint32_t>(queueCreateInfos.size()),
-        .pQueueCreateInfos          = queueCreateInfos.data(),
-        .enabledLayerCount          = static_cast<uint32_t>(requiredLayers.size()),
-        .ppEnabledLayerNames        = requiredLayers.data(),
-        .enabledExtensionCount      = static_cast<uint32_t>(deviceExtensions.size()),
-        .ppEnabledExtensionNames    = deviceExtensions.data(),
-        .pEnabledFeatures           = &deviceFeatures,
-    };
-    GUARDV(vkCreateDevice(pd, &deviceCreateInfo, nullptr, &device));
-    vkGetDeviceQueue(device, cIdx, 0, &cQ);
-    return true;
+void Device::deinit() {
+    vkDestroyDevice(device, nullptr);
 }
 
 
@@ -441,7 +489,7 @@ bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, V
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SWAPCHAIN
 
-bool Swapchain::init(VkDevice device, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
+bool Swapchain::init(VkDevice device, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
     this->device = device;
     this->surface = surface;
     this->physicalDevice = physicalDevice;
@@ -465,7 +513,7 @@ bool Swapchain::recreate() {
     deinit();
 
     SurfaceInfo surfaceInfo;
-    getSurfaceInfo(physicalDevice, surface, surfaceInfo);
+    surface->info(physicalDevice, surfaceInfo);
     VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
     format = surfaceInfo.formats[0].format;
     presentMode = VK_PRESENT_MODE_FIFO_KHR;
@@ -497,7 +545,7 @@ bool Swapchain::recreate() {
     uint32_t queueIndices[] = { gIdx, pIdx };
     VkSwapchainCreateInfoKHR swapchainCreateInfo = {
         .sType                  = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
-        .surface                = surface,
+        .surface                = surface->surface,
         .minImageCount          = imageCount,
         .imageFormat            = format,
         .imageColorSpace        = colorSpace,

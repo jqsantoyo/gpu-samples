@@ -25,12 +25,12 @@ public:
     int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
 
         GUARD(instance.init("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
-        GUARD(createSurface(instance.instance, window, surface));
+        GUARD(surface.init(instance.instance, window));
         GUARD(selectPhysicalDevice(instance.instance, surface, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, pdCtx));
-        GUARD(createDevice(pdCtx, device, graphicsQueue, presentQueue));
-        GUARD(swapchain.init(device, surface, pdCtx.physicalDevice, pdCtx.gIdx, pdCtx.pIdx, presentQueue));
+        GUARD(device.init(pdCtx, true, false));
+        GUARD(swapchain.init(device.device, &surface, pdCtx.physicalDevice, pdCtx.gIdx, pdCtx.pIdx, device.pQ));
         GUARD(createPipeline());
-        GUARD(frameControl.init(device, pdCtx.gIdx, graphicsQueue, 2));
+        GUARD(frameControl.init(device.device, pdCtx.gIdx, device.gQ, 2));
         
         framebuffers.resize(swapchain.imageViews.size());
         for (size_t i = 0; i < swapchain.imageViews.size(); i++) {
@@ -46,20 +46,20 @@ public:
                 .height = swapchain.extent.height,
                 .layers = 1,
             };
-            GUARDV(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]));
+            GUARDV(vkCreateFramebuffer(device.device, &framebufferInfo, nullptr, &framebuffers[i]));
         }
         return 1;
     }
 
     void stop() {
-        vkDeviceWaitIdle         (device);
+        vkDeviceWaitIdle (device.device);
         frameControl.deinit();
         swapchain.deinit();
-        vkDestroyPipeline        (device, graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
-        vkDestroyRenderPass      (device, renderPass, nullptr);
-        vkDestroyDevice          (device, nullptr);
-        vkDestroySurfaceKHR      (instance.instance, surface, nullptr);
+        vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
+        vkDestroyPipelineLayout (device.device, pipelineLayout, nullptr);
+        vkDestroyRenderPass (device.device, renderPass, nullptr);
+        device.deinit();
+        surface.deinit();
         instance.deinit();
     }
 
@@ -132,18 +132,15 @@ public:
 
 private:
     Instance                            instance;
-    VkSurfaceKHR                        surface;
+    Surface                             surface;
     PhysicalDeviceCtx                   pdCtx;
     Swapchain                           swapchain;
-    VkDevice                            device;
-    VkQueue                             graphicsQueue;
-    VkQueue                             presentQueue;
+    Device                              device;
     VkRenderPass                        renderPass;
     std::vector<VkFramebuffer>          framebuffers;
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;
     FrameControl                        frameControl;
-    VkFence                             inFlightFence;
     int                                 width;
     int                                 height;
     bool                                sizeChanged = false;
@@ -185,13 +182,13 @@ private:
             .dependencyCount        = 1,
             .pDependencies          = &dependency,
         };
-        GUARDV(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass));
+        GUARDV(vkCreateRenderPass(device.device, &renderPassInfo, nullptr, &renderPass));
 
         const char* shaderDir = "03-triangle-shaders-vk";
         Shader vertShader;
         Shader fragShader;
-        GUARD(vertShader.load(device, shaderDir, "shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
-        GUARD(fragShader.load(device, shaderDir, "shader.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
+        GUARD(vertShader.load(device.device, shaderDir, "shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
+        GUARD(fragShader.load(device.device, shaderDir, "shader.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
@@ -249,7 +246,7 @@ private:
             .setLayoutCount         = 0,
             .pushConstantRangeCount = 0,
         };
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+        if (vkCreatePipelineLayout(device.device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             printf("failed to create pipeline layout");
             return 0;
         }
@@ -269,7 +266,7 @@ private:
             .subpass             = 0,
             .basePipelineHandle  = VK_NULL_HANDLE,
         };
-        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+        if (vkCreateGraphicsPipelines(device.device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
             printf("failed to create graphics pipeline");
             return 0;
         }

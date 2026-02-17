@@ -17,36 +17,27 @@
 namespace gpu {
 
 
-    struct PhysicalDeviceCtx {
-        VkPhysicalDevice physicalDevice;
-        uint32_t gIdx;
-        uint32_t pIdx;
-    };
-    struct ComputePhysicalDeviceWrap {
-        VkPhysicalDevice physicalDevice;
-        uint32_t cIdx;
-    };
-
-    struct SurfaceInfo {
-        VkSurfaceCapabilitiesKHR        capabilities;
-        std::vector<VkPresentModeKHR>   presentModes;
-        std::vector<VkSurfaceFormatKHR> formats;
-    };
 
 
-    bool enumerateInstanceLayerProperties(std::vector<VkLayerProperties>& v);
-    bool enumerateInstanceExtensionProperties(std::vector<VkExtensionProperties>& v);
-    bool enumeratePhysicalDevices(VkInstance instance, std::vector<VkPhysicalDevice>& v);
-    bool enumerateDeviceExtensionProperties(VkPhysicalDevice device, const char* layerName, std::vector<VkExtensionProperties>& v);
-    void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, std::vector<VkQueueFamilyProperties>& v);
-    bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v);
-    bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v);
-    bool getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, std::vector<VkImage>& v);
-    VkResult createSemaphore(VkDevice device, VkSemaphore& semaphore);
-    VkResult createFence(VkDevice device, VkFence& fence, bool signaled);
-    
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// UTLITIES
+
+bool enumerateInstanceLayerProperties(std::vector<VkLayerProperties>& v);
+bool enumerateInstanceExtensionProperties(std::vector<VkExtensionProperties>& v);
+bool enumeratePhysicalDevices(VkInstance instance, std::vector<VkPhysicalDevice>& v);
+bool enumerateDeviceExtensionProperties(VkPhysicalDevice device, const char* layerName, std::vector<VkExtensionProperties>& v);
+void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, std::vector<VkQueueFamilyProperties>& v);
+bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v);
+bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v);
+bool getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, std::vector<VkImage>& v);
+VkResult createSemaphore(VkDevice device, VkSemaphore& semaphore);
+VkResult createFence(VkDevice device, VkFence& fence, bool signaled);
 
 
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// INSTANCE
 
 class Instance {
 public:
@@ -70,17 +61,43 @@ private:
 };
 
 
-bool createSurface(VkInstance instance, void* window, VkSurfaceKHR& surface);
-bool getSurfaceInfo(VkPhysicalDevice pd, VkSurfaceKHR surface, SurfaceInfo& surfaceInfo);
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SURFACE
 
-bool selectPhysicalDevice(VkInstance instance, VkSurfaceKHR surface, const std::vector<const char*>& extensions, PhysicalDeviceCtx& pd);
+struct SurfaceInfo {
+    VkSurfaceCapabilitiesKHR        capabilities;
+    std::vector<VkPresentModeKHR>   presentModes;
+    std::vector<VkSurfaceFormatKHR> formats;
+};
+
+class Surface {
+public:
+    VkSurfaceKHR surface;
+
+    bool init(VkInstance instance, void* window);
+    void deinit();
+    bool info(VkPhysicalDevice pd, SurfaceInfo& surfaceInfo);
+private:
+    VkInstance instance;
+};
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// PHYSICAL DEVICE
+
+struct PhysicalDeviceCtx {
+    VkPhysicalDevice physicalDevice;
+    uint32_t gIdx;
+    uint32_t pIdx;
+    uint32_t cIdx;
+};
+struct ComputePhysicalDeviceWrap {
+    VkPhysicalDevice physicalDevice;
+    uint32_t cIdx;
+};
+bool selectPhysicalDevice(VkInstance instance, Surface& surface, const std::vector<const char*>& extensions, PhysicalDeviceCtx& pd);
 bool selectComputePhysicalDevice(VkInstance instance, const std::vector<const char*>& extensions, ComputePhysicalDeviceWrap& w);
-
-bool createDevice(PhysicalDeviceCtx pdCtx, VkDevice& device, VkQueue& gQ, VkQueue& pQ);
-bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, VkQueue& cQ);
-    
-
-
 
 
 
@@ -88,11 +105,27 @@ bool createComputeDevice(VkPhysicalDevice pd, uint32_t cIdx, VkDevice& device, V
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Swapchain
+// DEVICE
+class Device {
+public:
+    VkDevice device;
+    VkQueue gQ;
+    VkQueue pQ;
+    VkQueue cQ;
+    bool init(PhysicalDeviceCtx pdCtx, bool graphical, bool compute);
+    void deinit();
+};
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SWAPCHAIN
 
 class Swapchain {
 public:
-    bool init(VkDevice device, VkSurfaceKHR surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
+    bool init(VkDevice device, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
     void deinit();
     bool recreate();
     void resize();
@@ -109,7 +142,7 @@ public:
     uint32_t                    idx;
 private:
     VkDevice                    device;
-    VkSurfaceKHR                surface;
+    Surface*                    surface;
     VkPhysicalDevice            physicalDevice;
     uint32_t                    gIdx;
     uint32_t                    pIdx;
@@ -118,6 +151,13 @@ private:
     bool                        recreatedFlag = false;
 };
 
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// SHADER
 
 class Shader {
 public:
@@ -133,6 +173,14 @@ private:
 };
 
 
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FRAME CONTROL
 
 struct Frame {
     VkCommandBuffer cmdBuffer;

@@ -15,11 +15,11 @@ public:
         std::vector<const char*> deviceExtensions = {};
         GUARD(selectComputePhysicalDevice(instance.instance, deviceExtensions, computeWrap));
 
-        GUARD(createComputeDevice(computeWrap.physicalDevice, computeWrap.cIdx, device, computeQueue));
+        // GUARD(device.init(computeWrap.physicalDevice, computeWrap.cIdx, device, computeQueue));
 
         const char* shaderDir = "02-compute-shaders-vk";
         Shader shader;
-        GUARD(shader.load(device, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
+        // GUARD(shader.load(device, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
 
         VkComputePipelineCreateInfo computePipelineCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -30,7 +30,7 @@ public:
             // .baePipelineHandle = 0,
             .basePipelineIndex = 0,
         };
-        vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
+        // vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
 
         return 1;
     }
@@ -41,7 +41,7 @@ public:
 
 private:
     Instance instance;
-    VkDevice device;
+    Device device;
     VkQueue computeQueue;
     VkPipeline computePipeline;
 
