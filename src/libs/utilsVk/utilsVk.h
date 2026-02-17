@@ -49,30 +49,6 @@ namespace gpu {
         std::vector<VkFramebuffer>  framebuffers;
     };
 
-    struct Shader {
-        const char* name;
-        VkShaderModule module;
-        std::vector<uint8_t> data;
-        VkPipelineShaderStageCreateInfo info;
-    };
-
-    struct Frame {
-        VkCommandBuffer& cmdBuffer;
-        VkSemaphore&     imageReady;
-        VkSemaphore&     renderReady;
-        VkFence&         execution;
-    };
-
-    struct FrameControl {
-        int                           frameCount;
-        int                           frameIdx;
-        std::vector<VkCommandPool>    cmdPool;
-        std::vector<VkCommandBuffer>  cmdBuffer;
-        std::vector<VkSemaphore>      imageReady;
-        std::vector<VkSemaphore>      renderReady;
-        std::vector<VkFence>          execution;
-    };
-
 
     bool enumerateInstanceLayerProperties(std::vector<VkLayerProperties>& v);
     bool enumerateInstanceExtensionProperties(std::vector<VkExtensionProperties>& v);
@@ -115,11 +91,45 @@ namespace gpu {
     bool createSwapchainFramebuffers(VkDevice device, SwapchainCtx& ctx, VkRenderPass renderPass);
     bool destroySwapchain(VkDevice device, SwapchainCtx& ctx);
 
-    bool createFrameControl(VkDevice device, uint32_t graphicsQueueIdx, int frameCount, FrameControl& frameControl);
-    Frame nextFrame(FrameControl& frameControl, VkDevice device);
-    bool beginFrame(Frame& frame, VkDevice device);
-    bool endFrame(Frame& frame, VkQueue gQ);
-    void destroyFrameControl(VkDevice device, FrameControl& frameControl);
 
-    bool loadShader(VkDevice device, const char* dir, const char* name, Shader& shader, VkShaderStageFlagBits stage);
+
+class Shader {
+public:
+    ~Shader();
+    bool load(VkDevice device, const char* dir, const char* name, VkShaderStageFlagBits stage);
+    VkPipelineShaderStageCreateInfo getInfo();
+private:
+    VkDevice device;
+    const char* name;
+    VkShaderModule module;
+    std::vector<uint8_t> data;
+    VkPipelineShaderStageCreateInfo stageInfo;
+};
+
+
+
+struct Frame {
+    VkCommandBuffer cmdBuffer;
+    VkSemaphore imageReady;
+    VkSemaphore renderReady;
+};
+
+class FrameControl {
+public:
+    bool init(VkDevice device, uint32_t queueIdx, VkQueue queue, int frameCount);
+    void deinit();
+    Frame next();
+    bool begin();
+    bool end();
+private:
+    VkDevice                      device;
+    VkQueue                       queue;
+    int                           frameCount;
+    int                           frameIdx;
+    std::vector<VkCommandPool>    cmdPool;
+    std::vector<VkCommandBuffer>  cmdBuffer;
+    std::vector<VkSemaphore>      imageReady;
+    std::vector<VkSemaphore>      renderReady;
+    std::vector<VkFence>          execution;
+};
 }

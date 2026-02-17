@@ -49,13 +49,13 @@ public:
         GUARD(createSwapchain(device, surface, pdCtx, swapchainCtx));
         GUARD(createPipeline());
         GUARD(createSwapchainFramebuffers(device, swapchainCtx, renderPass));
-        GUARD(createFrameControl(device, pdCtx.gIdx, 2, frameControl));
+        GUARD(frameControl.init(device, pdCtx.gIdx, graphicsQueue, 2));
         return 1;
     }
 
     void stop() {
         vkDeviceWaitIdle         (device);
-        destroyFrameControl      (device, frameControl);
+        frameControl.deinit();
         destroySwapchain         (device, swapchainCtx);
         vkDestroyPipeline        (device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout  (device, pipelineLayout, nullptr);
@@ -79,7 +79,7 @@ public:
     }
 
     int render(const Color& clearColor, const std::vector<RenderItem>& items) {
-        Frame frame = nextFrame(frameControl, device);
+        Frame frame = frameControl.next();
         
         uint32_t imageIndex;
         VkResult res = vkAcquireNextImageKHR(device, swapchainCtx.swapchain, UINT64_MAX, frame.imageReady, VK_NULL_HANDLE, &imageIndex);
@@ -92,7 +92,7 @@ public:
             return 0;
         }
         VkFramebuffer fb = swapchainCtx.framebuffers[imageIndex];
-        beginFrame(frame, device);
+        frameControl.begin();
         
     
         VkClearValue vkClearColor = { {{clearColor.v[0], clearColor.v[1], clearColor.v[2], clearColor.v[3]}} };
@@ -124,7 +124,7 @@ public:
         vkCmdEndRenderPass(frame.cmdBuffer);
         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
         
-        endFrame(frame, graphicsQueue);
+        frameControl.end();
 
         VkSwapchainKHR swapchains[] = { swapchainCtx.swapchain };
         VkPresentInfoKHR presentInfo = {
@@ -209,9 +209,9 @@ private:
         const char* shaderDir = "03-triangle-shaders-vk";
         Shader vertShader;
         Shader fragShader;
-        GUARD(loadShader(device, shaderDir, "shader.vert.spv", vertShader, VK_SHADER_STAGE_VERTEX_BIT));
-        GUARD(loadShader(device, shaderDir, "shader.frag.spv", fragShader, VK_SHADER_STAGE_FRAGMENT_BIT));
-        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.info, fragShader.info };
+        GUARD(vertShader.load(device, shaderDir, "shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
+        GUARD(fragShader.load(device, shaderDir, "shader.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
+        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .vertexBindingDescriptionCount   = 0,
@@ -292,8 +292,6 @@ private:
             printf("failed to create graphics pipeline");
             return 0;
         }
-        vkDestroyShaderModule(device, fragShader.module, nullptr);
-        vkDestroyShaderModule(device, vertShader.module, nullptr);
         return true;
     }
 };

@@ -34,13 +34,13 @@ public:
 
         const char* shaderDir = "02-compute-shaders-vk";
         Shader shader;
-        GUARD(loadShader(device, shaderDir, "shader.comp.spv", shader, VK_SHADER_STAGE_COMPUTE_BIT));
+        GUARD(shader.load(device, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
 
         VkComputePipelineCreateInfo computePipelineCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .stage = shader.info,
+            .stage = shader.getInfo(),
             .layout = 0,
             // .baePipelineHandle = 0,
             .basePipelineIndex = 0,
