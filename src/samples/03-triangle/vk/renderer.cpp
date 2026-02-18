@@ -16,9 +16,12 @@
 
 namespace gpu {
 
+float vertices[] = {
+     0.0f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
+     0.5f,  0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
+    -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+};
 
-
-const int frameCount = 2;
 
 class RendererVk : public IRenderer {
 public:
@@ -48,11 +51,15 @@ public:
             };
             GUARDV(vkCreateFramebuffer(device.device, &framebufferInfo, nullptr, &framebuffers[i]));
         }
+
+        GUARD(buffer.init(&device, vertices, sizeof(vertices)));
+
         return 1;
     }
 
     void stop() {
         vkDeviceWaitIdle (device.device);
+        buffer.deinit();
         vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout (device.device, pipelineLayout, nullptr);
         vkDestroyRenderPass (device.device, renderPass, nullptr);
@@ -110,6 +117,11 @@ public:
             .extent = swapchain.extent,
         };
         vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+
+        VkBuffer buffers[] = { buffer.buffer };
+        VkDeviceSize offsets[] = { 0 };
+        vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
+
         vkCmdDraw(frame.cmdBuffer, 3, 1, 0, 0);
         vkCmdEndRenderPass(frame.cmdBuffer);
         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
@@ -141,6 +153,7 @@ private:
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;
     FrameControl                        frameControl;
+    Buffer                              buffer;
     int                                 width;
     int                                 height;
     bool                                sizeChanged = false;
@@ -190,10 +203,33 @@ private:
         GUARD(vertShader.load(device.device, shaderDir, "shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
         GUARD(fragShader.load(device.device, shaderDir, "shader.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
+
+
+        VkVertexInputBindingDescription bindingDesc = {
+            .binding = 0,
+            .stride = sizeof(float) * (3 + 3),
+            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+        };
+        VkVertexInputAttributeDescription attributeDesc[] = {
+            {
+                .location = 0,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = 0,
+            },
+            {
+                .location = 1,
+                .binding = 0,
+                .format = VK_FORMAT_R32G32B32_SFLOAT,
+                .offset = sizeof(float) * 3,
+            }
+        };
         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount   = 0,
-            .vertexAttributeDescriptionCount = 0,
+            .vertexBindingDescriptionCount   = 1,
+            .pVertexBindingDescriptions      = &bindingDesc,
+            .vertexAttributeDescriptionCount = 2,
+            .pVertexAttributeDescriptions    = attributeDesc,
         };
         VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,

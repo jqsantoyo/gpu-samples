@@ -92,6 +92,7 @@ public:
     uint32_t gIdx;
     uint32_t pIdx;
     uint32_t cIdx;
+    uint32_t uploadMem;
 
     bool init(VkInstance instance, const std::vector<const char*>& extensions, bool graphics, bool compute, Surface* surface);
 
@@ -110,6 +111,7 @@ public:
     VkQueue gQ;
     VkQueue pQ;
     VkQueue cQ;
+    uint32_t uploadMem;
     bool init(PhysicalDevice& physicalDevice, bool graphical, bool compute);
     void deinit();
 };
@@ -204,4 +206,28 @@ private:
     std::vector<VkSemaphore>      imageReady;
     std::vector<VkFence>          execution;
 };
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// Buffer
+
+class Buffer {
+public:
+    bool init(Device* device, float* data, uint32_t size);
+    void deinit();
+    Device* device;
+    VkBuffer buffer;
+    VkDeviceMemory memory;
+
+};
+
+
+
+
 }
+
+
