@@ -93,6 +93,7 @@ public:
     uint32_t pIdx;
     uint32_t cIdx;
     uint32_t uploadMem;
+    uint32_t deviceMem;
 
     bool init(VkInstance instance, const std::vector<const char*>& extensions, bool graphics, bool compute, Surface* surface);
 
@@ -108,10 +109,14 @@ public:
 class Device {
 public:
     VkDevice device;
+    uint32_t gIdx;
+    uint32_t pIdx;
+    uint32_t cIdx;
     VkQueue gQ;
     VkQueue pQ;
     VkQueue cQ;
     uint32_t uploadMem;
+    uint32_t deviceMem;
     bool init(PhysicalDevice& physicalDevice, bool graphical, bool compute);
     void deinit();
 };
@@ -213,16 +218,26 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// Buffer
+// MESH CONTROL
 
-class Buffer {
+struct Mesh {
+    VkBuffer        buffer;
+    VkDeviceMemory  memory;
+};
+
+class MeshControl {
 public:
-    bool init(Device* device, float* data, uint32_t size);
+    bool init(Device* device);
     void deinit();
-    Device* device;
-    VkBuffer buffer;
-    VkDeviceMemory memory;
-
+    bool addMesh(float* data, uint32_t size, int& meshIdx);
+    VkBuffer getMesh(int i);
+private:
+    Device*           device;
+    VkBuffer          uploadBuffer;
+    VkDeviceMemory    uploadMemory;
+    VkCommandPool     cmdPool;
+    VkCommandBuffer   cmdBuffer;
+    std::vector<Mesh> meshes;
 };
 
 

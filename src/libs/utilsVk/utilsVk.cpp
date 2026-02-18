@@ -328,6 +328,8 @@ bool PhysicalDevice::init(VkInstance instance, const std::vector<const char*>& e
         int graphicsFamilyIdx = -1;
         int presentFamilyIdx = -1;
         int computeFamilyIdx = -1;
+        int uploadMemoryIdx = -1;
+        int deviceMemoryIdx = -1;
         std::set<const char*> requiredExtensions(extensions.begin(), extensions.end());
         for (const auto& devExtension : devExtensions) {
             requiredExtensions.erase(devExtension.extensionName);
@@ -348,6 +350,21 @@ bool PhysicalDevice::init(VkInstance instance, const std::vector<const char*>& e
                 }
             }
         }
+    
+        for(int i = 0; i < memProps.memoryTypeCount; i++) {
+            VkMemoryType& memType = memProps.memoryTypes[i];
+            if (uploadMemoryIdx == -1 &&
+                memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
+                memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            ) {
+                uploadMemoryIdx = i;
+            }
+            if (deviceMemoryIdx == -1 &&
+                memType.propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+            ) {
+                deviceMemoryIdx = i;
+            }
+        }
         bool graphicsCond = true;
         if (graphics) {
             SurfaceInfo surfaceInfo;
@@ -363,29 +380,21 @@ bool PhysicalDevice::init(VkInstance instance, const std::vector<const char*>& e
         if (compute) {
             computeCond = computeFamilyIdx != -1;
         }
+        
+        bool memoryCond = uploadMemoryIdx != -1 && deviceMemoryIdx != -1;
 
         if (selectedPhysicalDeviceIdx == -1 &&
             // requiredExtensions.empty() &&
             graphicsCond &&
-            computeCond
+            computeCond &&
+            memoryCond
         ) {
             selectedPhysicalDeviceIdx = i;
             gIdx = graphicsFamilyIdx;
             pIdx = presentFamilyIdx;
             cIdx = computeFamilyIdx;
-
-            bool memCond = false;
-            for(int i = 0; i < memProps.memoryTypeCount; i++) {
-                VkMemoryType& memType = memProps.memoryTypes[i];
-                if (memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT &&
-                    memType.propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                ) {
-                    uploadMem = i;
-                    memCond = true;
-                    break;
-                }
-            }
-            GUARD(memCond);
+            uploadMem = uploadMemoryIdx;
+            deviceMem = deviceMemoryIdx;
         }
     }
     if (selectedPhysicalDeviceIdx != -1) {
@@ -442,6 +451,10 @@ bool Device::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) 
         .pEnabledFeatures           = &deviceFeatures,
     };
     GUARDV(vkCreateDevice(physicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &device));
+    
+    this->gIdx = physicalDevice.gIdx;
+    this->pIdx = physicalDevice.pIdx;
+    this->cIdx = physicalDevice.cIdx;
     if (graphical) {
         vkGetDeviceQueue(device, physicalDevice.gIdx, 0, &gQ);
         vkGetDeviceQueue(device, physicalDevice.pIdx, 0, &pQ);
@@ -450,6 +463,7 @@ bool Device::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) 
         vkGetDeviceQueue(device, physicalDevice.cIdx, 0, &cQ);
     }
     uploadMem = physicalDevice.uploadMem;
+    deviceMem = physicalDevice.deviceMem;
     return true;
 }
 
@@ -778,45 +792,102 @@ VkPipelineShaderStageCreateInfo Shader::getInfo() {
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// BUFFER
+// MESH CONTROL
 
-bool Buffer::init(Device* device, float* data, uint32_t size) {
-    this->device =  device;
+bool createBuffer(VkDevice device, uint32_t memoryType, VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer& buffer, VkDeviceMemory& memory) {
     VkBufferCreateInfo info = {
         .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext                 = nullptr,
         .flags                 = 0,
         .size                  = size,
-        .usage                 = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+        .usage                 = usage,
         .sharingMode           = VK_SHARING_MODE_EXCLUSIVE,
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices   = nullptr,
     };
-    GUARDV(vkCreateBuffer(device->device, &info, nullptr, &buffer));
-
+    GUARDV(vkCreateBuffer(device, &info, nullptr, &buffer));
     VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(device->device, buffer, &memReq);
-
-    GUARD(memReq.memoryTypeBits & (1 << device->uploadMem));
+    vkGetBufferMemoryRequirements(device, buffer, &memReq);
+    GUARD(memReq.memoryTypeBits & (1 << memoryType));
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
         .pNext = nullptr,
         .allocationSize = memReq.size,
-        .memoryTypeIndex = device->uploadMem,
+        .memoryTypeIndex = memoryType,
     };
-    GUARDV(vkAllocateMemory(device->device, &allocInfo, nullptr, &memory));
-    GUARDV(vkBindBufferMemory(device->device, buffer, memory, 0));
-
-    void* v;
-    vkMapMemory(device->device, memory, 0, size, 0, &v);
-    memcpy(v, data, size);
-    vkUnmapMemory(device->device, memory);
+    GUARDV(vkAllocateMemory(device, &allocInfo, nullptr, &memory));
+    GUARDV(vkBindBufferMemory(device, buffer, memory, 0));
     return true;
 }
 
-void Buffer::deinit() {
-    vkDestroyBuffer(device->device, buffer, nullptr);
-    vkFreeMemory(device->device, memory, nullptr);
+bool copyBuffer(VkQueue q, VkCommandBuffer cmdBuffer, VkBuffer src, VkBuffer dst, VkDeviceSize size) {
+    VkCommandBufferBeginInfo beginInfo = {
+        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+        .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+    VkBufferCopy region = { 0, 0, size };
+    VkSubmitInfo submitInfo = {
+        .sType              = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        .commandBufferCount = 1,
+        .pCommandBuffers    = &cmdBuffer,
+    };
+    GUARDV(vkBeginCommandBuffer(cmdBuffer, &beginInfo));
+    vkCmdCopyBuffer(cmdBuffer, src, dst, 1, &region);
+    GUARDV(vkEndCommandBuffer(cmdBuffer));
+    GUARDV(vkQueueSubmit(q, 1, &submitInfo, VK_NULL_HANDLE));
+    GUARDV(vkQueueWaitIdle(q));
+    return true;
+}
+
+bool MeshControl::init(Device* device) {
+    this->device =  device;
+    VkCommandPoolCreateInfo poolInfo = {
+        .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+        .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
+        .queueFamilyIndex = device->gIdx,
+    };
+    GUARDV(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmdPool));
+    VkCommandBufferAllocateInfo allocInfo = {
+        .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+        .commandPool        = cmdPool,
+        .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+        .commandBufferCount = 1,
+    };
+    GUARDV(vkAllocateCommandBuffers(device->device, &allocInfo, &cmdBuffer));
+    return true;
+}
+
+void MeshControl::deinit() {
+    for (int i = 0; i < meshes.size(); i++) {
+        vkDestroyBuffer(device->device, meshes[i].buffer, nullptr);
+        vkFreeMemory(device->device, meshes[i].memory, nullptr);
+    }
+    vkDestroyCommandPool(device->device, cmdPool, nullptr);
+}
+
+bool MeshControl::addMesh(float* data, uint32_t size, int& meshIdx) {
+    meshIdx = meshes.size();
+    meshes.push_back({});
+    Mesh& mesh = meshes.back();
+
+    createBuffer(device->device, device->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
+    createBuffer(device->device, device->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, mesh.buffer, mesh.memory);
+
+    void* v;
+    vkMapMemory(device->device, uploadMemory, 0, size, 0, &v);
+    memcpy(v, data, size);
+    vkUnmapMemory(device->device, uploadMemory);
+    
+
+    GUARDV(vkResetCommandPool(device->device, cmdPool, 0));
+    GUARD(copyBuffer(device->gQ, cmdBuffer, uploadBuffer, mesh.buffer, size));
+    vkDestroyBuffer(device->device, uploadBuffer, nullptr);
+    vkFreeMemory(device->device, uploadMemory, nullptr);
+    return true;
+}
+
+VkBuffer MeshControl::getMesh(int i) {
+    return meshes[i].buffer;
 }
 
 }

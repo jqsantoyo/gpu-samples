@@ -52,14 +52,15 @@ public:
             GUARDV(vkCreateFramebuffer(device.device, &framebufferInfo, nullptr, &framebuffers[i]));
         }
 
-        GUARD(buffer.init(&device, vertices, sizeof(vertices)));
+        GUARD(meshControl.init(&device));
+        GUARD(meshControl.addMesh(vertices, sizeof(vertices), mesh));
 
         return 1;
     }
 
     void stop() {
         vkDeviceWaitIdle (device.device);
-        buffer.deinit();
+        meshControl.deinit();
         vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout (device.device, pipelineLayout, nullptr);
         vkDestroyRenderPass (device.device, renderPass, nullptr);
@@ -118,7 +119,8 @@ public:
         };
         vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
-        VkBuffer buffers[] = { buffer.buffer };
+        VkBuffer buffer = meshControl.getMesh(mesh);
+        VkBuffer buffers[] = { buffer };
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
 
@@ -153,7 +155,8 @@ private:
     VkPipelineLayout                    pipelineLayout;
     VkPipeline                          graphicsPipeline;
     FrameControl                        frameControl;
-    Buffer                              buffer;
+    MeshControl                         meshControl;
+    int                                 mesh;
     int                                 width;
     int                                 height;
     bool                                sizeChanged = false;
