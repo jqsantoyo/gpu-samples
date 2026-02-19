@@ -4,7 +4,6 @@ GPU samples using Direct3D, Vulkan, & Metal.
 
 Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan executables for MacOS; the Vulkan builds have a `-vk` suffix.
 
-The samples leverage the library `app` for easier program setup.
 
 | Sample          | Camera Control  | Shading                  |  |
 |-----------------|-----------------|--------------------------|--|
@@ -12,40 +11,46 @@ The samples leverage the library `app` for easier program setup.
 | **02-compute**  |                 |                          |  |
 | **03-triangle** |                 | vertex color             |  |
 | **04-objects**  | ✓               | vertex color             |  |
-| **05-diffuse**  | ✓               | diffuse + light + shadow |  |
 
+| Libraries         | Internal |
+|-------------------|----------|
+| utils             | ✓        |
+| input             | ✓        |
+| app               | ✓        |
+| camera            | ✓        |
+| scene             | ✓        |
+| assets            | ✓        |
+| utilsVk           | ✓        |
+| utilsD3D          | ✓        |
+| renderer          | ✓        |
+| vulkan            |          |
+| d3d12             |          |
+| dxgi              |          |
+| d3dcompiler       |          |
+| d3dx12            |          |
+| tinygltf          |          |
 
 
 ## Build and Run
 
-Use cmake to build the project. 4 presets are provided:
-* `win-x64-debug`
-* `win-x64-release`
-* `mac-arm64-debug`
-* `mac-arm64-release`
+Use cmake to build the project. 2 presets are provided:
+* `debug`
+* `release`
 
 In `vscode` select the preset and build with `F7`, then select a launch configuration in `Run and Debug` and press `F5`.
 
 Or enter in the command line:
 ```
-# On windows
-cmake --preset=win-x64-debug
-cmake --build --preset=win-x64-debug
-.build/win-x64-debug/src/samples/01-hello/01-hello.exe        // Direct3D build
-.build/win-x64-debug/src/samples/01-hello/01-hello-vk.exe     // Vulkan build
-
-# On mac
-cmake --preset=mac-arm64-debug
-cmake --build --preset=mac-arm64-debug
-.build/mac-arm64-debug/src/samples/01-hello/01-hello          // Metal build
-.build/mac-arm64-debug/src/samples/01-hello/01-hello-vk       // Vulkan build
+cmake --preset=debug
+cmake --build --preset=debug
+.build/debug/src/samples/01-info/01-info.exe        // Direct3D or Metal build
+.build/debug/src/samples/01-info/01-info-vk.exe     // Vulkan build
 ```
-
 
 
 
 ## Notes
 
 ```
-measure-command { cmake --preset=win-x64-debug --fresh; cmake --build --preset=win-x64-debug --clean-first }
+measure-command { cmake --preset=debug --fresh; cmake --build --preset=debug --clean-first }
 ```

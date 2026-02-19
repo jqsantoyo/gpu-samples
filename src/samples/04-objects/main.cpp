@@ -22,8 +22,8 @@ public:
 
         assets = createAssets();
         assets->setup(renderer.get(), scene.get());
-        // assets->load("cube.gltf");
-        assets->load("shapes.gltf");
+        assets->load("cube.gltf");
+        // assets->load("shapes.gltf");
 
         camera = createCamera();
 

@@ -53,7 +53,7 @@ public:
         }
 
         GUARD(meshControl.init(&device));
-        GUARD(meshControl.addMesh(vertices, sizeof(vertices), mesh));
+        GUARD(meshControl.addMesh(vertices, sizeof(vertices), nullptr, 0, mesh));
 
         return 1;
     }
@@ -119,8 +119,8 @@ public:
         };
         vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
-        VkBuffer buffer = meshControl.getMesh(mesh);
-        VkBuffer buffers[] = { buffer };
+        Mesh& m = meshControl.getMesh(mesh);
+        VkBuffer buffers[] = { m.buffer };
         VkDeviceSize offsets[] = { 0 };
         vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
 

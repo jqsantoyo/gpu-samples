@@ -865,7 +865,7 @@ void MeshControl::deinit() {
     vkDestroyCommandPool(device->device, cmdPool, nullptr);
 }
 
-bool MeshControl::addMesh(float* data, uint32_t size, int& meshIdx) {
+bool MeshControl::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx) {
     meshIdx = meshes.size();
     meshes.push_back({});
     Mesh& mesh = meshes.back();
@@ -877,17 +877,36 @@ bool MeshControl::addMesh(float* data, uint32_t size, int& meshIdx) {
     vkMapMemory(device->device, uploadMemory, 0, size, 0, &v);
     memcpy(v, data, size);
     vkUnmapMemory(device->device, uploadMemory);
-    
 
     GUARDV(vkResetCommandPool(device->device, cmdPool, 0));
     GUARD(copyBuffer(device->gQ, cmdBuffer, uploadBuffer, mesh.buffer, size));
+
     vkDestroyBuffer(device->device, uploadBuffer, nullptr);
     vkFreeMemory(device->device, uploadMemory, nullptr);
+
+    
+    if (idxData != nullptr) {
+        createBuffer(device->device, device->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
+        createBuffer(device->device, device->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, mesh.idxBuffer, mesh.idxMemory);
+
+        void* v;
+        vkMapMemory(device->device, uploadMemory, 0, idxSize, 0, &v);
+        memcpy(v, idxData, idxSize);
+        vkUnmapMemory(device->device, uploadMemory);
+
+        GUARDV(vkResetCommandPool(device->device, cmdPool, 0));
+        GUARD(copyBuffer(device->gQ, cmdBuffer, uploadBuffer, mesh.idxBuffer, idxSize));
+        
+        vkDestroyBuffer(device->device, uploadBuffer, nullptr);
+        vkFreeMemory(device->device, uploadMemory, nullptr);
+    }
     return true;
 }
 
-VkBuffer MeshControl::getMesh(int i) {
-    return meshes[i].buffer;
+
+
+Mesh& MeshControl::getMesh(int i) {
+    return meshes[i];
 }
 
 }

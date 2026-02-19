@@ -223,14 +223,16 @@ private:
 struct Mesh {
     VkBuffer        buffer;
     VkDeviceMemory  memory;
+    VkBuffer        idxBuffer;
+    VkDeviceMemory  idxMemory;
 };
 
 class MeshControl {
 public:
     bool init(Device* device);
     void deinit();
-    bool addMesh(float* data, uint32_t size, int& meshIdx);
-    VkBuffer getMesh(int i);
+    bool addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx);
+    Mesh& getMesh(int i);
 private:
     Device*           device;
     VkBuffer          uploadBuffer;
