@@ -10,10 +10,13 @@ message(STATUS "System:    ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 
 
+set(CMAKE_BUILD_RPATH "$ENV{VULKAN_SDK}/macOS/lib")
 
 addImported(vulkan
-    INC_DIR $ENV{VK_SDK_PATH}/Include
-    LIB     $ENV{VK_SDK_PATH}/Lib/vulkan-1.lib
+    INC_WIN $ENV{VULKAN_SDK}/Windows/include
+    INC_MAC $ENV{VULKAN_SDK}/macOS/include
+    LIB_WIN $ENV{VULKAN_SDK}/Windows/Lib/vulkan-1.lib
+    LIB_MAC $ENV{VULKAN_SDK}/macOS/lib/libvulkan.1.4.341.dylib
 )
 addImported(d3d12 WIN
     INC_DIR $ENV{WindowsSdkDir}/Include/$ENV{WindowsSdkVersion}/um
@@ -35,16 +38,16 @@ addExternal(tinygltf URL https://github.com/syoyo/tinygltf.git TAG v2.9.7)
 addInterface(d3dx12 WIN)
 
 addInterface(input)
-addInterface(renderer WIN)
-addLibrary(utils)
-addLibrary(camera   LIBS input)
-addLibrary(scene    LIBS renderer)
-addLibrary(assets   LIBS tinygltf utils renderer scene)
-addLibrary(app      LIBS input)
-addLibrary(utilsVk  LIBS vulkan)
-addLibrary(utilsD3D LIBS utils d3d12 dxgi d3dcompiler d3dx12)
+addInterface(renderer)
+addLibrary  (utils)
+addLibrary  (camera       LIBS input)
+addLibrary  (scene        LIBS renderer)
+addLibrary  (assets       LIBS tinygltf utils renderer scene)
+addLibrary  (app          LIBS input)
+addLibrary  (utilsVk      LIBS vulkan utils)
+addLibrary  (utilsD3D WIN LIBS utils d3d12 dxgi d3dcompiler d3dx12)
 
-addSample(01-info       LIBS app renderer utilsVk utilsD3D)
-addSample(02-compute    LIBS utilsVk utilsD3D)
-addSample(03-triangle   LIBS app utils renderer input utilsVk utilsD3D)
-addSample(04-objects    LIBS app utils renderer assets scene camera input utilsVk utilsD3D)
+addSample(01-info       LIBS app renderer utilsVk LIBS_WIN utilsD3D)
+# addSample(02-compute    LIBS utilsVk utilsD3D)
+# addSample(03-triangle   LIBS app utils renderer input utilsVk utilsD3D)
+# addSample(04-objects    LIBS app utils renderer assets scene camera input utilsVk utilsD3D)

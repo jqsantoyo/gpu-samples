@@ -28,7 +28,7 @@ public:
                 VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
         #else
                 VK_KHR_SURFACE_EXTENSION_NAME,
-                VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
+                // VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
         #endif
         };
 
@@ -53,15 +53,15 @@ public:
         GUARDV(vkCreateInstance(&createInfo, nullptr, &instance));
 
 
-        HINSTANCE hInstance = GetModuleHandle(nullptr);
-        auto hwnd = static_cast<HWND>(window);
-        VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {
-            .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
-            .pNext     = nullptr,
-            .hinstance = hInstance,
-            .hwnd      = hwnd,
-        };
-        GUARDV(vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface));
+        // HINSTANCE hInstance = GetModuleHandle(nullptr);
+        // auto hwnd = static_cast<HWND>(window);
+        // VkWin32SurfaceCreateInfoKHR surfaceCreateInfo = {
+        //     .sType     = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR,
+        //     .pNext     = nullptr,
+        //     .hinstance = hInstance,
+        //     .hwnd      = hwnd,
+        // };
+        // GUARDV(vkCreateWin32SurfaceKHR(instance, &surfaceCreateInfo, nullptr, &surface));
 
 
 
@@ -256,21 +256,21 @@ public:
                 printf("    Format: %d :: Colorspace: %d\n", fmt.format, fmt.colorSpace);
             }
 
-            printf("  \nSurface present modes: %zu\n", presentModes.size());
-            for(int i = 0; i < presentModes.size(); i++) {
-                const char* presentModeStr = "";
-                switch(presentModes[i]) {
-                    case VK_PRESENT_MODE_IMMEDIATE_KHR                  : presentModeStr = "immediate";                 break;
-                    case VK_PRESENT_MODE_MAILBOX_KHR                    : presentModeStr = "mailbox";                   break;
-                    case VK_PRESENT_MODE_FIFO_KHR                       : presentModeStr = "fifo";                      break;
-                    case VK_PRESENT_MODE_FIFO_RELAXED_KHR               : presentModeStr = "fifo relaxed";              break;
-                    case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR      : presentModeStr = "shared demand refresh";     break;
-                    case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR  : presentModeStr = "shared continuous refresh"; break;
-                    case VK_PRESENT_MODE_FIFO_LATEST_READY_KHR          : presentModeStr = "fifo latest ready khr/ext"; break;
-                    default                                             : presentModeStr = "unknown";                   break;
-                }
-                printf("    %s\n", presentModeStr);
-            }
+            // printf("  \nSurface present modes: %zu\n", presentModes.size());
+            // for(int i = 0; i < presentModes.size(); i++) {
+            //     const char* presentModeStr = "";
+            //     switch(presentModes[i]) {
+            //         case VK_PRESENT_MODE_IMMEDIATE_KHR                  : presentModeStr = "immediate";                 break;
+            //         case VK_PRESENT_MODE_MAILBOX_KHR                    : presentModeStr = "mailbox";                   break;
+            //         case VK_PRESENT_MODE_FIFO_KHR                       : presentModeStr = "fifo";                      break;
+            //         case VK_PRESENT_MODE_FIFO_RELAXED_KHR               : presentModeStr = "fifo relaxed";              break;
+            //         case VK_PRESENT_MODE_SHARED_DEMAND_REFRESH_KHR      : presentModeStr = "shared demand refresh";     break;
+            //         case VK_PRESENT_MODE_SHARED_CONTINUOUS_REFRESH_KHR  : presentModeStr = "shared continuous refresh"; break;
+            //         case VK_PRESENT_MODE_FIFO_LATEST_READY_KHR          : presentModeStr = "fifo latest ready khr/ext"; break;
+            //         default                                             : presentModeStr = "unknown";                   break;
+            //     }
+            //     printf("    %s\n", presentModeStr);
+            // }
         }
 
         VkPhysicalDeviceFeatures deviceFeatures{};

@@ -5,6 +5,15 @@
 #include <inttypes.h>
 #include <set>
 #include <string>
+#ifdef WIN32
+    #define UNICODE
+    #define NOMINMAX
+    #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+    #endif
+    #define VK_USE_PLATFORM_WIN32_KHR
+    #include <windows.h>
+#endif
 
 #define GUARDV(x) if ((x != VK_SUCCESS)) {  printf("Error: "#x); return 0; }
 #define GUARD(x)  if (!(x))              {  printf("Error: "#x); return 0; }
@@ -739,9 +748,8 @@ Shader::~Shader() {
 bool Shader::load(VkDevice device, const char* dir, const char* name, VkShaderStageFlagBits stage) {
     this->device = device;
     std::string path = getAssetsPath() + dir + "\\" + name;
-    FILE* file;
-    errno_t err = fopen_s(&file, path.c_str(), "rb");
-    if (err != 0 || file == nullptr) {
+    FILE* file = fopen(path.c_str(), "rb");
+    if (file == nullptr) {
         return false;
     }
     fseek(file, 0, SEEK_END);

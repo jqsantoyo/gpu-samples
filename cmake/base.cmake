@@ -12,24 +12,34 @@ endfunction()
 # Early exits when platform options (WIN/MAC) are provided and do not match the platform.
 function(addImported targetName)
     set(options WIN MAC)
-    set(oneArgs INC_DIR LIB)
+    set(oneArgs INC_WIN INC_MAC LIB_WIN LIB_MAC)
     set(multiArgs)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
-    if((arg_WIN OR arg_MAC) AND
-       (CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR
-       (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+    if(
+        (arg_WIN OR arg_MAC) AND
+        ((CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+    )
        return()
+    endif()
+
+    if(CMAKE_SYSTEM_NAME STREQUAL Windows)
+        set(INC ${arg_INC_WIN})
+        set(LIB ${arg_LIB_WIN})
+    elseif(CMAKE_SYSTEM_NAME STREQUAL Darwin)
+        set(INC ${arg_INC_MAC})
+        set(LIB ${arg_LIB_MAC})
     endif()
 
     message(STATUS "----------------------------------------")
     message(STATUS "Library (Imported): ${targetName}")
-    message(STATUS "  Include Dir: ${arg_INC_DIR}")
-    message(STATUS "  Lib:         ${arg_LIB}")
-    add_library             (${targetName} STATIC IMPORTED)
-    set_target_properties   (${targetName} PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES ${arg_INC_DIR}
-        IMPORTED_LOCATION             ${arg_LIB}
+    message(STATUS "  Include Dir: ${INC}")
+    message(STATUS "  Lib:         ${LIB}")
+
+    add_library          (${targetName} STATIC IMPORTED)
+    set_target_properties(${targetName} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES ${INC}
+        IMPORTED_LOCATION             ${LIB}
     )
 endfunction()
 
@@ -41,9 +51,10 @@ function(addInterface targetName)
     set(multiArgs)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
     
-    if((arg_WIN OR arg_MAC) AND
-       (CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR
-       (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+    if(
+        (arg_WIN OR arg_MAC) AND
+        ((CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+    )
        return()
     endif()
 
@@ -78,10 +89,17 @@ endfunction()
 # Adds a static library target.
 # No platform switch provided.
 function(addLibrary targetName)
-    set(options)
+    set(options WIN MAC)
     set(oneArgs)
     set(multiArgs LIBS LIBS_WIN LIBS_MAC FRAMES)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+    if(
+        (arg_WIN OR arg_MAC) AND
+        ((CMAKE_SYSTEM_NAME STREQUAL Windows AND NOT arg_WIN) OR (CMAKE_SYSTEM_NAME STREQUAL Darwin AND NOT arg_MAC))
+    )
+       return()
+    endif()
 
     set(dir ${CMAKE_SOURCE_DIR}/src/libs/${targetName})
     file(GLOB HEADERS CONFIGURE_DEPENDS ${dir}/*.h)

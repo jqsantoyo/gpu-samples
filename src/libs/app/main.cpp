@@ -1,4 +1,6 @@
 #include "app.h"
+
+#ifdef WIN32
 #define UNICODE
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -89,3 +91,16 @@ int main(int argc, char** argv) {
     DestroyWindow(windowHandle);
     return 0;
 }
+
+#else
+
+
+int main(int argc, char** argv) {
+    std::unique_ptr<gpu::IApp> app = gpu::createApp();
+    if(app->start(argc, argv, nullptr, 512, 512)) {
+
+    }
+    app->stop();
+}
+
+#endif
