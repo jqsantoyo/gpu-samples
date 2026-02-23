@@ -117,7 +117,7 @@ function(addLibrary targetName)
     printList(HEADERS SOURCES LIBS)
 
     add_library                 (${targetName} STATIC)
-    target_include_directories  (${targetName} PUBLIC  ${dir}/..)
+    target_include_directories  (${targetName} PUBLIC  ${dir} ${dir}/..)
     target_sources              (${targetName} PUBLIC  ${HEADERS})
     target_sources              (${targetName} PRIVATE ${SOURCES})
     target_link_libraries       (${targetName} PRIVATE ${LIBS})

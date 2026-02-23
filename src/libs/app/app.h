@@ -1,22 +1,29 @@
 #pragma once
 #include <memory>
 #include <input/input.h>
+#include <renderer/renderer.h>
 
 namespace gpu {
-
-
 
 class IApp {
 public:
     virtual ~IApp() = default;
-    virtual int start(int argc, char** argv, void* window, int w, int h) = 0;
-    virtual int update() = 0;
-    virtual int resize(int width, int height) = 0;
-    virtual int mouseEvent(MouseEvent event) = 0;
-    virtual int keyboardEvent(KeyboardEvent event) = 0;
-    virtual void stop() = 0;
+    virtual bool init(int argc, char** argv, const RendererInitInfo& info) = 0;
+    virtual void terminate() = 0;
+    virtual bool resize(int width, int height) = 0;
+    virtual bool update() = 0;
+    
+    virtual bool mouseEvent(MouseEvent event) { return false; };
+    virtual bool keyboardEvent(KeyboardEvent event) { return false; };
 };
 
-std::unique_ptr<IApp> createApp(); ///< Defined in application-code
+class AppRunner {
+public:
+    AppRunner(IApp& app);
+    bool run();
+
+private:
+    IApp& app;
+};
 
 }

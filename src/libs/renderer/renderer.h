@@ -62,19 +62,27 @@ enum FillMode {
     Wire,
 };
 
+struct RendererInitInfo {
+    uint32_t width;
+    uint32_t height;
+    void* window;
+    void* view;
+    void* device;
+};
 
 class IRenderer {
 public:
     virtual ~IRenderer() = default;
-    virtual int start(void* window, uint32_t screenWidth, uint32_t screenHeight) = 0;
-    virtual void stop() = 0;
-    virtual int resize(int width, int height) = 0;
-    virtual void setView(ViewDesc& desc) = 0;
-    virtual void setProjection(ProjectionDesc& desc) = 0;
-    virtual int addBuffer(const BufferDesc& desc) = 0;
-    virtual int addMesh(const MeshDesc& desc) = 0;
-    virtual int render(const Color& clearColor, const std::vector<RenderItem>& items) = 0;
-    virtual void setFillMode(FillMode mode) = 0;
+    virtual bool init(const RendererInitInfo& info) = 0;
+    virtual void terminate() = 0;
+    virtual bool resize(int width, int height) = 0;
+    virtual bool render(const Color& clearColor, const std::vector<RenderItem>& items) = 0;
+
+    virtual void setFillMode(FillMode mode) {}
+    virtual void setView(ViewDesc& desc) {};
+    virtual void setProjection(ProjectionDesc& desc) {};
+    virtual int addBuffer(const BufferDesc& desc) { return -1; };
+    virtual int addMesh(const MeshDesc& desc) { return -1; };
 };
 
 std::unique_ptr<IRenderer> createRenderer();

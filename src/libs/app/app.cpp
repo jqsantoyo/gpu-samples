@@ -1,4 +1,7 @@
+
 #include "app.h"
+
+
 
 #ifdef WIN32
 #define UNICODE
@@ -16,12 +19,26 @@
 #include <shellapi.h>
 #include <string>
 #include <stdio.h>
-
-
+#else
+#define NS_PRIVATE_IMPLEMENTATION
+#define CA_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
+#define MTK_PRIVATE_IMPLEMENTATION
+#include <Foundation/Foundation.hpp>
+#include <Foundation/NSObject.hpp>
+#include <Metal/Metal.hpp>
+#include <QuartzCore/QuartzCore.hpp>
+#include <AppKit/AppKit.hpp>
+#endif
 #define GUARD(x) if (!x) { return 1; }
 
-std::unique_ptr<gpu::IApp> app;
+namespace gpu {
 
+AppRunner::AppRunner(IApp& app) : app(app) {}
+
+
+
+#ifdef WIN32
 LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
     int w = GET_WHEEL_DELTA_WPARAM(wParam); // only valid on WM_MOUSEWHEEL
     switch (msg) {
@@ -40,7 +57,7 @@ LRESULT CALLBACK windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam)
     return 0;
 }
 
-int main(int argc, char** argv) {
+bool AppRunner::run() {
     app = gpu::createApp();
     int screenWidth = 512;
     int screenHeight = 512;
@@ -89,18 +106,115 @@ int main(int argc, char** argv) {
     }
     app->stop();
     DestroyWindow(windowHandle);
-    return 0;
+    return true;
 }
+
+
+
 
 #else
 
 
-int main(int argc, char** argv) {
-    std::unique_ptr<gpu::IApp> app = gpu::createApp();
-    if(app->start(argc, argv, nullptr, 512, 512)) {
 
+
+// class MTKViewDelegate : public MTK::ViewDelegate
+// {
+// public:
+//     MTKViewDelegate(IApp& app) : app(app) {}
+
+//     virtual ~MTKViewDelegate() override {}
+
+//     virtual void drawInMTKView(MTK::View* view) override {
+//         app.update();
+//     }
+
+// private:
+//     IApp& app;
+// };
+
+
+
+class Delegate : public NS::ApplicationDelegate {
+public:
+    Delegate(IApp& app) : app(app) {}
+
+    virtual void applicationWillFinishLaunching( NS::Notification* pNotification ) override {
+        NS::Application* nsApp = reinterpret_cast<NS::Application*>(pNotification->object());
+        nsApp->setActivationPolicy( NS::ActivationPolicy::ActivationPolicyRegular );
     }
-    app->stop();
+
+    virtual void applicationDidFinishLaunching( NS::Notification* pNotification ) override {
+        uint32_t width = 512;
+        uint32_t height = 512;
+        CGRect frame = (CGRect){ {100.0, 100.0}, { static_cast<float>(width), static_cast<float>(height) } };
+
+        window = NS::Window::alloc()->init(
+            frame,
+            NS::WindowStyleMaskClosable|NS::WindowStyleMaskTitled,
+            NS::BackingStoreBuffered,
+            false
+        );
+
+        CA::MetalLayer* metalLayer = CA::MetalLayer::layer();
+        metalLayer->setPixelFormat(MTL::PixelFormatBGRA8Unorm);
+        metalLayer->setFramebufferOnly(false);
+        metalLayer->setDrawableSize(CGSizeMake(width, height));
+
+        auto view = NS::View::alloc()->init(frame);
+        view->sendMessage<void>("setWantsLayer:", true);
+        view->sendMessage<void>("setLayer:", metalLayer);
+
+
+        window->setContentView(view);
+        window->setTitle(NS::String::string("App", NS::StringEncoding::UTF8StringEncoding));
+        window->makeKeyAndOrderFront(nullptr);
+
+        NS::Application* nsApp = reinterpret_cast<NS::Application*>(pNotification->object());
+        nsApp->activateIgnoringOtherApps(true);
+
+        // device = MTL::CreateSystemDefaultDevice();
+        // viewDelegate = new MTKViewDelegate(app);
+        // mtkView = MTK::View::alloc()->init(frame, device);
+        // mtkView->setColorPixelFormat(MTL::PixelFormat::PixelFormatBGRA8Unorm_sRGB);
+        // mtkView->setClearColor(MTL::ClearColor::Make(1.0, 0.0, 0.0, 1.0));
+
+        
+
+
+        // RendererInitInfo rendererInitInfo = {
+        //     .width = width,
+        //     .height = height,
+        //     .view = mtkView,
+        //     .device = device,
+        // };
+        // app.init(0, nullptr, rendererInitInfo);
+        // mtkView->setDelegate(viewDelegate);
+    }
+
+    virtual bool applicationShouldTerminateAfterLastWindowClosed(NS::Application* pSender) override {
+        return true;
+    }
+
+private:
+    IApp& app;
+    NS::Window* window = nullptr;
+    // MTK::View* mtkView = nullptr;
+    // MTKViewDelegate* viewDelegate = nullptr;
+    MTL::Device* device = nullptr;
+};
+
+bool AppRunner::run() {
+    NS::AutoreleasePool* autoRel = NS::AutoreleasePool::alloc()->init();
+    Delegate delegate(app);
+    NS::Application* appNS = NS::Application::sharedApplication();
+    appNS->setDelegate(&delegate);
+    appNS->run();
+    autoRel->release();
+    app.terminate();
+    return true;
 }
 
 #endif
+
+
+}
