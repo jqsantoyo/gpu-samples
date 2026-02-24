@@ -94,11 +94,11 @@ struct Mesh {
 class RendererD3D : public IRenderer {
 public:
 
-    int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
+    bool init(void* window, uint32_t width, uint32_t height) {
         auto hwnd = static_cast<HWND>(window);
-        screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
-        viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight), 0, 1 };
-        scissorRect = { 0, 0, long(screenWidth), long(screenHeight) };
+        screenAR = static_cast<float>(width) / static_cast<float>(height);
+        viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
+        scissorRect = { 0, 0, long(width), long(height) };
 
         ////////////////////////////////////////////////////////////////////////////////////////////
         // DEVICE
@@ -157,8 +157,8 @@ public:
         ////////////////////////////////////////////////////////////////////////////////////////////
         // SWAPCHAIN
         DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
-            .Width       = screenWidth,
-            .Height      = screenHeight,
+            .Width       = width,
+            .Height      = height,
             .Format      = DXGI_FORMAT_R8G8B8A8_UNORM,
             .SampleDesc  = { .Count = 1, .Quality = 0 },
             .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
@@ -217,8 +217,8 @@ public:
         D3D12_RESOURCE_DESC depthDesc = {
             .Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
             .Alignment          = 0,
-            .Width              = screenWidth,
-            .Height             = screenHeight,
+            .Width              = width,
+            .Height             = height,
             .DepthOrArraySize   = 1,
             .MipLevels          = 1,
             .Format             = DXGI_FORMAT_D32_FLOAT,
@@ -378,12 +378,12 @@ public:
         return 1;
     }
 
-    void stop() {
+    void terminate() {
         waitForPreviousFrame();
         CloseHandle(fenceEvent);
     }
 
-    int resize(int width, int height) {
+    bool resize(int width, int height) {
         return 1;
     }
 
@@ -400,7 +400,7 @@ public:
         XMStoreFloat4x4(&projMat, proj);
     }
 
-    int render(const Color& clearColor, const std::vector<RenderItem>& items) {
+    bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
         D3D12_CPU_DESCRIPTOR_HANDLE depthView = dsvHeap->GetCPUDescriptorHandleForHeapStart();
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(renderTargets[frameIdx].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);

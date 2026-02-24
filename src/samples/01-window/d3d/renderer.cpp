@@ -27,7 +27,7 @@ namespace gpu {
 constexpr int frameCount = 2;
 class RendererD3D : public IRenderer {
 public:
-    int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
+    bool init(void* window, uint32_t screenWidth, uint32_t screenHeight) {
         auto hwnd = static_cast<HWND>(window);
         screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
         viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight) };
@@ -110,35 +110,17 @@ public:
         return 1;
     }
 
-    void stop() {
+    void terminate() {
         waitForPreviousFrame();
         CloseHandle(fenceEvent);
     }
 
-    int resize(int width, int height) {
-        return 1;
-    }
-
-    void setView(ViewDesc& desc) {
-    }
-    
-    void setProjection(ProjectionDesc& desc) {
-
-    }
-
-    int render(const Color& clearColor, const std::vector<RenderItem>& items) {
+    bool resize(int width, int height) {
         return 1;
     }
     
-    int addBuffer(const BufferDesc& desc) {
-        return -1;
-    }
-    
-    int addMesh(const MeshDesc& desc) {
-        return -1;
-    }
-    
-    void setFillMode(FillMode mode) {
+    bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
+        return false;
     }
     
     int waitForPreviousFrame() {

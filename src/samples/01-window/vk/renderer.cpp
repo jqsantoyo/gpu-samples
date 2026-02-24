@@ -23,7 +23,7 @@ namespace gpu {
 
 class RendererVk : public IRenderer {
 public:
-    bool init(const RendererInitInfo& info) {
+    bool init(void* window, uint32_t screenWidth, uint32_t screenHeight) {
         
         GUARD(instance.init("02-info-window", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
         // GUARD(surface.init(instance.instance, window));

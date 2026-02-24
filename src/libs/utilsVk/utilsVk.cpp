@@ -5,17 +5,14 @@
 #include <inttypes.h>
 #include <set>
 #include <string>
-#ifdef WIN32
-    #define UNICODE
-    #define NOMINMAX
-    #ifndef WIN32_LEAN_AND_MEAN
-    #define WIN32_LEAN_AND_MEAN
-    #endif
-    #define VK_USE_PLATFORM_WIN32_KHR
-    #include <windows.h>
-#else
-    #include <vulkan/vulkan_metal.h>
+#define UNICODE
+#define NOMINMAX
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
 #endif
+#define VK_USE_PLATFORM_WIN32_KHR
+#include <windows.h>
+#include <vulkan/vulkan_win32.h>
 
 
 namespace gpu {
@@ -207,19 +204,9 @@ bool Instance::init(
 #endif
 
     VkInstanceCreateFlags flags = 0;
-#ifdef WIN32
-#else
-    flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-    extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
-
     if (graphical) {
         extensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
-#ifdef WIN32
         extensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
-#else
-        extensions.push_back(VK_EXT_METAL_SURFACE_EXTENSION_NAME);
-#endif
     }
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{

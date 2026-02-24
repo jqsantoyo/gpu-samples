@@ -13,17 +13,17 @@ public:
     std::unique_ptr<IAssets> assets;
     std::unique_ptr<ICamera> camera;
 
-    int start(int argc, char** argv, void* window, int w, int h) {
+    bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) {
         renderer = createRenderer();
-        renderer->start(window, w, h);
+        renderer->init(window, width, height);
         renderer->setFillMode(FillWire);
 
         scene = createScene();
 
         assets = createAssets();
         assets->setup(renderer.get(), scene.get());
-        assets->load("cube.gltf");
-        // assets->load("shapes.gltf");
+        // assets->load("cube.gltf");
+        assets->load("shapes.gltf");
 
         camera = createCamera();
 
@@ -31,7 +31,7 @@ public:
         return true;
     }
 
-    int update() {
+    bool update() {
         float posX;
         float posY;
         float posZ;
@@ -52,27 +52,26 @@ public:
         return renderer->render({ 0.1f, 0.1f, 0.1f, 1.0f }, scene->get());
     }
 
-    int resize(int width, int height) {
+    bool resize(int width, int height) {
         renderer->resize(width, height);
-        return 1;
+        return true;
     }
 
-    int mouseEvent(MouseEvent event) {
+    bool mouseEvent(MouseEvent event) {
         camera->mouseEvent(event);
-        return 1;
+        return true;
     }
 
-    int keyboardEvent(KeyboardEvent event) {
-        return 1;
-    }
-
-    void stop() {
-        renderer->stop();
+    void terminate() {
+        renderer->terminate();
     }
 };
 
-std::unique_ptr<IApp> createApp() {
-    return std::make_unique<App>();
 }
 
+
+int main(int argc, char** argv) {
+    gpu::App app;
+    gpu::AppRunner runner(argc, argv, app);
+    return runner.run();
 }

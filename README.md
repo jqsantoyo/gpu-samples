@@ -1,17 +1,17 @@
 # GPU Samples
 
-GPU samples using Direct3D, Vulkan, & Metal.
+GPU samples using D3D12 and Vulkan for Windows.
 
-Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan executables for MacOS; the Vulkan builds have a `-vk` suffix.
+Each sample defines D3D12 & Vulkan executables, the Vulkan builds have a `-vk` suffix.
 
 
 | Sample                | Camera Control  | Shading                  |  |
 |-----------------------|-----------------|--------------------------|--|
-| **01-info**           |                 |                          |  |
-| **02-info-window**    |                 |                          |  |
-| **03-compute**        |                 |                          |  |
-| **04-triangle**       |                 | vertex color             |  |
-| **05-objects**        | ✓               | vertex color             |  |
+| **00-info**           |                 |                          |  |
+| **01-window**         |                 |                          |  |
+| **02-compute**        |                 |                          |  |
+| **03-triangle**       |                 | vertex color             |  |
+| **04-objects**        | ✓               | vertex color             |  |
 
 | Libraries         | Internal |
 |-------------------|----------|
@@ -36,9 +36,9 @@ Each sample defines D3D & Vulkan executables for Windows, and Metal & Vulkan exe
 
 Ensure the following environment variables are defined:
 ```
-WindowsSdkDir   =<windows sdk installation>            // Windows only
-VULKAN_SDK      =<vulkan sdk installation>
-VK_ICD_FILENAMES=<MoltenVK_icd.json path>           // MacOS only
+WINDOWS_SDK         = <windows sdk installation>
+WINDOWS_SDK_VERSION = <windows sdk version>
+VULKAN_SDK          = <vulkan sdk installation>
 ```
 
 Use cmake to build the project. 2 presets are provided:
@@ -51,8 +51,8 @@ Or enter in the command line:
 ```
 cmake --preset=debug
 cmake --build --preset=debug
-.build/debug/src/samples/01-info/01-info.exe        // Direct3D or Metal build
-.build/debug/src/samples/01-info/01-info-vk.exe     // Vulkan build
+.build/debug/src/samples/01-info/01-info.exe        // D3D12
+.build/debug/src/samples/01-info/01-info-vk.exe     // Vulkan
 ```
 
 

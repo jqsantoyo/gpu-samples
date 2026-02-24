@@ -8,36 +8,30 @@ class App: public IApp {
 public:
     std::unique_ptr<IRenderer> renderer;
 
-    int start(int argc, char** argv, void* window, int w, int h) {
+    bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) {
         renderer = createRenderer();
-        renderer->start(window, w, h);
+        renderer->init(window, width, height);
         return true;
     }
 
-    int update() {
-        return renderer->render({.1, .1, .1, 1}, {});
+    void terminate() {
+        renderer->terminate();
     }
 
-    int resize(int width, int height) {
+    bool resize(int width, int height) {
         renderer->resize(width, height);
         return 1;
     }
 
-    int mouseEvent(MouseEvent event) {
-        return 1;
-    }
-
-    int keyboardEvent(KeyboardEvent event) {
-        return 1;
-    }
-
-    void stop() {
-        renderer->stop();
+    bool update() {
+        return renderer->render({.1, .1, .1, 1}, {});
     }
 };
 
-std::unique_ptr<IApp> createApp() {
-    return std::make_unique<App>();
 }
 
+int main(int argc, char** argv) {
+    gpu::App app;
+    gpu::AppRunner runner(argc, argv, app);
+    return runner.run();
 }

@@ -1,14 +1,13 @@
 #pragma once
 #include <memory>
 #include <input/input.h>
-#include <renderer/renderer.h>
 
 namespace gpu {
 
 class IApp {
 public:
     virtual ~IApp() = default;
-    virtual bool init(int argc, char** argv, const RendererInitInfo& info) = 0;
+    virtual bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) = 0;
     virtual void terminate() = 0;
     virtual bool resize(int width, int height) = 0;
     virtual bool update() = 0;
@@ -19,10 +18,12 @@ public:
 
 class AppRunner {
 public:
-    AppRunner(IApp& app);
-    bool run();
+    AppRunner(int argc, char** argv, IApp& app);
+    int run();
 
 private:
+    int argc;
+    char** argv;
     IApp& app;
 };
 

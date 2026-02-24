@@ -1,6 +1,6 @@
 
 namespace gpu {
-    int info();
+    bool info();
 }
 
 int main(int argc, char** argv) {

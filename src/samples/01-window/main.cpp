@@ -8,9 +8,9 @@ class App: public IApp {
 public:
     std::unique_ptr<IRenderer> renderer;
 
-    bool init(int argc, char** argv, const RendererInitInfo& info) {
+    bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) {
         renderer = createRenderer();
-        renderer->init(info);
+        renderer->init(window, width, height);
         return true;
     }
 
@@ -34,6 +34,6 @@ public:
 
 int main(int argc, char** argv) {
     gpu::App app;
-    gpu::AppRunner runner(app);
-    return runner.run() ? 0 : 1;
+    gpu::AppRunner runner(argc, argv, app);
+    return runner.run();
 }

@@ -25,7 +25,7 @@ float vertices[] = {
 
 class RendererVk : public IRenderer {
 public:
-    int start(void* window, uint32_t screenWidth, uint32_t screenHeight) {
+    bool init(void* window, uint32_t screenWidth, uint32_t screenHeight) {
 
         GUARD(instance.init("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
         GUARD(surface.init(instance.instance, window));
@@ -58,7 +58,7 @@ public:
         return 1;
     }
 
-    void stop() {
+    void terminate() {
         vkDeviceWaitIdle (device.device);
         meshControl.deinit();
         vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
@@ -71,20 +71,14 @@ public:
         instance.deinit();
     }
 
-    int resize(int width, int height) {
+    bool resize(int width, int height) {
         this->width = width;
         this->height = height;
         sizeChanged = true;
         return 1;
     }
 
-    void setView(ViewDesc& desc) {
-    }
-
-    void setProjection(ProjectionDesc& desc) {
-    }
-
-    int render(const Color& clearColor, const std::vector<RenderItem>& items) {
+    bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
         Frame frame = frameControl.next();
         GUARD(swapchain.next(frame.imageReady));
         if (swapchain.recreated()) {
@@ -131,17 +125,6 @@ public:
         frameControl.end(swapchain.renderReady);
         swapchain.present();
         return 1;
-    }
-    
-    void setFillMode(FillMode mode) {
-    }
-    
-    int addBuffer(const BufferDesc& desc) {
-        return -1;
-    }
-    
-    int addMesh(const MeshDesc& desc) {
-        return -1;
     }
 
 private:
