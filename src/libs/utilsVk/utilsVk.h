@@ -41,10 +41,9 @@ public:
         const char* name,
         uint32_t version,
         bool graphical,
-        const std::vector<const char*>& extWin,
-        const std::vector<const char*>& extMac
+        const std::vector<const char*>& ext
     );
-    void deinit();
+    void terminate();
 
 private:
     VkDebugUtilsMessengerEXT            debugMessenger;
@@ -67,7 +66,7 @@ public:
     VkSurfaceKHR surface;
 
     bool init(VkInstance instance, void* window);
-    void deinit();
+    void terminate();
     bool info(VkPhysicalDevice pd, SurfaceInfo& surfaceInfo);
 private:
     VkInstance instance;
@@ -77,6 +76,17 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // PHYSICAL DEVICE
+
+struct PhysicalDeviceData {
+    VkPhysicalDeviceProperties           props;
+    VkPhysicalDeviceFeatures             features;
+    VkPhysicalDeviceMemoryProperties     memProps;
+    std::vector<VkQueueFamilyProperties> queueFamilies;
+    std::vector<VkExtensionProperties>   devExtensions;
+    void print();
+};
+
+bool getPhysicalDevices(VkInstance instance, std::vector<PhysicalDeviceData>& phyDevices);
 
 class PhysicalDevice {
 public:
@@ -110,7 +120,7 @@ public:
     uint32_t uploadMem;
     uint32_t deviceMem;
     bool init(PhysicalDevice& physicalDevice, bool graphical, bool compute);
-    void deinit();
+    void terminate();
 };
 
 
@@ -123,7 +133,7 @@ public:
 class Swapchain {
 public:
     bool init(VkDevice device, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
-    void deinit();
+    void terminate();
     bool recreate();
     void resize();
     bool next(VkSemaphore signal);
@@ -189,7 +199,7 @@ struct Frame {
 class FrameControl {
 public:
     bool init(VkDevice device, uint32_t queueIdx, VkQueue queue, int frameCount);
-    void deinit();
+    void terminate();
     Frame next();
     bool begin();
     bool end(VkSemaphore renderReady);
@@ -222,7 +232,7 @@ struct Mesh {
 class MeshControl {
 public:
     bool init(Device* device);
-    void deinit();
+    void terminate();
     bool addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx);
     Mesh& getMesh(int i);
 private:

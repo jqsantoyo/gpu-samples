@@ -41,7 +41,7 @@ addLibrary  (camera     LIBS input)
 addLibrary  (scene      LIBS renderer)
 addLibrary  (assets     LIBS tinygltf utils renderer scene)
 addLibrary  (app        LIBS input)
-addLibrary  (utilsVk    LIBS vulkan utils)
+addLibrary  (utilsVk    LIBS utils vulkan)
 addLibrary  (utilsD3D   LIBS utils d3d12 dxgi d3dcompiler d3dx12)
 
 addSample(00-info       LIBS utilsVk utilsD3D)

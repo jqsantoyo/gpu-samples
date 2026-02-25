@@ -6,9 +6,9 @@ namespace gpu {
 
 class Compute : public ICompute {
 public:
-    int start(int argc, char** argv) {
+    bool init(int argc, char** argv) {
 
-        GUARD(instance.init("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), false, {}, {}));
+        GUARD(instance.init("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), false, {}));
         
         std::vector<const char*> deviceExtensions = {};
         GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
@@ -30,11 +30,11 @@ public:
         };
         // vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
 
-        return 1;
+        return true;
     }
-    int stop() {
-        instance.deinit();
-        return 1;
+
+    void terminate() {
+        instance.terminate();
     }
 
 private:

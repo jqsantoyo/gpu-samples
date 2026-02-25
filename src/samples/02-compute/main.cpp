@@ -4,9 +4,9 @@
 
 int main(int argc, char** argv) {
     std::unique_ptr<gpu::ICompute> compute = gpu::createCompute();
-    if (!compute->start(argc, argv)) {
+    if (!compute->init(argc, argv)) {
         printf("compute::start error\n");
     }
-    compute->stop();
+    compute->terminate();
     return 0;
 }

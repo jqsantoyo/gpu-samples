@@ -1,12 +1,10 @@
+#include <utils/utils.h>
+#include <memory>
 
-namespace gpu {
-    bool info();
-}
 
 int main(int argc, char** argv) {
-    if (gpu::info()) {
-        return 0;
-    } else {
-        return -1;
-    }
+    std::unique_ptr<gpu::IExecutor> executor = gpu::createExecutor();
+    int result = executor->init(nullptr) ? 0 : -1;
+    executor->terminate();
+    return result;
 }

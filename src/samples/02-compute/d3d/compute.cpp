@@ -5,11 +5,10 @@ namespace gpu {
 
 class Compute : public ICompute {
 public:
-    int start(int argc, char** argv) {
-        return 1;
+    bool init(int argc, char** argv) {
+        return true;
     }
-    int stop() {
-        return 1;
+    void terminate() {
     }
 
 private:

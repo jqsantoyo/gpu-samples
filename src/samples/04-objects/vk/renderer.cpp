@@ -29,7 +29,7 @@ class RendererVk : public IRenderer {
 public:
     bool init(void* window, uint32_t width, uint32_t height) {
 
-        GUARD(instance.init("04-objects-vk", VK_MAKE_VERSION(1, 0, 0), true, {}, {}));
+        GUARD(instance.init("04-objects-vk", VK_MAKE_VERSION(1, 0, 0), true, {}));
         GUARD(surface.init(instance.instance, window));
         GUARD(physicalDevice.init(instance.instance, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, true, false, &surface));
         GUARD(device.init(physicalDevice, true, false));
@@ -62,15 +62,15 @@ public:
 
     void terminate() {
         vkDeviceWaitIdle (device.device);
-        meshControl.deinit();
+        meshControl.terminate();
         vkDestroyPipeline (device.device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout (device.device, pipelineLayout, nullptr);
         vkDestroyRenderPass (device.device, renderPass, nullptr);
-        frameControl.deinit();
-        swapchain.deinit();
-        device.deinit();
-        surface.deinit();
-        instance.deinit();
+        frameControl.terminate();
+        swapchain.terminate();
+        device.terminate();
+        surface.terminate();
+        instance.terminate();
     }
 
     bool resize(int width, int height) {
