@@ -18,59 +18,6 @@ const int frameCount = 2;
 
 
 
-template<typename T>
-class CBuffer {
-public:
-    CBuffer() {};
-
-    ~CBuffer() {
-        if (cb != nullptr) {
-            cb->Unmap(0, nullptr);
-        }
-        data = nullptr;
-    }
-
-    void init(ID3D12Device* device, uint32_t elementCount) {
-        this->device = device;
-        this->elementCount = elementCount;
-        this->elementSize = align256(sizeof(T));
-        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-        auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(elementSize * elementCount);
-        HRESULT res = device->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &resDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&cb)
-        );
-        cb->Map(0, nullptr, reinterpret_cast<void**>(&data));
-        this->device = device;
-    }
-
-    void set(int idx, T& element) {
-        memcpy(data + elementSize * idx, &element, sizeof(T));
-    }
-
-    D3D12_CONSTANT_BUFFER_VIEW_DESC getBufferViewDesc(int idx) {
-        return {
-            .BufferLocation = cb->GetGPUVirtualAddress() + idx * elementSize,
-            .SizeInBytes = elementSize,
-        };
-    }
-
-    ID3D12Resource* get() {
-        return cb.Get();
-    }
-    
-private:
-    ID3D12Device* device;
-    ComPtr<ID3D12Resource> cb;
-    uint8_t* data;
-    uint32_t elementCount;
-    uint32_t elementSize;
-};
-
 struct ObjectData {
     XMFLOAT4X4 mvp;
     float v[4];
@@ -279,10 +226,10 @@ public:
         Shader vShaderWire;
         Shader pShaderWire;
         std::string shaderDir = "04-objects-shaders";
-        GUARD(loadShader(vShader,     shaderDir, "shaders_v.dxil"));
-        GUARD(loadShader(pShader,     shaderDir, "shaders_p.dxil"));
-        GUARD(loadShader(vShaderWire, shaderDir, "shadersWire_v.dxil"));
-        GUARD(loadShader(pShaderWire, shaderDir, "shadersWire_p.dxil"));
+        GUARD(vShader.load(shaderDir, "shaders_v.dxil"));
+        GUARD(pShader.load(shaderDir, "shaders_p.dxil"));
+        GUARD(vShaderWire.load(shaderDir, "shadersWire_v.dxil"));
+        GUARD(pShaderWire.load(shaderDir, "shadersWire_p.dxil"));
         // GUARD(compileShader(vShader,     shaderDir, L"shaders.hlsl",     "VSMain", "vs_5_0", compileFlags));
         // GUARD(compileShader(pShader,     shaderDir, L"shaders.hlsl",     "PSMain", "ps_5_0", compileFlags));
         // GUARD(compileShader(vShaderWire, shaderDir, L"shadersWire.hlsl", "VSMain", "vs_5_0", compileFlags));
