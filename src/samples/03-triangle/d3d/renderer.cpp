@@ -52,6 +52,29 @@ public:
 
         GUARD(swapchain.init(factory, device, hwnd, screenWidth, screenHeight, frameCount));
 
+        float vertices[] = {
+             0.0f,   0.25f * screenAR, 0.0f,
+             0.25f, -0.25f * screenAR, 0.0f,
+            -0.25f, -0.25f * screenAR, 0.0f,
+            1.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f,
+            0.0f, 0.0f, 1.0f
+        };
+        BufferDesc bufferDesc = { 0, sizeof(vertices), reinterpret_cast<uint8_t*>(vertices) };
+        int bufferId = meshControl.addBuffer(device, bufferDesc);
+        MeshDesc meshDesc = {
+            .bufferId   = bufferId,
+            .vCount     = 3,
+            .indices    = { 0, 0 },
+            .position   = { 0, sizeof(float) * 3 * 3 },
+            .normal     = { 0, 0 },
+            .uv         = { 0, 0 },
+            .color      = { sizeof(float) * 3 * 3, sizeof(float) * 4 * 3 },
+        };
+        meshId = meshControl.addMesh(meshDesc);
+
+
+
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////
@@ -72,8 +95,8 @@ public:
 
     
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
         };
         D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
             .pRootSignature         = rootSignature.Get(),
@@ -92,30 +115,6 @@ public:
         GUARDHR(device.obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
 
         
-        Vertex triangleVertices[] = {
-            {{0.0f, 0.25f * screenAR, 0.0f},    {1.0f, 0.0f, 0.0f, 1.0f}},
-            {{0.25f, -0.25f * screenAR, 0.0f},  {0.0f, 1.0f, 0.0f, 1.0f}},
-            {{-0.25f, -0.25f * screenAR, 0.0f}, {0.0f, 0.0f, 1.0f, 1.0f}}
-        };
-        const UINT              vertexBufferSize = sizeof(triangleVertices);
-        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-        auto                    desc = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
-        GUARDHR(device.obj->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &desc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&vbUp)
-        ));
-        UINT8*        vertexDataBegin;
-        CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
-        GUARDHR(vbUp->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
-        memcpy(vertexDataBegin, triangleVertices, sizeof(triangleVertices));
-        vbUp->Unmap(0, nullptr);
-        vbView.BufferLocation = vbUp->GetGPUVirtualAddress();
-        vbView.StrideInBytes  = sizeof(Vertex);
-        vbView.SizeInBytes    = vertexBufferSize;
 
         // Wait for assets to upload to the GPU.
         GUARD(waitForPreviousFrame());
@@ -146,8 +145,12 @@ public:
         cmdList->OMSetRenderTargets(1, &target.view, FALSE, nullptr);
         cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        cmdList->IASetVertexBuffers(0, 1, &vbView);
-        cmdList->DrawInstanced(3, 1, 0, 0);
+        
+        Mesh& mesh = meshControl.meshes[meshId];
+        cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
+        cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
+        cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
+
         cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
         GUARDHR(cmdList->Close());
         device.cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
@@ -171,6 +174,7 @@ private:
     Factory                             factory;
     Device                              device;
     Swapchain                           swapchain;
+    MeshControl                         meshControl;
     ComPtr<ID3D12CommandAllocator>      cmdAllocator;
     ComPtr<ID3D12GraphicsCommandList>   cmdList;
     ComPtr<ID3D12Fence>                 fence;
@@ -181,8 +185,7 @@ private:
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
     float                               screenAR;
-    ComPtr<ID3D12Resource>              vbUp;
-    D3D12_VERTEX_BUFFER_VIEW            vbView;
+    int                                 meshId;
 };
 
 std::unique_ptr<IRenderer> createRenderer() {

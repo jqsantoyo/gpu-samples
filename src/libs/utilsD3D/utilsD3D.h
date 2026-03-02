@@ -1,4 +1,5 @@
 #pragma once
+#include <renderer/renderer.h>
 #define UNICODE
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -202,6 +203,38 @@ private:
     uint8_t* data;
     uint32_t elementCount;
     uint32_t elementSize;
+};
+
+
+
+
+
+
+
+
+
+struct Buffer {
+    Microsoft::WRL::ComPtr<ID3D12Resource>      vbUp;
+};
+
+struct Mesh {
+    int                         bufferId;
+    size_t                      vCount;
+    D3D12_INDEX_BUFFER_VIEW     indicesView;
+    D3D12_VERTEX_BUFFER_VIEW    positionView;
+    D3D12_VERTEX_BUFFER_VIEW    colorView;
+};
+
+
+
+class MeshControl {
+public:
+    bool init();
+    int addBuffer(Device& device, const BufferDesc& desc);
+    int addMesh(const MeshDesc& desc);
+// private:
+    std::vector<Buffer> buffers;
+    std::vector<Mesh>   meshes;
 };
 
 

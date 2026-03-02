@@ -271,4 +271,69 @@ bool Shader::load(std::string dir, std::string name) {
 
 
 
+
+
+
+
+bool MeshControl::init() {
+    return true;
+}
+
+
+
+int MeshControl::addBuffer(Device& device, const BufferDesc& desc) {
+    buffers.push_back(Buffer());
+    Buffer& b = buffers.back();
+
+    HRESULT res;
+    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(desc.size);
+    res = device.obj->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&b.vbUp)
+    );
+    if (FAILED(res)) {
+        return false;
+    }
+
+    UINT8* vertexDataBegin;
+    CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+    GUARDHR(b.vbUp->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
+    memcpy(vertexDataBegin, desc.data + desc.offset, desc.size);
+    b.vbUp->Unmap(0, nullptr);
+    // waitForPreviousFrame();
+    return buffers.size() - 1;
+}
+
+int MeshControl::addMesh(const MeshDesc& desc) {
+    Buffer& buffer = buffers[desc.bufferId];
+    meshes.push_back(Mesh());
+    Mesh& m = meshes.back();
+    m = {
+        .bufferId = desc.bufferId,
+        .vCount = desc.vCount,
+        .indicesView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.indices.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.indices.size),
+            .Format = DXGI_FORMAT_R16_UINT,
+        },
+        .positionView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.position.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.position.size),
+            .StrideInBytes = sizeof(float) * 3,
+        },
+        .colorView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.color.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.color.size),
+            .StrideInBytes = sizeof(float) * 3,
+        },
+    };
+    return meshes.size() - 1;
+}
+
+
 }
