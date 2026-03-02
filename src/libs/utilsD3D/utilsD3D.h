@@ -81,7 +81,6 @@ public:
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    rtvHeap;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    dsvHeap;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    cbvHeap;
-    Microsoft::WRL::ComPtr<ID3D12CommandQueue>      cmdQueue;
 };
 
 
@@ -89,6 +88,25 @@ public:
 
 
 
+
+
+
+
+
+class Queue {
+public:
+    bool init(Device& device, D3D12_COMMAND_QUEUE_DESC desc);
+    void terminate();
+    void execute(std::initializer_list<ID3D12CommandList*> lists);
+    bool signal(UINT64& value);
+    bool wait(UINT64 value);
+    bool wait();
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue>  obj;
+private:
+    Microsoft::WRL::ComPtr<ID3D12Fence>         fence;
+    HANDLE                                      fenceEvent;
+    UINT64                                      nextFenceValue;
+};
 
 
 
@@ -107,7 +125,7 @@ struct RenderTarget {
 
 class Swapchain {
 public:
-    bool init(Factory& factory, Device& device, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount);
+    bool init(Factory& factory, Device& device, Queue& queue, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount);
     RenderTarget next();
     bool present();
 
@@ -149,15 +167,13 @@ struct Frame {
 
 class FrameControl {
 public:
-    bool init(Device& device, Swapchain* swapchain, int frameCount);
+    bool init(Device& device, Queue* queue, Swapchain* swapchain, int frameCount);
     bool begin(ID3D12PipelineState* initialState);
     bool end();
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   cmdList;
 private:
+    Queue*                                              queue;
     Swapchain*                                          swapchain;
-    ID3D12CommandQueue*                                 queue;
-    Microsoft::WRL::ComPtr<ID3D12Fence>                 fence;
-    HANDLE                                              fenceEvent;
     std::vector<Frame>                                  frames;
     int                                                 frameCounter = 0;
     int                                                 frameIdx     = 0;

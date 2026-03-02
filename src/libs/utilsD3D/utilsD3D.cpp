@@ -146,13 +146,6 @@ bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount)
     if (cbvCount > 0) {
         GUARDHR(obj->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
     }
-    
-
-    D3D12_COMMAND_QUEUE_DESC queueDesc = {
-        .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-        .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-    };
-    GUARDHR(obj->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&cmdQueue)));
     return true;
 }
 
@@ -182,9 +175,64 @@ void Device::printErrors() {
 
 
 
+bool Queue::init(Device& device, D3D12_COMMAND_QUEUE_DESC desc) {
+    GUARDHR(device.obj->CreateCommandQueue(&desc, IID_PPV_ARGS(&obj)));
+    GUARDHR(device.obj->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (fenceEvent == nullptr) {
+        GUARDHR(HRESULT_FROM_WIN32(GetLastError()));
+    }
+    return true;
+}
+
+void Queue::terminate() {
+    CloseHandle(fenceEvent);
+}
+
+void Queue::execute(std::initializer_list<ID3D12CommandList*> cmdLists) {
+    obj->ExecuteCommandLists(cmdLists.size(), cmdLists.begin());
+}
+
+bool Queue::signal(UINT64& value) {
+    nextFenceValue++;
+    value = nextFenceValue;
+    GUARDHR(obj->Signal(fence.Get(), nextFenceValue));
+    return true;
+}
+
+bool Queue::wait(UINT64 value) {
+    if (fence->GetCompletedValue() < value) {
+        GUARDHR(fence->SetEventOnCompletion(value, fenceEvent));
+        WaitForSingleObject(fenceEvent, INFINITE);
+    }
+    return true;
+}
+
+bool Queue::wait() {
+    UINT64 value;
+    GUARD(signal(value));
+    GUARD(wait(nextFenceValue));
+    return true;
+}
 
 
-bool Swapchain::init(Factory& factory, Device& device, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount) {
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount) {
     DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
         .Width       = w,
         .Height      = h,
@@ -198,7 +246,7 @@ bool Swapchain::init(Factory& factory, Device& device, HWND hwnd, uint32_t w, ui
         .Windowed = TRUE,
     };
     ComPtr<IDXGISwapChain1> swapChain1;
-    GUARDHR(factory.obj->CreateSwapChainForHwnd(device.cmdQueue.Get(), hwnd, &swapChainDesc, nullptr, nullptr, &swapChain1));
+    GUARDHR(factory.obj->CreateSwapChainForHwnd(queue.obj.Get(), hwnd, &swapChainDesc, nullptr, nullptr, &swapChain1));
     GUARDHR(swapChain1.As(&obj));
     GUARDHR(factory.obj->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
     frameIdx = obj->GetCurrentBackBufferIndex();
@@ -252,14 +300,9 @@ bool Swapchain::present() {
 
 
 
-bool FrameControl::init(Device& device, Swapchain* swapchain, int frameCount) {
-    this->queue = device.cmdQueue.Get();
+bool FrameControl::init(Device& device, Queue* queue, Swapchain* swapchain, int frameCount) {
+    this->queue = queue;
     this->swapchain = swapchain;
-    GUARDHR(device.obj->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-    if (fenceEvent == nullptr) {
-        GUARDHR(HRESULT_FROM_WIN32(GetLastError()));
-    }
     frames.resize(frameCount);
     for (auto& frame : frames) {
         GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frame.cmdAllocator)));
@@ -273,26 +316,19 @@ bool FrameControl::init(Device& device, Swapchain* swapchain, int frameCount) {
 bool FrameControl::begin(ID3D12PipelineState* initialState) {
     frameIdx = frameCounter % frames.size();
     Frame& frame = frames[frameIdx];
-
-    if (fence->GetCompletedValue() < frame.fenceValue) {
-        GUARDHR(fence->SetEventOnCompletion(frame.fenceValue, fenceEvent));
-        WaitForSingleObject(fenceEvent, INFINITE);
-    }
-
+    queue->wait(frame.fenceValue);
     GUARDHR(frame.cmdAllocator->Reset());
     GUARDHR(cmdList->Reset(frame.cmdAllocator.Get(), initialState));
     return true;
 }
 
 bool FrameControl::end() {
-    frameCounter++;
-    ID3D12CommandList* cmdLists[] = { cmdList.Get() };
     Frame& frame = frames[frameIdx];
     GUARDHR(cmdList->Close());
-    queue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+    queue->execute({ cmdList.Get() });
     GUARD(swapchain->present());
-    GUARDHR(queue->Signal(fence.Get(), frameCounter));
-    frame.fenceValue = frameCounter;
+    GUARD(queue->signal(frame.fenceValue));
+    frameCounter++;
     return true;
 }
 
@@ -404,7 +440,6 @@ int MeshControl::addBuffer(Device& device, const BufferDesc& desc) {
     GUARDHR(b.vbUp->Map(0, &readRange, reinterpret_cast<void**>(&vertexDataBegin)));
     memcpy(vertexDataBegin, desc.data + desc.offset, desc.size);
     b.vbUp->Unmap(0, nullptr);
-    // waitForPreviousFrame();
     return buffers.size() - 1;
 }
 

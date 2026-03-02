@@ -30,27 +30,19 @@ public:
         screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
         viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight) };
         scissorRect = { 0, 0, long(screenWidth), long(screenHeight) };
-
-
         UINT frameCount = 2;
+        D3D12_COMMAND_QUEUE_DESC queueDesc = {
+            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+        };
+
         GUARD(factory.init());
         Adapter* adapter = factory.select();
         GUARD(adapter != nullptr);
         GUARD(device.init(adapter, frameCount, 0, 0));
-
-        GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocator)));
-        GUARDHR(device.obj->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
-        GUARDHR(cmdList.Get()->Close());
-        GUARDHR(device.obj->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
-        fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
-        if (fenceEvent == nullptr) {
-            GUARDHR(HRESULT_FROM_WIN32(GetLastError()));
-        }
-        fenceValue = 1;
-
-
-        GUARD(swapchain.init(factory, device, hwnd, screenWidth, screenHeight, frameCount));
-        GUARD(frameControl.init(device, &swapchain, 1));
+        GUARD(queue.init(device, queueDesc));
+        GUARD(swapchain.init(factory, device, queue, hwnd, screenWidth, screenHeight, frameCount));
+        GUARD(frameControl.init(device, &queue, &swapchain, 1));
 
         float vertices[] = {
              0.0f,   0.25f * screenAR, 0.0f,
@@ -72,9 +64,6 @@ public:
             .color      = { sizeof(float) * 3 * 3, sizeof(float) * 4 * 3 },
         };
         meshId = meshControl.addMesh(meshDesc);
-
-
-
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////
@@ -111,17 +100,12 @@ public:
             .SampleDesc             = { .Count = 1},
         };
         GUARDHR(device.obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
-
-        
-
-        // Wait for assets to upload to the GPU.
-        GUARD(waitForPreviousFrame());
         return 1;
+        queue.wait();
     }
 
     void terminate() {
-        waitForPreviousFrame();
-        CloseHandle(fenceEvent);
+        queue.wait();
     }
 
     bool resize(int width, int height) {
@@ -151,29 +135,16 @@ public:
         frameControl.end();
         return 1;
     }
-    
-    int waitForPreviousFrame() {
-        const UINT64 f = fenceValue;
-        GUARDHR(device.cmdQueue->Signal(fence.Get(), f));
-        fenceValue++;
-        if (fence->GetCompletedValue() < f) {
-            GUARDHR(fence->SetEventOnCompletion(f, fenceEvent));
-            WaitForSingleObject(fenceEvent, INFINITE);
-        }
-        return 1;
-    }
 
 private:
     Factory                             factory;
     Device                              device;
     Swapchain                           swapchain;
+    Queue                               queue;
     FrameControl                        frameControl;
     MeshControl                         meshControl;
     ComPtr<ID3D12CommandAllocator>      cmdAllocator;
     ComPtr<ID3D12GraphicsCommandList>   cmdList;
-    ComPtr<ID3D12Fence>                 fence;
-    HANDLE                              fenceEvent;
-    UINT64                              fenceValue;
     ComPtr<ID3D12RootSignature>         rootSignature;
     ComPtr<ID3D12PipelineState>         pso;
     D3D12_VIEWPORT                      viewport;
