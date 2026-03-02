@@ -102,8 +102,8 @@ function(addSample targetName)
     file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/d3d/*.hlsl)
     file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/vk/*.vert ${dir}/vk/*.frag ${dir}/vk/*.comp)
 
-    set(LIBS ${arg_LIBS} d3d12 d3dx12 dxgi d3dcompiler)
-    set(LIBS_VK ${arg_LIBS} vulkan)
+    set(LIBS    ${arg_LIBS} utilsD3D d3d12 d3dx12 dxgi d3dcompiler)
+    set(LIBS_VK ${arg_LIBS} utilsVk vulkan)
 
     message(STATUS "--------------------------------------------------------------------------------")
     message(STATUS "Sample: ${targetName}")

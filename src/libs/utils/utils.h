@@ -11,6 +11,7 @@ uint32_t align256(uint32_t x);
 
 class IExecutor {
 public:
+    virtual ~IExecutor() = default;
     virtual bool init(void* data) = 0;
     virtual void terminate() = 0;
     virtual bool execute() { return false; }

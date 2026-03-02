@@ -9,12 +9,11 @@ namespace gpu {
 
 bool Factory::init() {
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    
-    GUARDHR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory)));
+    GUARDHR(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&obj)));
 
     int i = 0;
     IDXGIAdapter* adapter = nullptr;
-    while(factory->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
+    while(obj->EnumAdapters(i, &adapter) != DXGI_ERROR_NOT_FOUND) {
         adapters.push_back({});
         Adapter& a = adapters.back();
 
@@ -60,6 +59,170 @@ void Factory::print() {
         }
     }
 }
+
+Adapter* Factory::select() {
+    Adapter* selectedAdapter = nullptr;
+    size_t maxMemory = 0;
+    for (auto& a : adapters) {
+        if (a.desc.DedicatedVideoMemory > maxMemory) {
+            maxMemory = a.desc.DedicatedVideoMemory;
+            selectedAdapter = &a;
+        }
+    }
+    return selectedAdapter;
+}
+
+
+
+bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount) {
+    ComPtr<ID3D12Debug> debugController;
+    if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
+        printf("Debug layer enabled\n");
+        debugController->EnableDebugLayer();
+    }
+    // ComPtr<ID3D12Debug1> debugController1;
+    // if (SUCCEEDED(debugController.As(&debugController1))) {
+    //     debugController1->SetEnableGPUBasedValidation(TRUE);
+    // }
+    GUARDHR(D3D12CreateDevice(adapter->obj, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&obj)));
+    if (SUCCEEDED(obj.As(&iq))) {
+        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+    }
+    
+    rtvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+    dsvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
+    cbvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {
+        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+        .NumDescriptors = rtvCount,
+        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        .NodeMask       = 0,
+    };
+    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {
+        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+        .NumDescriptors = dsvCount,
+        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
+        .NodeMask       = 0,
+    };
+    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {
+        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+        .NumDescriptors = cbvCount,
+        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
+        .NodeMask       = 0,
+    };
+    if (rtvCount > 0) {
+        GUARDHR(obj->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+    }
+    if (dsvCount > 0) {
+        GUARDHR(obj->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
+    }
+    if (cbvCount > 0) {
+        GUARDHR(obj->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
+    }
+    
+
+    D3D12_COMMAND_QUEUE_DESC queueDesc = {
+        .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
+        .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
+    };
+    GUARDHR(obj->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&cmdQueue)));
+    return true;
+}
+
+
+void Device::printErrors() {
+    UINT64 count = iq->GetNumStoredMessages();
+    printf("D3D12: messages in queue = %llu\n", count);
+    for (UINT64 i = 0; i < count; ++i) {
+        SIZE_T size = 0;
+        iq->GetMessage(i, nullptr, &size);
+        auto* msg = (D3D12_MESSAGE*)malloc(size);
+        iq->GetMessage(i, msg, &size);
+        printf("D3D12 MSG: %s\n", msg->pDescription);
+        free(msg);
+    }
+    __debugbreak();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool Swapchain::init(Factory& factory, Device& device, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount) {
+    DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {
+        .Width       = w,
+        .Height      = h,
+        .Format      = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc  = { .Count = 1, },
+        .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
+        .BufferCount = frameCount,
+        .SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+    };
+    DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFSDesc = {
+        .Windowed = TRUE,
+    };
+    ComPtr<IDXGISwapChain1> swapChain1;
+    GUARDHR(factory.obj->CreateSwapChainForHwnd(device.cmdQueue.Get(), hwnd, &swapChainDesc, nullptr, nullptr, &swapChain1));
+    GUARDHR(swapChain1.As(&obj));
+    GUARDHR(factory.obj->MakeWindowAssociation(hwnd, DXGI_MWA_NO_ALT_ENTER));
+    frameIdx = obj->GetCurrentBackBufferIndex();
+
+    renderTargets.resize(frameCount);
+    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(device.rtvHeap->GetCPUDescriptorHandleForHeapStart());
+    for (UINT i = 0; i < frameCount; i++) {
+        RenderTarget& renderTarget = renderTargets[i];
+        GUARDHR(obj->GetBuffer(i, IID_PPV_ARGS(&renderTarget.resource)));
+        device.obj->CreateRenderTargetView(renderTarget.resource.Get(), nullptr, rtvHandle);
+        renderTarget.view = rtvHandle;
+        rtvHandle.Offset(1, device.rtvDescSize);
+    }
+    return true;
+}
+
+
+RenderTarget Swapchain::next() {
+    frameIdx = obj->GetCurrentBackBufferIndex();
+    return renderTargets[frameIdx];
+}
+
+bool Swapchain::present() {
+    GUARDHR(obj->Present(1, 0));
+    return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 bool Shader::compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags) {

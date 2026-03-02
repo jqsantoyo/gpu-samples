@@ -11,8 +11,8 @@
 #include <dxgi1_6.h>
 #include <windows.h>
 
-#define GUARD(x)   if (!(x))      {  printf("Error: "#x); return 0; }
-#define GUARDHR(x) if (FAILED(x)) {  printf("Error: "#x); return 0; }
+#define GUARD(x)   if (!(x))      {  printf("Error: "#x"\n"); return 0; }
+#define GUARDHR(x) if (FAILED(x)) {  printf("Error: "#x"\n"); return 0; }
 
 namespace gpu {
 
@@ -24,6 +24,19 @@ struct Shader {
     bool compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags);
     bool load(std::string dir, std::string name);
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -43,9 +56,98 @@ class Factory {
 public:
     bool init();
     void print();
-    Microsoft::WRL::ComPtr<IDXGIFactory4>   factory;
+    Adapter* select();
+    Microsoft::WRL::ComPtr<IDXGIFactory4>   obj;
     std::vector<Adapter>                    adapters;
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class Device {
+public:
+    bool init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount);
+    void terminate();
+    void printErrors();
+
+    Microsoft::WRL::ComPtr<ID3D12Device>            obj;
+    Microsoft::WRL::ComPtr<ID3D12InfoQueue>         iq;
+    UINT                                            rtvDescSize = 0;
+    UINT                                            dsvDescSize = 0;
+    UINT                                            cbvDescSize = 0;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    rtvHeap;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    dsvHeap;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    cbvHeap;
+    Microsoft::WRL::ComPtr<ID3D12CommandQueue>      cmdQueue;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+struct RenderTarget {
+    Microsoft::WRL::ComPtr<ID3D12Resource> resource;
+    CD3DX12_CPU_DESCRIPTOR_HANDLE view;
+};
+
+class Swapchain {
+public:
+    bool init(Factory& factory, Device& device, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount);
+    RenderTarget next();
+    bool present();
+
+// private:
+    Microsoft::WRL::ComPtr<IDXGISwapChain3> obj;
+    std::vector<RenderTarget>               renderTargets;
+    UINT                                    frameIdx;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
