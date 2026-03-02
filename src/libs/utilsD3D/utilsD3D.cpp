@@ -74,6 +74,30 @@ Adapter* Factory::select() {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount) {
     ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
@@ -225,6 +249,77 @@ bool Swapchain::present() {
 
 
 
+
+
+
+bool FrameControl::init(Device& device, Swapchain* swapchain, int frameCount) {
+    this->queue = device.cmdQueue.Get();
+    this->swapchain = swapchain;
+    GUARDHR(device.obj->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
+    fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
+    if (fenceEvent == nullptr) {
+        GUARDHR(HRESULT_FROM_WIN32(GetLastError()));
+    }
+    frames.resize(frameCount);
+    for (auto& frame : frames) {
+        GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frame.cmdAllocator)));
+        frame.fenceValue = 0;
+    }
+    GUARDHR(device.obj->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, frames[0].cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
+    GUARDHR(cmdList.Get()->Close());
+    return true;
+}
+
+bool FrameControl::begin(ID3D12PipelineState* initialState) {
+    frameIdx = frameCounter % frames.size();
+    Frame& frame = frames[frameIdx];
+
+    if (fence->GetCompletedValue() < frame.fenceValue) {
+        GUARDHR(fence->SetEventOnCompletion(frame.fenceValue, fenceEvent));
+        WaitForSingleObject(fenceEvent, INFINITE);
+    }
+
+    GUARDHR(frame.cmdAllocator->Reset());
+    GUARDHR(cmdList->Reset(frame.cmdAllocator.Get(), initialState));
+    return true;
+}
+
+bool FrameControl::end() {
+    frameCounter++;
+    ID3D12CommandList* cmdLists[] = { cmdList.Get() };
+    Frame& frame = frames[frameIdx];
+    GUARDHR(cmdList->Close());
+    queue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
+    GUARD(swapchain->present());
+    GUARDHR(queue->Signal(fence.Get(), frameCounter));
+    frame.fenceValue = frameCounter;
+    return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 bool Shader::compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags) {
     std::wstring path = getAssetsPathW() + dir + L"\\" + name;
     ComPtr<ID3DBlob> errorBlob;
@@ -275,11 +370,15 @@ bool Shader::load(std::string dir, std::string name) {
 
 
 
+
+
+
+
+
+
 bool MeshControl::init() {
     return true;
 }
-
-
 
 int MeshControl::addBuffer(Device& device, const BufferDesc& desc) {
     buffers.push_back(Buffer());

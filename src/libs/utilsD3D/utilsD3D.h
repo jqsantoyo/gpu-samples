@@ -18,16 +18,6 @@
 namespace gpu {
 
 
-struct Shader {
-    Microsoft::WRL::ComPtr<ID3DBlob> blob;
-    D3D12_SHADER_BYTECODE bytecode;
-
-    bool compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags);
-    bool load(std::string dir, std::string name);
-};
-
-
-
 
 
 
@@ -152,6 +142,55 @@ public:
 
 
 
+struct Frame {
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator>  cmdAllocator;
+    UINT64                                          fenceValue;
+};
+
+class FrameControl {
+public:
+    bool init(Device& device, Swapchain* swapchain, int frameCount);
+    bool begin(ID3D12PipelineState* initialState);
+    bool end();
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   cmdList;
+private:
+    Swapchain*                                          swapchain;
+    ID3D12CommandQueue*                                 queue;
+    Microsoft::WRL::ComPtr<ID3D12Fence>                 fence;
+    HANDLE                                              fenceEvent;
+    std::vector<Frame>                                  frames;
+    int                                                 frameCounter = 0;
+    int                                                 frameIdx     = 0;
+};
+
+
+
+
+
+
+
+
+
+
+
+
+struct Shader {
+    Microsoft::WRL::ComPtr<ID3DBlob> blob;
+    D3D12_SHADER_BYTECODE bytecode;
+
+    bool compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags);
+    bool load(std::string dir, std::string name);
+};
+
+
+
+
+
+
+
+
+
+
 template<typename T>
 class CBuffer {
 public:
@@ -204,6 +243,10 @@ private:
     uint32_t elementCount;
     uint32_t elementSize;
 };
+
+
+
+
 
 
 

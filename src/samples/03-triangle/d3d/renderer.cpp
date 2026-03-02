@@ -37,7 +37,6 @@ public:
         Adapter* adapter = factory.select();
         GUARD(adapter != nullptr);
         GUARD(device.init(adapter, frameCount, 0, 0));
-        
 
         GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocator)));
         GUARDHR(device.obj->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
@@ -51,6 +50,7 @@ public:
 
 
         GUARD(swapchain.init(factory, device, hwnd, screenWidth, screenHeight, frameCount));
+        GUARD(frameControl.init(device, &swapchain, 1));
 
         float vertices[] = {
              0.0f,   0.25f * screenAR, 0.0f,
@@ -85,7 +85,6 @@ public:
         rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
         GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
         GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
-        
 
         Shader vShader;
         Shader pShader;
@@ -93,7 +92,6 @@ public:
         GUARD(vShader.load(shaderDir, "shaders_v.dxil"));
         GUARD(pShader.load(shaderDir, "shaders_p.dxil"));
 
-    
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
             { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
@@ -134,28 +132,23 @@ public:
         RenderTarget target = swapchain.next();
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        ID3D12CommandList* cmdLists[] = { cmdList.Get() };
 
-        GUARDHR(cmdAllocator->Reset());
-        GUARDHR(cmdList->Reset(cmdAllocator.Get(), pso.Get()));
-        cmdList->SetGraphicsRootSignature(rootSignature.Get());
-        cmdList->RSSetViewports(1, &viewport);
-        cmdList->RSSetScissorRects(1, &scissorRect);
-        cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
-        cmdList->OMSetRenderTargets(1, &target.view, FALSE, nullptr);
-        cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
-        cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        frameControl.begin(pso.Get());
+        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.Get());
+        frameControl.cmdList->RSSetViewports(1, &viewport);
+        frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
+        frameControl.cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
+        frameControl.cmdList->OMSetRenderTargets(1, &target.view, FALSE, nullptr);
+        frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
+        frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
         Mesh& mesh = meshControl.meshes[meshId];
-        cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
-        cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
-        cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
+        frameControl.cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
+        frameControl.cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
+        frameControl.cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
 
-        cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
-        GUARDHR(cmdList->Close());
-        device.cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-        GUARD(swapchain.present());
-        GUARD(waitForPreviousFrame());
+        frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
+        frameControl.end();
         return 1;
     }
     
@@ -174,6 +167,7 @@ private:
     Factory                             factory;
     Device                              device;
     Swapchain                           swapchain;
+    FrameControl                        frameControl;
     MeshControl                         meshControl;
     ComPtr<ID3D12CommandAllocator>      cmdAllocator;
     ComPtr<ID3D12GraphicsCommandList>   cmdList;
