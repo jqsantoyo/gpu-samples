@@ -167,13 +167,13 @@ struct Frame {
 
 class FrameControl {
 public:
-    bool init(Device& device, Queue* queue, Swapchain* swapchain, int frameCount);
+    bool init(Device& device, Queue* queue, int frameCount);
     bool begin(ID3D12PipelineState* initialState);
+    bool execute();
     bool end();
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   cmdList;
 private:
     Queue*                                              queue;
-    Swapchain*                                          swapchain;
     std::vector<Frame>                                  frames;
     int                                                 frameCounter = 0;
     int                                                 frameIdx     = 0;
@@ -291,7 +291,8 @@ public:
     bool init();
     int addBuffer(Device& device, const BufferDesc& desc);
     int addMesh(const MeshDesc& desc);
-// private:
+    Mesh& getMesh(int idx);
+private:
     std::vector<Buffer> buffers;
     std::vector<Mesh>   meshes;
 };

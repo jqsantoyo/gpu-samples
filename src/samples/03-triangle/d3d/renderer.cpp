@@ -42,7 +42,7 @@ public:
         GUARD(device.init(adapter, frameCount, 0, 0));
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, screenWidth, screenHeight, frameCount));
-        GUARD(frameControl.init(device, &queue, &swapchain, 1));
+        GUARD(frameControl.init(device, &queue, 1));
 
         float vertices[] = {
              0.0f,   0.25f * screenAR, 0.0f,
@@ -100,8 +100,8 @@ public:
             .SampleDesc             = { .Count = 1},
         };
         GUARDHR(device.obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
-        return 1;
         queue.wait();
+        return true;
     }
 
     void terminate() {
@@ -126,13 +126,15 @@ public:
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        Mesh& mesh = meshControl.meshes[meshId];
+        Mesh& mesh = meshControl.getMesh(meshId);
         frameControl.cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
         frameControl.cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
         frameControl.cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
-        frameControl.end();
+        GUARD(frameControl.execute());
+        GUARD(swapchain.present());
+        GUARD(frameControl.end());
         return 1;
     }
 
@@ -143,8 +145,6 @@ private:
     Queue                               queue;
     FrameControl                        frameControl;
     MeshControl                         meshControl;
-    ComPtr<ID3D12CommandAllocator>      cmdAllocator;
-    ComPtr<ID3D12GraphicsCommandList>   cmdList;
     ComPtr<ID3D12RootSignature>         rootSignature;
     ComPtr<ID3D12PipelineState>         pso;
     D3D12_VIEWPORT                      viewport;

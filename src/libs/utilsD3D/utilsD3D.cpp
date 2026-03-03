@@ -300,9 +300,8 @@ bool Swapchain::present() {
 
 
 
-bool FrameControl::init(Device& device, Queue* queue, Swapchain* swapchain, int frameCount) {
+bool FrameControl::init(Device& device, Queue* queue, int frameCount) {
     this->queue = queue;
-    this->swapchain = swapchain;
     frames.resize(frameCount);
     for (auto& frame : frames) {
         GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frame.cmdAllocator)));
@@ -322,16 +321,19 @@ bool FrameControl::begin(ID3D12PipelineState* initialState) {
     return true;
 }
 
-bool FrameControl::end() {
+bool FrameControl::execute() {
     Frame& frame = frames[frameIdx];
     GUARDHR(cmdList->Close());
     queue->execute({ cmdList.Get() });
-    GUARD(swapchain->present());
+    return true;
+}
+
+bool FrameControl::end() {
+    Frame& frame = frames[frameIdx];
     GUARD(queue->signal(frame.fenceValue));
     frameCounter++;
     return true;
 }
-
 
 
 
@@ -469,5 +471,8 @@ int MeshControl::addMesh(const MeshDesc& desc) {
     return meshes.size() - 1;
 }
 
+Mesh& MeshControl::getMesh(int idx) {
+    return meshes[idx];
+}
 
 }
