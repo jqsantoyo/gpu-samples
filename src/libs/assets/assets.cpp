@@ -22,7 +22,7 @@ public:
     }
 
     bool load(const std::string& filename) {
-        std::string path = getAssetsPath() + "../../src/assets/" + filename;
+        std::string path = getAssetsPath() + filename;
         Model model;
         TinyGLTF loader;
         std::string err;

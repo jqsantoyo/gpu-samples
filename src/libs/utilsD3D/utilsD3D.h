@@ -195,7 +195,7 @@ struct Shader {
     D3D12_SHADER_BYTECODE bytecode;
 
     bool compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags);
-    bool load(std::string dir, std::string name);
+    bool load(std::string name);
 };
 
 
@@ -234,7 +234,6 @@ public:
             IID_PPV_ARGS(&cb)
         );
         cb->Map(0, nullptr, reinterpret_cast<void**>(&data));
-        this->device = device;
     }
 
     void set(int idx, T& element) {

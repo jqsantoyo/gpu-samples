@@ -77,9 +77,8 @@ public:
 
         Shader vShader;
         Shader pShader;
-        std::string shaderDir = "03-triangle-shaders";
-        GUARD(vShader.load(shaderDir, "shaders_v.dxil"));
-        GUARD(pShader.load(shaderDir, "shaders_p.dxil"));
+        GUARD(vShader.load("shaders_v"));
+        GUARD(pShader.load("shaders_p"));
 
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },

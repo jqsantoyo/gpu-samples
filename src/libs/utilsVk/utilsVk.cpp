@@ -192,15 +192,20 @@ bool Instance::init(
     bool graphical,
     const std::vector<const char*>& ext
 ) {
+#ifdef NDEBUG
+    bool debug = false;
+#else
+    bool debug = true;
+#endif
 
     uint32_t v = 0;
     vkEnumerateInstanceVersion(&v);
     printf("Supported Vulkan %u.%u.%u\n", VK_VERSION_MAJOR(v), VK_VERSION_MINOR(v), VK_VERSION_PATCH(v));
 
-#ifndef NDEBUG
-        layers.push_back("VK_LAYER_KHRONOS_validation");
-        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-#endif
+    if (debug) {
+      layers.push_back("VK_LAYER_KHRONOS_validation");
+      extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
+    }
 
     VkInstanceCreateFlags flags = 0;
     if (graphical) {
@@ -237,14 +242,16 @@ bool Instance::init(
         .ppEnabledExtensionNames  = extensions.data(),
     };
     GUARDV(vkCreateInstance(&createInfo, nullptr, &instance));
-    
-    PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
-    PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
-    createDebugMessengerFn  = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-    destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    GUARD(createDebugMessengerFn != nullptr);
-    GUARD(destroyDebugMessengerFn != nullptr);
-    GUARDV(createDebugMessengerFn(instance, &debugCreateInfo, nullptr, &debugMessenger));
+
+    if (debug) {
+        PFN_vkCreateDebugUtilsMessengerEXT  createDebugMessengerFn;
+        PFN_vkDestroyDebugUtilsMessengerEXT destroyDebugMessengerFn;
+        createDebugMessengerFn = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+        destroyDebugMessengerFn = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+        GUARD(createDebugMessengerFn != nullptr);
+        GUARD(destroyDebugMessengerFn != nullptr);
+        GUARDV(createDebugMessengerFn(instance, &debugCreateInfo, nullptr, &debugMessenger));
+    }
     return true;
 }
 
@@ -913,9 +920,13 @@ Shader::~Shader() {
     vkDestroyShaderModule(device, module, nullptr);
 }
 
-bool Shader::load(VkDevice device, const char* dir, const char* name, VkShaderStageFlagBits stage) {
+bool Shader::load(VkDevice device, const char* name, VkShaderStageFlagBits stage) {
     this->device = device;
-    std::string path = getAssetsPath() + dir + "\\" + name;
+#ifdef NDEBUG
+    std::string path = getAssetsPath() + name + ".spv";
+#else
+    std::string path = getAssetsPath() + name + "_debug.spv";
+#endif
     FILE* file = fopen(path.c_str(), "rb");
     if (file == nullptr) {
         return false;

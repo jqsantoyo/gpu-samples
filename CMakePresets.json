@@ -6,12 +6,14 @@
     "patch": 0
   },
   "configurePresets": [
-    { "name": "debug",     "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug"  }  },
-    { "name": "release",   "generator": "Ninja", "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release"}  }
+    { "name": "vs",      "generator": "Visual Studio 17 2022", "binaryDir": ".build/${presetName}", "cacheVariables": {                               } },
+    { "name": "debug",   "generator": "Ninja",                 "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug"   } },
+    { "name": "release", "generator": "Ninja",                 "binaryDir": ".build/${presetName}", "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" } }
   ],
   "buildPresets": [
-    { "name": "debug",     "configurePreset": "debug"  },
-    { "name": "release",   "configurePreset": "release"}
+    { "name": "vs",      "configurePreset": "vs"      },
+    { "name": "debug",   "configurePreset": "debug"   },
+    { "name": "release", "configurePreset": "release" }
   ]
 }
 

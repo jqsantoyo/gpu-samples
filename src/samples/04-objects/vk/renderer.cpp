@@ -198,11 +198,10 @@ private:
         };
         GUARDV(vkCreateRenderPass(device.device, &renderPassInfo, nullptr, &renderPass));
 
-        const char* shaderDir = "03-triangle-shaders-vk";
         Shader vertShader;
         Shader fragShader;
-        GUARD(vertShader.load(device.device, shaderDir, "shader.vert.spv", VK_SHADER_STAGE_VERTEX_BIT));
-        GUARD(fragShader.load(device.device, shaderDir, "shader.frag.spv", VK_SHADER_STAGE_FRAGMENT_BIT));
+        GUARD(vertShader.load(device.device, "shader.vert", VK_SHADER_STAGE_VERTEX_BIT));
+        GUARD(fragShader.load(device.device, "shader.frag", VK_SHADER_STAGE_FRAGMENT_BIT));
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
 
 

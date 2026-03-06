@@ -359,7 +359,7 @@ bool FrameControl::end() {
 
 
 bool Shader::compile(std::wstring dir, std::wstring name, const char* entry, const char* target, uint32_t flags) {
-    std::wstring path = getAssetsPathW() + dir + L"\\" + name;
+    std::wstring path = getAssetsPathW() + L"\\" + name;
     ComPtr<ID3DBlob> errorBlob;
     HRESULT res = D3DCompileFromFile(path.c_str(), nullptr, nullptr, entry, target, flags, 0, &blob, &errorBlob);
     if (FAILED(res)) {
@@ -375,9 +375,13 @@ bool Shader::compile(std::wstring dir, std::wstring name, const char* entry, con
     return true;
 }
 
-bool Shader::load(std::string dir, std::string name) {
+bool Shader::load(std::string name) {
     bool result = false;
-    std::string path = getAssetsPath() + dir + "\\" + name;
+#ifdef NDEBUG
+    std::string path = getAssetsPath() + name + ".dxil";
+#else
+    std::string path = getAssetsPath() + name + "_debug.dxil";
+#endif
     FILE* file;
     errno_t err = fopen_s(&file, path.c_str(), "rb");
     if (err != 0 || file == nullptr) {

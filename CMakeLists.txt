@@ -27,6 +27,9 @@ addImported(d3dcompiler
     INC_DIR $ENV{WINDOWS_SDK}/Include/$ENV{WINDOWS_SDK_VERSION}/shared
     LIB     $ENV{WINDOWS_SDK}/Lib/$ENV{WINDOWS_SDK_VERSION}/um/x64/d3dcompiler.lib
 )
+
+set(TINYGLTF_BUILD_LOADER_EXAMPLE   OFF CACHE BOOL "" FORCE)
+# set(TINYGLTF_HEADER_ONLY            ON  CACHE BOOL "" FORCE)
 addExternal(tinygltf URL https://github.com/syoyo/tinygltf.git TAG v2.9.7)
 # addExternal(glm URL https://github.com/g-truc/glm.git TAG 1.0.3)
 # -DGLM_BUILD_TESTS=OFF
@@ -48,4 +51,4 @@ addSample(00-info       LIBS)
 addSample(01-window     LIBS app renderer)
 addSample(02-compute    LIBS)
 addSample(03-triangle   LIBS app renderer utils)
-# addSample(04-objects    LIBS app renderer utils assets scene camera)
+addSample(04-objects    LIBS app renderer utils assets scene camera)

@@ -171,7 +171,7 @@ private:
 class Shader {
 public:
     ~Shader();
-    bool load(VkDevice device, const char* dir, const char* name, VkShaderStageFlagBits stage);
+    bool load(VkDevice device, const char* name, VkShaderStageFlagBits stage);
     VkPipelineShaderStageCreateInfo getInfo();
 private:
     VkDevice device;
