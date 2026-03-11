@@ -6,7 +6,7 @@
 #define GUARD(x)  if (!(x))              {  printf("Error: "#x"\n"); return 0; }
 #define GUARDV(x) if ((x != VK_SUCCESS)) {  printf("Error: "#x"\n"); return 0; }
 
-namespace gpu {
+namespace gpu::vk {
 
 
 

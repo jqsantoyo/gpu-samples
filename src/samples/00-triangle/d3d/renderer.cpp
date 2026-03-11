@@ -37,6 +37,7 @@ public:
         };
 
         GUARD(factory.init());
+        factory.print();
         Adapter* adapter = factory.select();
         GUARD(adapter != nullptr);
         GUARD(device.init(adapter, frameCount, 0, 0));

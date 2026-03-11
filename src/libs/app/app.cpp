@@ -20,6 +20,20 @@
 namespace gpu {
     
 
+bool IApp::argBool(const char* v) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], v) == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void IApp::initArgs(int argc, char** argv) {
+    this->argc = argc;
+    this->argv = argv;
+}
+
 LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     IApp* app;
 
@@ -89,7 +103,8 @@ int AppRunner::run() {
         return -1;
     }
     
-    if(app.init(argc, argv, windowHandle, screenWidth, screenHeight)) {
+    app.initArgs(argc, argv);
+    if(app.init(windowHandle, screenWidth, screenHeight)) {
         bool run = true;
         ShowWindow(windowHandle, true ? SW_NORMAL : SW_MAXIMIZE);
         MSG msg = {};

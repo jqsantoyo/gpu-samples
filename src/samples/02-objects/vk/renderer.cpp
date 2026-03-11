@@ -14,6 +14,7 @@
 #include <optional>
 #include <set>
 
+using namespace gpu::vk;
 namespace gpu {
 
 uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
@@ -310,7 +311,7 @@ private:
     }
 };
 
-std::unique_ptr<IRenderer> createRenderer() {
+std::unique_ptr<IRenderer> createRendererVk() {
     return std::make_unique<RendererVk>();
 }
 }

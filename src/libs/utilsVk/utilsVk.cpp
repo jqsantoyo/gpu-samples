@@ -15,7 +15,7 @@
 #include <vulkan/vulkan_win32.h>
 
 
-namespace gpu {
+namespace gpu::vk {
 
 
 

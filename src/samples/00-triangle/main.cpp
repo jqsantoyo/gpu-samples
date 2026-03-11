@@ -8,8 +8,9 @@ class App: public IApp {
 public:
     std::unique_ptr<IRenderer> renderer;
 
-    bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) {
-        renderer = createRenderer();
+    bool init(void* window, uint32_t width, uint32_t height) {
+        bool useVulkan = argBool("-vk");
+        renderer = useVulkan ? createRendererVk() : createRenderer();
         renderer->init(window, width, height);
         return true;
     }

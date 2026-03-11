@@ -11,4 +11,5 @@ public:
 };
 
 std::unique_ptr<ICompute> createCompute();
+std::unique_ptr<ICompute> createComputeVk();
 }

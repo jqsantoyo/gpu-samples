@@ -5,16 +5,12 @@
     "version": "0.2.0",
     "configurations": [
 
-        { "name": "[debug] 00-info",            "program": "${workspaceFolder}/.build/debug/00-info/00-info.exe",           "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 00-info-vk",         "program": "${workspaceFolder}/.build/debug/00-info-vk/00-info-vk.exe",        "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 01-window",          "program": "${workspaceFolder}/.build/debug/01-window/01-window.exe",         "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 01-window-vk",       "program": "${workspaceFolder}/.build/debug/01-window-vk/01-window-vk.exe",      "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 02-compute",         "program": "${workspaceFolder}/.build/debug/02-compute/02-compute.exe",        "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 02-compute-vk",      "program": "${workspaceFolder}/.build/debug/02-compute-vk/02-compute-vk.exe",     "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 03-triangle",        "program": "${workspaceFolder}/.build/debug/03-triangle/03-triangle.exe",       "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 03-triangle-vk",     "program": "${workspaceFolder}/.build/debug/03-triangle-vk/03-triangle-vk.exe",    "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 04-objects",         "program": "${workspaceFolder}/.build/debug/04-objects/04-objects.exe",        "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] 04-objects-vk",      "program": "${workspaceFolder}/.build/debug/04-objects-vk/04-objects-vk.exe",     "args": [], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 00-triangle",    "program": "${workspaceFolder}/.build/debug/00-triangle/00-triangle.exe",  "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 00-triangle-vk", "program": "${workspaceFolder}/.build/debug/00-triangle/00-triangle.exe",  "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 01-compute",     "program": "${workspaceFolder}/.build/debug/01-compute/02-compute.exe",    "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 01-compute-vk",  "program": "${workspaceFolder}/.build/debug/01-compute/02-compute-vk.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 02-objects",     "program": "${workspaceFolder}/.build/debug/02-objects/02-objects.exe",    "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 02-objects-vk",  "program": "${workspaceFolder}/.build/debug/02-objects/02-objects-vk.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
 
     ]
 }

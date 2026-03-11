@@ -79,6 +79,7 @@ public:
 };
 
 std::unique_ptr<IRenderer> createRenderer();
+std::unique_ptr<IRenderer> createRendererVk();
 
 
 

@@ -13,7 +13,7 @@ public:
     std::unique_ptr<IAssets> assets;
     std::unique_ptr<ICamera> camera;
 
-    bool init(int argc, char** argv, void* window, uint32_t width, uint32_t height) {
+    bool init(void* window, uint32_t width, uint32_t height) {
         renderer = createRenderer();
         renderer->init(window, width, height);
         renderer->setFillMode(FillWire);

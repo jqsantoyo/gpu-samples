@@ -14,6 +14,7 @@
 #include <optional>
 #include <set>
 
+using namespace gpu::vk;
 namespace gpu {
 
 float vertices[] = {
@@ -28,6 +29,12 @@ public:
     bool init(void* window, uint32_t screenWidth, uint32_t screenHeight) {
 
         GUARD(instance.init("03-triangle-vk", VK_MAKE_VERSION(1, 0, 0), true, {}));
+        GUARD(getPhysicalDevices(instance.instance, phyDevices));
+        printf("\nPhysical devices: %zu\n", phyDevices.size());
+        for (int i = 0; i < phyDevices.size(); i++) {
+            printf("[%d]:\n", i);
+            phyDevices[i].print();
+        }
         GUARD(surface.init(instance.instance, window));
         GUARD(physicalDevice.init(instance.instance, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, true, false, &surface));
         GUARD(device.init(physicalDevice, true, false));
@@ -129,6 +136,7 @@ public:
 
 private:
     Instance                            instance;
+    std::vector<PhysicalDeviceData>     phyDevices;
     Surface                             surface;
     PhysicalDevice                      physicalDevice;
     Swapchain                           swapchain;
@@ -295,7 +303,7 @@ private:
     }
 };
 
-std::unique_ptr<IRenderer> createRenderer() {
+std::unique_ptr<IRenderer> createRendererVk() {
     return std::make_unique<RendererVk>();
 }
 }

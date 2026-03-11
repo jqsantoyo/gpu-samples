@@ -2,6 +2,7 @@
 #include <utilsVk/utilsVk.h>
 #include <vector>
 
+using namespace gpu::vk;
 namespace gpu {
 
 class Compute : public ICompute {
@@ -47,7 +48,7 @@ private:
 
 };
 
-std::unique_ptr<ICompute> createCompute() {
+std::unique_ptr<ICompute> createComputeVk() {
     return std::make_unique<Compute>();
 }
 
