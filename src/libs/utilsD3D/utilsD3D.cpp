@@ -377,11 +377,7 @@ bool Shader::compile(std::wstring dir, std::wstring name, const char* entry, con
 
 bool Shader::load(std::string name) {
     bool result = false;
-#ifdef NDEBUG
     std::string path = getAssetsPath() + name + ".dxil";
-#else
-    std::string path = getAssetsPath() + name + "_debug.dxil";
-#endif
     FILE* file;
     errno_t err = fopen_s(&file, path.c_str(), "rb");
     if (err != 0 || file == nullptr) {

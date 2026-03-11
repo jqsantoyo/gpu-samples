@@ -2,10 +2,17 @@
 
 
 if (CMAKE_CONFIGURATION_TYPES)
-    set(CMAKE_CONFIGURATION_TYPES Debug Release CACHE STRING "" FORCE)
+    set(CMAKE_CONFIGURATION_TYPES Debug Release RelWithDebInfo CACHE STRING "" FORCE)
 endif()
 
 
+function(get_target_output_dir targetName outputDir)
+    if (CMAKE_CONFIGURATION_TYPES)
+        set(outputDir ${CMAKE_BINARY_DIR}/$<CONFIG>/${targetName} PARENT_SCOPE)
+    else()
+        set(outputDir ${CMAKE_BINARY_DIR}/${targetName} PARENT_SCOPE)
+    endif()
+endfunction()
 
 # Prints a list.
 function(printList)
@@ -126,6 +133,7 @@ function(addSample targetName)
     set(targetNameVk    ${targetName}-vk)
     set(outputDirVk     ${outputDir}-vk)
     set(dir             ${CMAKE_SOURCE_DIR}/src/samples/${targetName})
+    set(assetsDir       ${CMAKE_SOURCE_DIR}/src/samples/${targetName}/assets)
     set(LIBS            ${arg_LIBS} utilsD3D d3d12 d3dx12 dxgi d3dcompiler)
     set(LIBS_VK         ${arg_LIBS} utilsVk vulkan)
     file(GLOB HEADERS    CONFIGURE_DEPENDS ${dir}/*.h)
@@ -133,172 +141,111 @@ function(addSample targetName)
     file(GLOB SOURCES_VK CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/vk/*.cpp)
     file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/d3d/*.hlsl)
     file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/vk/*.vert ${dir}/vk/*.frag ${dir}/vk/*.comp)
+    file(GLOB ASSETS     CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin ${assetsDir}/*.png)
 
     message(STATUS "--------------------------------------------------------------------------------")
     message(STATUS "Sample: ${targetName}")
     message(STATUS "D3D12")
     printList(HEADERS SOURCES SHADERS LIBS)
     message(STATUS "VULKAN")
-    printList(HEADERS SOURCES_VK SHADERS_VK LIBS_VK)
+    printList(HEADERS SOURCES_VK SHADERS_VK LI  BS_VK)
 
     add_executable              (${targetName})
     target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs ${dir})
     target_sources              (${targetName} PRIVATE ${HEADERS})
     target_sources              (${targetName} PRIVATE ${SOURCES})
     target_shaders_d3d          (${targetName} ${SHADERS})
-    target_assets               (${targetName})
+    target_assets               (${targetName} ${ASSETS})
     target_link_libraries       (${targetName} PRIVATE ${LIBS})
     target_compile_features     (${targetName} PRIVATE cxx_std_20)
     target_compile_definitions  (${targetName} PRIVATE _CRT_SECURE_NO_WARNINGS)
     set_target_properties       (${targetName} PROPERTIES FOLDER "samples")
     set_target_properties       (${targetName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outputDir})
-    source_group                ("" FILES ${HEADERS} ${SOURCES})
     
     add_executable              (${targetNameVk})
     target_include_directories  (${targetNameVk} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs)
     target_sources              (${targetNameVk} PRIVATE ${HEADERS_VK})
     target_sources              (${targetNameVk} PRIVATE ${SOURCES_VK})
     target_shaders_vk           (${targetNameVk} ${SHADERS_VK})
-    target_assets               (${targetName})
+    target_assets               (${targetNameVk} ${ASSETS})
     target_link_libraries       (${targetNameVk} PRIVATE ${LIBS_VK})
     target_compile_features     (${targetNameVk} PRIVATE cxx_std_20)
     target_compile_definitions  (${targetNameVk} PRIVATE _CRT_SECURE_NO_WARNINGS)
     set_target_properties       (${targetNameVk} PROPERTIES FOLDER "samples")
     set_target_properties       (${targetNameVk} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outputDirVk})
-    source_group                ("" FILES ${HEADERS_VK} ${SOURCES_VK})
+
+    source_group("Source"    FILES ${HEADERS} ${SOURCES} ${HEADERS_VK} ${SOURCES_VK} ${SHADERS} ${SHADERS_VK})
+    source_group("Assets"    FILES ${ASSETS})
+    source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|png|gltf|bin)")
 endfunction()
+
 
 
 
 # Specify the D3D shaders of the target.
-# - Adds input files (.hlsl) and generated .dxil files as sources.
-# - Place .hlsl files under no group, and .dxil files under "Generated" group.
-# - Compiles debug and release .dxil variants.
-# - Works with single and multi config.
+# - Adds input files (.hlsl) and compiled .dxil files as sources.
 function(target_shaders_d3d targetName)
     set(inShaders ${ARGN})
     set(compiler  $ENV{WINDOWS_SDK}/bin/$ENV{WINDOWS_SDK_VERSION}/x64/dxc.exe)
-
-    # Don't use GENEXP so source_group can work.
-    if (CMAKE_CONFIGURATION_TYPES)
-        set(dirDebug   ${CMAKE_BINARY_DIR}/Debug/${targetName})
-        set(dirRelease ${CMAKE_BINARY_DIR}/Release/${targetName})
-    else()
-        set(dirDebug   ${CMAKE_BINARY_DIR}/${targetName})
-        set(dirRelease ${CMAKE_BINARY_DIR}/${targetName})
-    endif()
-
+    get_target_output_dir(${targetName} outputDir)
     foreach(inShader IN LISTS inShaders)
-        cmake_path(GET inShader STEM shaderName)
-        set(vertexDebug   ${dirDebug}/${shaderName}_v_debug.dxil)
-        set(pixelDebug    ${dirDebug}/${shaderName}_p_debug.dxil)
-        set(vertexRelease ${dirRelease}/${shaderName}_v.dxil)
-        set(pixelRelease  ${dirRelease}/${shaderName}_p.dxil)
-        list(APPEND outShadersDebug   ${vertexDebug}   ${pixelDebug})
-        list(APPEND outShadersRelease ${vertexRelease} ${pixelRelease})
-
-        # Add commands for both configurations here, but later select correct files per config.
+        cmake_path(GET inShader STEM shaderStem)
+        set(vShader ${outputDir}/${shaderStem}_v.dxil)
+        set(pShader ${outputDir}/${shaderStem}_p.dxil)
+        list(APPEND outShaders ${vShader} ${pShader})
         add_custom_command(
-            OUTPUT ${vertexDebug} ${pixelDebug}
-            COMMAND ${compiler} -T vs_6_0 -E VSMain -Fo ${vertexDebug} ${inShader}
-            COMMAND ${compiler} -T ps_6_0 -E PSMain -Fo ${pixelDebug}  ${inShader}
+            OUTPUT ${vShader} ${pShader}
+            COMMAND ${compiler} -T vs_6_0 -E VSMain -Fo ${vShader} ${inShader}
+            COMMAND ${compiler} -T ps_6_0 -E PSMain -Fo ${pShader} ${inShader}
             DEPENDS ${inShader}
-            VERBATIM
-        )
-        add_custom_command(
-            OUTPUT ${vertexRelease} ${pixelRelease}
-            COMMAND ${compiler} -T vs_6_0 -E VSMain -Fo ${vertexRelease} ${inShader}
-            COMMAND ${compiler} -T ps_6_0 -E PSMain -Fo ${pixelRelease}  ${inShader}
-            DEPENDS ${inShader}
+            MAIN_DEPENDENCY ${inShader}
             VERBATIM
         )
     endforeach()
-
-    # Single config selects files correctly by config, multi-config does not...
-    # i.e., when building debug, it will compile both debug and release shaders.
-    # But both only rebuild upon changes correctly.
-    target_sources(${targetName} PRIVATE
-        ${inShaders}
-        $<$<CONFIG:Debug>:${outShadersDebug}>
-        $<$<CONFIG:Release>:${outShadersRelease}>
-    )
+    target_sources(${targetName} PRIVATE ${inShaders} ${outShaders})
     set_source_files_properties(${inShaders} PROPERTIES HEADER_FILE_ONLY ON) # avoids VS compilation of hlsl
-    source_group("" FILES ${inShaders})
-    source_group("Generated" FILES ${outShadersDebug} ${outShadersRelease})
 endfunction()
 
 
-
-# Specify the vulkan shaders of the target.
-# - Adds input files (.vert/.frag/.comp) and generated .spv files as sources.
-# - Place source files under no group, and .spv files under "Generated" group.
-# - Compiles debug and release .spv variants.
-# - Works with single and multi config.
+# Specify the Vulkan shaders of the target.
+# - Adds input files (.vert/.frag/.comp) and compiled .spv files as sources.
 function(target_shaders_vk targetName)
     set(inShaders ${ARGN})
     set(compiler  $ENV{VULKAN_SDK}/Bin/glslc.exe)
-
-    # Don't use GENEXP so source_group can work.
-    if (CMAKE_CONFIGURATION_TYPES)
-        set(dirDebug   ${CMAKE_BINARY_DIR}/Debug/${targetName})
-        set(dirRelease ${CMAKE_BINARY_DIR}/Release/${targetName})
-    else()
-        set(dirDebug   ${CMAKE_BINARY_DIR}/${targetName})
-        set(dirRelease ${CMAKE_BINARY_DIR}/${targetName})
-    endif()
-
+    get_target_output_dir(${targetName} outputDir)
     foreach(inShader IN LISTS inShaders)
-        cmake_path(GET inShader FILENAME shaderName)
-        set(spvDebug   ${dirDebug}/${shaderName}_debug.spv)
-        set(spvRelease ${dirRelease}/${shaderName}.spv)
-        list(APPEND outShadersDebug   ${spvDebug})
-        list(APPEND outShadersRelease ${spvRelease})
-
-        # Add commands for both configurations here, but later select correct files per config.
+        cmake_path(GET inShader FILENAME shaderFilename)
+        set(outShader ${outputDir}/${shaderFilename}.spv)
+        list(APPEND outShaders ${outShader})
         add_custom_command(
-            OUTPUT ${spvDebug}
-            COMMAND ${compiler} ${inShader} -o ${spvDebug}
+            OUTPUT ${outShader}
+            COMMAND ${compiler} ${inShader} -o ${outShader}
             DEPENDS ${inShader}
-            VERBATIM
-        )
-        add_custom_command(
-            OUTPUT ${spvRelease}
-            COMMAND ${compiler} ${inShader} -o ${spvRelease}
-            DEPENDS ${inShader}
+            MAIN_DEPENDENCY ${inShader}
             VERBATIM
         )
     endforeach()
-
-    # Single config selects files correctly by config, multi-config does not...
-    # i.e., when building debug, it will compile both debug and release shaders.
-    # But both only rebuild upon changes correctly.
-    target_sources(${targetName} PRIVATE
-        ${inShaders}
-        $<$<CONFIG:Debug>:${outShadersDebug}>
-        $<$<CONFIG:Release>:${outShadersRelease}>
-    )
-    set_source_files_properties(${inShaders} PROPERTIES HEADER_FILE_ONLY ON) # just to mirror d3d variant
-    source_group("" FILES ${inShaders})
-    source_group("Generated" FILES ${outShadersDebug} ${outShadersRelease})
+    target_sources(${targetName} PRIVATE ${inShaders} ${outShaders})
 endfunction()
 
-
+# Specify the assets of the target.
+# - Adds asset files as sources and copies them to the binary directory.
 function(target_assets targetName)
-    if (CMAKE_CONFIGURATION_TYPES)
-        set(outputDir ${CMAKE_BINARY_DIR}/$<CONFIG>/${targetName})
-    else()
-        set(outputDir ${CMAKE_BINARY_DIR}/${targetName})
-    endif()
-    set(assetsDir     ${CMAKE_SOURCE_DIR}/src/samples/${targetName}/assets)
-    file(GLOB inAssets CONFIGURE_DEPENDS
-        ${assetsDir}/*.gltf
-        ${assetsDir}/*.bin
-        ${assetsDir}/*.png
-    )
-    target_sources(${targetName} PRIVATE ${inAssets})
-    source_group("Assets" FILES ${inAssets})
-    add_custom_command(
-        TARGET ${targetName} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_directory ${assetsDir} ${outputDir}
-    )
+    set(inAssets ${ARGN})
+    get_target_output_dir(${targetName} outputDir)
+    foreach(asset IN LISTS inAssets)
+        cmake_path(GET asset FILENAME assetFilename)
+        set(outAsset ${outputDir}/${assetFilename})
+        list(APPEND outAssets ${outAsset})
+        add_custom_command(
+            OUTPUT ${outAsset}
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${asset} ${outAsset}
+            DEPENDS ${asset}
+            MAIN_DEPENDENCY ${asset}
+            VERBATIM
+        )
+    endforeach()
+    target_sources(${targetName} PRIVATE ${inAssets} ${outAssets})
 endfunction()
+
+

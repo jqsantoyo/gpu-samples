@@ -922,11 +922,7 @@ Shader::~Shader() {
 
 bool Shader::load(VkDevice device, const char* name, VkShaderStageFlagBits stage) {
     this->device = device;
-#ifdef NDEBUG
     std::string path = getAssetsPath() + name + ".spv";
-#else
-    std::string path = getAssetsPath() + name + "_debug.spv";
-#endif
     FILE* file = fopen(path.c_str(), "rb");
     if (file == nullptr) {
         return false;
