@@ -17,6 +17,7 @@
 #include <shellapi.h>
 #include <string>
 #include <stdio.h>
+#include <pix3.h>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -113,6 +114,8 @@ public:
     }
 
     bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
+        static uint64_t frameIdx = 0;
+        PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -135,6 +138,8 @@ public:
         GUARD(frameControl.execute());
         GUARD(swapchain.present());
         GUARD(frameControl.end());
+        PIXEndEvent();
+        frameIdx++;
         return 1;
     }
 

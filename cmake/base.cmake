@@ -22,7 +22,7 @@ function(printList)
 endfunction()
 
 
-# Adds an interface library target.
+# Adds an imported static library target.
 function(addImported targetName)
     set(options)
     set(oneArgs INC_DIR LIB)
@@ -30,7 +30,7 @@ function(addImported targetName)
     cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
 
     message(STATUS "----------------------------------------")
-    message(STATUS "Library (Imported): ${targetName}")
+    message(STATUS "Library (Imported Static): ${targetName}")
     message(STATUS "  Include Dir: ${arg_INC_DIR}")
     message(STATUS "  Lib:         ${arg_LIB}")
 
@@ -38,6 +38,29 @@ function(addImported targetName)
     set_target_properties(${targetName} PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES ${arg_INC_DIR}
         IMPORTED_LOCATION             ${arg_LIB}
+    )
+endfunction()
+
+
+
+# Adds an imported dynamic library target.
+function(addImportedDynamic targetName)
+    set(options)
+    set(oneArgs INC_DIR LIB IMPLIB)
+    set(multiArgs)
+    cmake_parse_arguments(arg "${options}" "${oneArgs}" "${multiArgs}" ${ARGN})
+
+    message(STATUS "----------------------------------------")
+    message(STATUS "Library (Imported Dynamic): ${targetName}")
+    message(STATUS "  Include Dir: ${arg_INC_DIR}")
+    message(STATUS "  Lib:         ${arg_LIB}")
+    message(STATUS "  Imp Lib:     ${arg_IMPLIB}")
+
+    add_library          (${targetName} SHARED IMPORTED)
+    set_target_properties(${targetName} PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES ${arg_INC_DIR}
+        IMPORTED_LOCATION             ${arg_LIB}
+        IMPORTED_IMPLIB               ${arg_IMPLIB}
     )
 endfunction()
 
@@ -153,6 +176,12 @@ function(addSample targetName)
     source_group(TREE ${dir} PREFIX "Source" FILES ${HEADERS} ${SOURCES} ${SHADERS} ${SHADERS_VK})
     source_group("Assets"    FILES ${ASSETS})
     source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|png|gltf|bin)")
+
+    add_custom_command(
+        TARGET ${targetName} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy -t $<TARGET_FILE_DIR:${targetName}> $<TARGET_RUNTIME_DLLS:${targetName}>
+        COMMAND_EXPAND_LISTS
+    )
 endfunction()
 
 

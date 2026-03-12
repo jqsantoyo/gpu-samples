@@ -28,6 +28,11 @@ addImported(d3dcompiler
     INC_DIR $ENV{WINDOWS_SDK}/Include/$ENV{WINDOWS_SDK_VERSION}/shared
     LIB     $ENV{WINDOWS_SDK}/Lib/$ENV{WINDOWS_SDK_VERSION}/um/x64/d3dcompiler.lib
 )
+addImportedDynamic(pixEvents
+    INC_DIR ${CMAKE_SOURCE_DIR}/src/libs/pixEvents/Include
+    LIB     ${CMAKE_SOURCE_DIR}/src/libs/pixEvents/bin/x64/WinPixEventRuntime.dll
+    IMPLIB  ${CMAKE_SOURCE_DIR}/src/libs/pixEvents/bin/x64/WinPixEventRuntime.lib
+)
 
 set(TINYGLTF_BUILD_LOADER_EXAMPLE   OFF CACHE BOOL "" FORCE)
 # set(TINYGLTF_HEADER_ONLY            ON  CACHE BOOL "" FORCE)
@@ -48,6 +53,6 @@ addLibrary  (assets         LIBS tinygltf utils renderer scene)
 addLibrary  (utilsVk        LIBS utils vulkan)
 addLibrary  (utilsD3D       LIBS utils d3d12 dxgi d3dcompiler d3dx12)
 
-addSample   (00-triangle    LIBS app renderer utils)
+addSample   (00-triangle    LIBS app renderer utils pixEvents)
 addSample   (01-compute     LIBS)
 addSample   (02-objects     LIBS app renderer utils assets scene camera)
