@@ -2,21 +2,18 @@
 
 GPU samples using D3D12 and Vulkan for Windows.
 
-Each sample defines D3D12 & Vulkan executables, the Vulkan builds have a `-vk` suffix.
+Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing the command line argument "-vk".
 
 
 | Sample                | Camera Control  | Shading                  |  |
 |-----------------------|-----------------|--------------------------|--|
-| **00-info**           |                 |                          |  |
-| **01-window**         |                 |                          |  |
-| **02-compute**        |                 |                          |  |
-| **03-triangle**       |                 | vertex color             |  |
-| **04-objects**        | ✓               | vertex color             |  |
+| **00-triangle**       |                 | vertex color             |  |
+| **01-compute**        |                 |                          |  |
+| **02-objects**        | ✓               | vertex color             |  |
 
 | Libraries         | Internal |
 |-------------------|----------|
 | utils             | ✓        |
-| input             | ✓        |
 | app               | ✓        |
 | camera            | ✓        |
 | scene             | ✓        |
@@ -41,19 +38,29 @@ WINDOWS_SDK_VERSION = <windows sdk version>
 VULKAN_SDK          = <vulkan sdk installation>
 ```
 
-Use cmake to build the project. 2 presets are provided:
-* `debug`
-* `release`
+Use cmake to build the project. 3 presets are provided:
+* `debug` (Ninja)
+* `release` (Ninja)
+* `vs` (Visual Studio 18 2026)
 
-In `vscode` select the preset and build with `F7`, then select a launch configuration in `Run and Debug` and press `F5`.
-
-Or enter in the command line:
+In the command line enter:
 ```
 cmake --preset=debug
 cmake --build --preset=debug
-.build/debug/src/samples/01-info/01-info.exe        // D3D12
-.build/debug/src/samples/01-info/01-info-vk.exe     // Vulkan
+.build/debug/00-triangle/00-triangle.exe            // D3D12
+.build/debug//00-triangle/00-triangle.exe -vk       // Vulkan
+
+cmake --preset=release
+cmake --build --preset=release
+.build/release/00-triangle/00-triangle.exe          // D3D12
+.build/release/00-triangle/00-triangle.exe -vk      // Vulkan
+
+cmake --preset=vs
+cmake --build --preset=vs --config=Debug            // or Release or RelWithDebInfo
+.build/vs/Debug/00-triangle/00-triangle.exe         // D3D12
+.build/vs/Debug/00-triangle/00-triangle.exe -vk     // Vulkan
 ```
+
 
 
 
