@@ -1,5 +1,9 @@
 #pragma once
 #include <memory>
+#include <chrono>
+
+using Clock = std::chrono::steady_clock;
+using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
 
 namespace gpu {
 
@@ -28,6 +32,13 @@ struct KeyboardEvent {
     int x = 0;
 };
 
+struct FrameData {
+    float dt;
+    float dtAvg;
+    uint64_t frameIdx;
+};
+
+
 class IApp {
 public:
     virtual ~IApp() = default;
@@ -39,14 +50,20 @@ public:
     virtual bool mouseEvent(MouseEvent event) { return false; };
     virtual bool keyboardEvent(KeyboardEvent event) { return false; };
 
-    bool argBool(const char* v);
-    void setWindowText(const char* v);
+    bool argBool(const char* arg);
+    void setWindowText(const char* fmt, ...);
+    const FrameData& getFrameData();
+
 private:
     friend class AppRunner;
     void initInternal(int argc, char** argv, void* window);
+    bool updateInternal();
     int argc;
     char** argv;
     void* window;
+    TimePoint t0;
+    FrameData frameData;
+    char windowTitle[100];
 };
 
 class AppRunner {
@@ -58,6 +75,7 @@ private:
     int argc;
     char** argv;
     IApp& app;
+
 };
 
 }

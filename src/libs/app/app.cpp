@@ -14,30 +14,51 @@
 #include <wrl.h>
 #include <shellapi.h>
 #include <string>
-#include <stdio.h>
+#include <cstdio>
+#include <cstdarg>
 #define GUARD(x) if (!x) { return 1; }
 
 namespace gpu {
     
 
-bool IApp::argBool(const char* v) {
+bool IApp::argBool(const char* arg) {
     for (int i = 1; i < argc; i++) {
-        if (strcmp(argv[i], v) == 0) {
+        if (strcmp(argv[i], arg) == 0) {
             return true;
         }
     }
     return false;
 }
 
-void IApp::setWindowText(const char* v) {
+void IApp::setWindowText(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
     auto hwnd = static_cast<HWND>(window);
-    SetWindowTextA(hwnd, v);
+    vsnprintf(windowTitle, sizeof(windowTitle), fmt, args);
+    SetWindowTextA(hwnd, windowTitle);
+    va_end(args);
+}
+
+const FrameData& IApp::getFrameData() {
+    return frameData;
 }
 
 void IApp::initInternal(int argc, char** argv, void* window) {
     this->argc = argc;
     this->argv = argv;
     this->window = window;
+    t0 = Clock::now();
+    frameData.dtAvg = 0;
+}
+
+bool IApp::updateInternal() {
+    TimePoint t1 = Clock::now();
+    float alpha = .05;
+    frameData.dt = std::chrono::duration<float>(t1 - t0).count();
+    frameData.dtAvg = alpha * frameData.dt + (1 - alpha) * frameData.dtAvg;
+    t0 = t1;
+    bool result = update();
+    return result;
 }
 
 LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -109,6 +130,7 @@ int AppRunner::run() {
         return -1;
     }
     
+    SetThreadDescription(GetCurrentThread(), L"MainThread");
     app.initInternal(argc, argv, windowHandle);
     if(app.init(windowHandle, screenWidth, screenHeight)) {
         bool run = true;
@@ -119,7 +141,7 @@ int AppRunner::run() {
                 TranslateMessage(&msg);
                 DispatchMessage(&msg);
             }
-            run = app.update();
+            run = app.updateInternal();
         }
     }
     app.terminate();

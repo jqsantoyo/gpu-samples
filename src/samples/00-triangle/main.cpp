@@ -7,14 +7,15 @@ namespace gpu {
 class App: public IApp {
 public:
     std::unique_ptr<IRenderer> renderer;
+    const char* title;
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
         if (useVulkan) {
-            setWindowText("00-triangle-vk");
+            title = "00-triangle-vk";
             renderer = createRendererVk();
         } else {
-            setWindowText("00-triangle");
+            title = "00-triangle";
             renderer = createRenderer();
         }
         renderer->init(window, width, height);
@@ -31,6 +32,8 @@ public:
     }
 
     bool update() {
+        FrameData frame = getFrameData();
+        setWindowText("%s: fps: %f period: %.3f", title, 1 / frame.dtAvg, frame.dtAvg);
         return renderer->render({.1, .1, .1, 1}, {});
     }
 };
