@@ -127,7 +127,7 @@ class Swapchain {
 public:
     bool init(Factory& factory, Device& device, Queue& queue, HWND hwnd, uint32_t w, uint32_t h, UINT frameCount);
     RenderTarget next();
-    bool present();
+    bool present(bool vsync);
 
 // private:
     Microsoft::WRL::ComPtr<IDXGISwapChain3> obj;

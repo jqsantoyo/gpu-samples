@@ -136,7 +136,7 @@ public:
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
         GUARD(frameControl.execute());
-        GUARD(swapchain.present());
+        GUARD(swapchain.present(true));
         GUARD(frameControl.end());
         PIXEndEvent();
         frameIdx++;

@@ -241,6 +241,7 @@ bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, 
         .BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT,
         .BufferCount = frameCount,
         .SwapEffect  = DXGI_SWAP_EFFECT_FLIP_DISCARD,
+        .Flags       = DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING,
     };
     DXGI_SWAP_CHAIN_FULLSCREEN_DESC swapChainFSDesc = {
         .Windowed = TRUE,
@@ -269,8 +270,12 @@ RenderTarget Swapchain::next() {
     return renderTargets[frameIdx];
 }
 
-bool Swapchain::present() {
-    GUARDHR(obj->Present(1, 0));
+bool Swapchain::present(bool vsync) {
+    if (vsync) {
+        GUARDHR(obj->Present(1, 0));
+    } else {
+        GUARDHR(obj->Present(0, DXGI_PRESENT_ALLOW_TEARING));
+    }
     return true;
 }
 
