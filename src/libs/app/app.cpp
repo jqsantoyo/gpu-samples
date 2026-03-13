@@ -29,9 +29,15 @@ bool IApp::argBool(const char* v) {
     return false;
 }
 
-void IApp::initArgs(int argc, char** argv) {
+void IApp::setWindowText(const char* v) {
+    auto hwnd = static_cast<HWND>(window);
+    SetWindowTextA(hwnd, v);
+}
+
+void IApp::initInternal(int argc, char** argv, void* window) {
     this->argc = argc;
     this->argv = argv;
+    this->window = window;
 }
 
 LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -103,7 +109,7 @@ int AppRunner::run() {
         return -1;
     }
     
-    app.initArgs(argc, argv);
+    app.initInternal(argc, argv, windowHandle);
     if(app.init(windowHandle, screenWidth, screenHeight)) {
         bool run = true;
         ShowWindow(windowHandle, true ? SW_NORMAL : SW_MAXIMIZE);

@@ -40,11 +40,13 @@ public:
     virtual bool keyboardEvent(KeyboardEvent event) { return false; };
 
     bool argBool(const char* v);
+    void setWindowText(const char* v);
 private:
     friend class AppRunner;
-    void initArgs(int argc, char** argv);
+    void initInternal(int argc, char** argv, void* window);
     int argc;
     char** argv;
+    void* window;
 };
 
 class AppRunner {

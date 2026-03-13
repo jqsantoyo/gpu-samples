@@ -10,7 +10,13 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
-        renderer = useVulkan ? createRendererVk() : createRenderer();
+        if (useVulkan) {
+            setWindowText("00-triangle-vk");
+            renderer = createRendererVk();
+        } else {
+            setWindowText("00-triangle");
+            renderer = createRenderer();
+        }
         renderer->init(window, width, height);
         return true;
     }
