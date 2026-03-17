@@ -480,4 +480,211 @@ Mesh& MeshControl::getMesh(int idx) {
     return meshes[idx];
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool RootSig::initVoid(Device& device) {
+    ComPtr<ID3DBlob>            sig;
+    ComPtr<ID3DBlob>            error;
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
+    GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+bool RootSig::initStd(Device& device) {
+    ComPtr<ID3DBlob>            sig;
+    ComPtr<ID3DBlob>            error;
+
+    CD3DX12_DESCRIPTOR_RANGE cbvTable;
+    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
+    CD3DX12_ROOT_PARAMETER rootParam[1];
+    rootParam[0].InitAsDescriptorTable(1, &cbvTable);
+    
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(1, rootParam, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
+    GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+
+
+
+bool PipelineBasic::init(Device& device, RootSig& sig) {
+    Shader vShader;
+    Shader pShader;
+    GUARD(vShader.load("shaders_v"));
+    GUARD(pShader.load("shaders_p"));
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
+        .pRootSignature         = sig.obj.Get(),
+        .VS                     = vShader.bytecode,
+        .PS                     = pShader.bytecode,
+        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .SampleMask             = UINT_MAX,
+        .RasterizerState        = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
+        .DepthStencilState      = { .DepthEnable = FALSE, .StencilEnable = FALSE, },
+        .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
+        .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        .NumRenderTargets       = 1,
+        .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .SampleDesc             = { .Count = 1},
+    };
+    GUARDHR(device.obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+
+
+bool PipelineFill::init(Device& device, RootSig& sig) {
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    Shader vShader;
+    Shader pShader;
+    GUARD(vShader.load("shaders_v"));
+    GUARD(pShader.load("shaders_p")); 
+
+    // D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels = {
+    //     .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+    //     .SampleCount = 4,
+    //     .Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,
+    //     .NumQualityLevels = 0,
+    // };
+    // GUARDHR(device->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels, sizeof(qualityLevels)));
+    // GUARD((qualityLevels.NumQualityLevels > 0));
+    // DXGI_SAMPLE_DESC sampleDesc = { .Count = 4, .Quality = qualityLevels.NumQualityLevels - 1 }; 
+    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    D3D12_RASTERIZER_DESC fillRasterDesc = {
+        .FillMode               = D3D12_FILL_MODE_SOLID,
+        .CullMode               = D3D12_CULL_MODE_NONE,
+        // .CullMode               = D3D12_CULL_MODE_BACK,
+        .FrontCounterClockwise  = FALSE,
+        .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
+        .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        .SlopeScaledDepthBias   = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        .DepthClipEnable        = TRUE,
+        .MultisampleEnable      = FALSE,
+        .AntialiasedLineEnable  = FALSE,
+        .ForcedSampleCount      = 0,
+        .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+    };
+    D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
+        .DepthEnable        = TRUE,
+        .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        .StencilEnable      = FALSE,
+        // .StencilReadMask    = 0,
+        // .StencilWriteMask   = 0,
+        // .FrontFace = {
+        //     .StencilFailOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilDepthFailOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilPassOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilFunc = D3D12_COMPARISON_FUNC_GREATER,
+        // },
+        // .BackFace = {
+        //     .StencilFailOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilDepthFailOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilPassOp = D3D12_STENCIL_OP_REPLACE,
+        //     .StencilFunc = D3D12_COMPARISON_FUNC_GREATER,
+        // },
+
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoFillDesc = {
+        .pRootSignature         = sig.obj.Get(),
+        .VS                     = vShader.bytecode,
+        .PS                     = pShader.bytecode,
+        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .SampleMask             = UINT_MAX,
+        .RasterizerState        = fillRasterDesc,
+        .DepthStencilState      = depthStateDesc,
+        .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
+        .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        .NumRenderTargets       = 1,
+        .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
+        .SampleDesc             = sampleDesc,
+    };
+    GUARDHR(device.obj->CreateGraphicsPipelineState(&psoFillDesc, IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+
+
+bool PipelineWire::init(Device& device, RootSig& sig) {
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    Shader vShaderWire;
+    Shader pShaderWire;
+    GUARD(vShaderWire.load("shadersWire_v"));
+    GUARD(pShaderWire.load("shadersWire_p"));
+
+    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    D3D12_RASTERIZER_DESC wireRasterDesc = {
+        .FillMode               = D3D12_FILL_MODE_WIREFRAME,
+        .CullMode               = D3D12_CULL_MODE_NONE,
+        .FrontCounterClockwise  = FALSE,
+        .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
+        .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        .SlopeScaledDepthBias   = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        .DepthClipEnable        = TRUE,
+        .MultisampleEnable      = FALSE,
+        .AntialiasedLineEnable  = FALSE,
+        .ForcedSampleCount      = 0,
+        .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+    };
+    D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
+        .DepthEnable        = TRUE,
+        .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        .StencilEnable      = FALSE,
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoWireDesc = {
+        .pRootSignature         = sig.obj.Get(),
+        .VS                     = vShaderWire.bytecode,
+        .PS                     = pShaderWire.bytecode,
+        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .SampleMask             = UINT_MAX,
+        .RasterizerState        = wireRasterDesc,
+        .DepthStencilState      = depthStateDesc,
+        .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
+        .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        .NumRenderTargets       = 1,
+        .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
+        .SampleDesc             = sampleDesc,
+    };
+    GUARDHR(device.obj->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&obj)));
+    return true;
+};
+
+
+
+
 }

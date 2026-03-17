@@ -6,8 +6,8 @@ namespace gpu {
 
 class App: public IApp {
 public:
-    std::unique_ptr<IRenderer> renderer;
     const char* title;
+    std::unique_ptr<IRenderer> renderer;
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
@@ -33,7 +33,7 @@ public:
 
     bool update() {
         FrameData frame = getFrameData();
-        setWindowText("%s: fps: %f period: %.3f", title, 1 / frame.dtAvg, frame.dtAvg);
+        setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
         return renderer->render({.1, .1, .1, 1}, {});
     }
 };

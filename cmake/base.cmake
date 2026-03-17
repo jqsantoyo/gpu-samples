@@ -155,7 +155,8 @@ function(addSample targetName)
     file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/d3d/*.cpp ${dir}/vk/*.cpp)
     file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/d3d/*.hlsl)
     file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/vk/*.vert ${dir}/vk/*.frag ${dir}/vk/*.comp)
-    file(GLOB ASSETS     CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin ${assetsDir}/*.png)
+    file(GLOB TEXTURES   CONFIGURE_DEPENDS ${assetsDir}/*.png)
+    file(GLOB ASSETS     CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin)
 
     message(STATUS "--------------------------------------------------------------------------------")
     message(STATUS "Sample: ${targetName}")
@@ -167,6 +168,7 @@ function(addSample targetName)
     target_shaders_d3d          (${targetName} ${SHADERS})
     target_shaders_vk           (${targetName} ${SHADERS_VK})
     target_assets               (${targetName} ${ASSETS})
+    target_textures             (${targetName} ${TEXTURES})
     target_link_libraries       (${targetName} PRIVATE ${LIBS})
     target_compile_features     (${targetName} PRIVATE cxx_std_20)
     target_compile_definitions  (${targetName} PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -175,7 +177,7 @@ function(addSample targetName)
 
     source_group(TREE ${dir} PREFIX "Source" FILES ${HEADERS} ${SOURCES} ${SHADERS} ${SHADERS_VK})
     source_group("Assets"    FILES ${ASSETS})
-    source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|png|gltf|bin)")
+    source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|dds|gltf|bin)")
 
     add_custom_command(
         TARGET ${targetName} POST_BUILD
@@ -251,6 +253,27 @@ function(target_assets targetName)
         )
     endforeach()
     target_sources(${targetName} PRIVATE ${inAssets} ${outAssets})
+endfunction()
+
+
+# Specify the textures of the target.
+# - Adds input files (.png) and converted .dds files as sources.
+function(target_textures targetName)
+    set(inFiles ${ARGN})
+    get_target_output_dir(${targetName} outputDir)
+    foreach(file IN LISTS inFiles)
+        cmake_path(GET file STEM stem)
+        set(outFile ${outputDir}/${stem}.dds)
+        list(APPEND outFiles ${outFile})
+        add_custom_command(
+            OUTPUT ${outFile}
+            COMMAND texconv -f BC3_UNORM ${file} -o ${outputDir}
+            DEPENDS ${file}
+            MAIN_DEPENDENCY ${file}
+            VERBATIM
+        )
+    endforeach()
+    target_sources(${targetName} PRIVATE ${inFiles} ${outFiles})
 endfunction()
 
 

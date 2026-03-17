@@ -17,10 +17,10 @@ public:
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
         if (useVulkan) {
-            title = "02-objects-vk";
+            title = "03-texture-vk";
             renderer = createRendererVk();
         } else {
-            title = "02-objects";
+            title = "03-texture";
             renderer = createRenderer();
         }
         renderer->init(window, width, height);
@@ -30,8 +30,7 @@ public:
 
         assets = createAssets();
         assets->setup(renderer.get(), scene.get());
-        // assets->load("cube.gltf");
-        assets->load("shapes.gltf");
+        // assets->load("create.gltf");
 
         camera = createCamera();
 

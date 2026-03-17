@@ -299,4 +299,34 @@ private:
 
 
 
+
+class RootSig {
+public:
+    Microsoft::WRL::ComPtr<ID3D12RootSignature> obj;
+    bool initVoid(Device& device);
+    bool initStd(Device& device);
+
+};
+
+
+
+class PipelineBasic {
+public:
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
+    bool init(Device& device, RootSig& sig);
+};
+
+class PipelineFill {
+public:
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
+    bool init(Device& device, RootSig& sig);
+};
+
+class PipelineWire {
+public:
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
+    bool init(Device& device, RootSig& sig);
+};
+
+
 }

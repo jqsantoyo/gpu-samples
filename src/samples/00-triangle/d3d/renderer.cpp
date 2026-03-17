@@ -6,18 +6,12 @@
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
 #endif
-#include <d3dx12.h>
-#include <d3d12.h>
-#include <d3dcommon.h>
-#include <d3dcompiler.h>
-#include <directxmath.h>
-#include <dxgi1_6.h>
+#include <pix3.h>
 #include <windows.h>
 #include <wrl.h>
 #include <shellapi.h>
 #include <string>
 #include <stdio.h>
-#include <pix3.h>
 
 using namespace DirectX;
 using namespace Microsoft::WRL;
@@ -68,39 +62,8 @@ public:
         meshId = meshControl.addMesh(meshDesc);
 
 
-        ////////////////////////////////////////////////////////////////////////////////////////////
-        // PSOs
-        ComPtr<ID3DBlob>            sig;
-        ComPtr<ID3DBlob>            error;
-        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-        rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
-        GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
-        GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
-
-        Shader vShader;
-        Shader pShader;
-        GUARD(vShader.load("shaders_v"));
-        GUARD(pShader.load("shaders_p"));
-
-        D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-            { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-            { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-        };
-        D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
-            .pRootSignature         = rootSignature.Get(),
-            .VS                     = vShader.bytecode,
-            .PS                     = pShader.bytecode,
-            .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
-            .SampleMask             = UINT_MAX,
-            .RasterizerState        = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT),
-            .DepthStencilState      = { .DepthEnable = FALSE, .StencilEnable = FALSE, },
-            .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
-            .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-            .NumRenderTargets       = 1,
-            .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
-            .SampleDesc             = { .Count = 1},
-        };
-        GUARDHR(device.obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
+        GUARD(rootSignature.initVoid(device));
+        GUARD(pso.init(device, rootSignature));
         queue.wait();
         return true;
     }
@@ -120,8 +83,8 @@ public:
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
-        frameControl.begin(pso.Get());
-        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.Get());
+        frameControl.begin(pso.obj.Get());
+        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
         frameControl.cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
@@ -136,7 +99,7 @@ public:
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
         GUARD(frameControl.execute());
-        GUARD(swapchain.present(true));
+        GUARD(swapchain.present(false));
         GUARD(frameControl.end());
         PIXEndEvent();
         frameIdx++;
@@ -150,8 +113,8 @@ private:
     Queue                               queue;
     FrameControl                        frameControl;
     MeshControl                         meshControl;
-    ComPtr<ID3D12RootSignature>         rootSignature;
-    ComPtr<ID3D12PipelineState>         pso;
+    RootSig                             rootSignature;
+    PipelineBasic                       pso;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
     float                               screenAR;
