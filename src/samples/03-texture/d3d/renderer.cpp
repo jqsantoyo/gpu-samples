@@ -37,9 +37,8 @@ public:
         };
 
         GUARD(factory.init());
-        Adapter* adapter = factory.select();
-        GUARD(adapter != nullptr);
-        GUARD(device.init(adapter, frameCount, 0, 100));
+        GUARD(factory.select());
+        GUARD(device.init(factory.getSelected(), frameCount, 0, 100));
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 1));

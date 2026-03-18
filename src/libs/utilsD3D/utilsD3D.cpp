@@ -60,8 +60,7 @@ void Factory::print() {
     }
 }
 
-Adapter* Factory::select() {
-    Adapter* selectedAdapter = nullptr;
+bool Factory::select() {
     size_t maxMemory = 0;
     for (auto& a : adapters) {
         if (a.desc.DedicatedVideoMemory > maxMemory) {
@@ -69,6 +68,10 @@ Adapter* Factory::select() {
             selectedAdapter = &a;
         }
     }
+    return selectedAdapter != nullptr;
+}
+
+Adapter* Factory::getSelected() {
     return selectedAdapter;
 }
 
@@ -328,7 +331,7 @@ bool FrameControl::begin(ID3D12PipelineState* initialState) {
 
 bool FrameControl::execute() {
     Frame& frame = frames[frameIdx];
-    GUARDHR(cmdList->Close());
+    HRESULT res = cmdList->Close();
     queue->execute({ cmdList.Get() });
     return true;
 }
@@ -501,6 +504,20 @@ bool RootSig::initVoid(Device& device) {
     ComPtr<ID3DBlob>            error;
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
+    GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+bool RootSig::init1Cbv(Device& device) {
+    ComPtr<ID3DBlob>            sig;
+    ComPtr<ID3DBlob>            error;
+
+    CD3DX12_ROOT_PARAMETER rootParam[1];
+    rootParam[0].InitAsConstantBufferView(0);
+    
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(1, rootParam, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
     GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
     return true;

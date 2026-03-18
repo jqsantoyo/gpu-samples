@@ -47,9 +47,11 @@ class Factory {
 public:
     bool init();
     void print();
-    Adapter* select();
+    bool select();
+    Adapter* getSelected();
     Microsoft::WRL::ComPtr<IDXGIFactory4>   obj;
     std::vector<Adapter>                    adapters;
+    Adapter*                                selectedAdapter = nullptr;
 };
 
 
@@ -250,6 +252,11 @@ public:
     ID3D12Resource* get() {
         return cb.Get();
     }
+
+    
+    D3D12_GPU_VIRTUAL_ADDRESS get(int idx) {
+        return cb.Get()->GetGPUVirtualAddress() + idx * elementSize;
+    }
     
 private:
     ID3D12Device* device;
@@ -304,6 +311,7 @@ class RootSig {
 public:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> obj;
     bool initVoid(Device& device);
+    bool init1Cbv(Device& device);
     bool initStd(Device& device);
 
 };

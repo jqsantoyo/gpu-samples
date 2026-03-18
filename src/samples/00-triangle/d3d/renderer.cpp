@@ -33,12 +33,13 @@ public:
 
         GUARD(factory.init());
         factory.print();
-        Adapter* adapter = factory.select();
-        GUARD(adapter != nullptr);
-        GUARD(device.init(adapter, frameCount, 0, 0));
+        GUARD(factory.select());
+        GUARD(device.init(factory.getSelected(), frameCount, 0, 0));
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, screenWidth, screenHeight, frameCount));
         GUARD(frameControl.init(device, &queue, 1));
+        GUARD(rootSignature.initVoid(device));
+        GUARD(pso.init(device, rootSignature));
 
         float vertices[] = {
              0.0f,   0.25f * screenAR, 0.0f,
@@ -61,9 +62,6 @@ public:
         };
         meshId = meshControl.addMesh(meshDesc);
 
-
-        GUARD(rootSignature.initVoid(device));
-        GUARD(pso.init(device, rootSignature));
         queue.wait();
         return true;
     }

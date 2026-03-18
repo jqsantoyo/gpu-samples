@@ -37,20 +37,15 @@ public:
         };
 
         GUARD(factory.init());
-        Adapter* adapter = factory.select();
-        GUARD(adapter != nullptr);
-        GUARD(device.init(adapter, frameCount, 0, 100));
+        GUARD(factory.select());
+        GUARD(device.init(factory.getSelected(), frameCount, 0, 100));
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 1));
-
-
-        objectCBuffers.init(device.obj.Get(), 100); 
-        for (int i = 0; i < 100; i++) {
-            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectCBuffers.getBufferViewDesc(i);
-            CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(device.cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-            device.obj->CreateConstantBufferView(&viewDesc, cbvView);
-        }
+        GUARD(rootSignature.init1Cbv(device));
+        GUARD(psoFill.init(device, rootSignature));
+        GUARD(psoWire.init(device, rootSignature));
+        objectCBuffers.init(device.obj.Get(), 100);
 
 
         // ////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,9 +92,6 @@ public:
         // device.obj->CreateDepthStencilView(depthTarget.Get(), &depthViewDesc, device.dsvHeap->GetCPUDescriptorHandleForHeapStart());
 
 
-        GUARD(rootSignature.initStd(device));
-        GUARD(psoFill.init(device, rootSignature));
-        GUARD(psoWire.init(device, rootSignature));
         return true;
     }
 
@@ -178,8 +170,8 @@ public:
                 const RenderItem& item = items[i];
                 int meshId = item.meshId;
                 Mesh& m = meshControl.getMesh(meshId);
-                CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(device.cbvHeap->GetGPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(0, cbv);
+                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectCBuffers.get(i);
+                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
@@ -196,8 +188,8 @@ public:
             for (int i = 0; i < items.size(); i++) {
                 int meshId = items[i].meshId;
                 Mesh& m = meshControl.getMesh(meshId);
-                CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(device.cbvHeap->GetGPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(0, cbv);
+                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectCBuffers.get(i);
+                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
