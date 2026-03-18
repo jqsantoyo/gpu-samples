@@ -55,58 +55,78 @@ public:
             const Mesh& m = model.meshes[i];
             const Primitive& prim = m.primitives[0];
 
+            size_t vCount = 0;
+            BufferView indicesView;
+            BufferView positionView;
+            BufferView uvView;
+            BufferView colorView;
             auto positionAttr = prim.attributes.find("POSITION");
+            auto uvAttr = prim.attributes.find("TEXCOORD_0");
             auto colorAttr = prim.attributes.find("COLOR_0");
-            if (positionAttr == prim.attributes.end() ||
-                colorAttr == prim.attributes.end()
-            ) {
-                printf("Assets:: model[%s]::mesh[%d] missing attributes", filename.c_str(), i);
-                break;
+            if (positionAttr != prim.attributes.end()) {
+                Accessor& indicesAcc = model.accessors[prim.indices];
+                Accessor& positionAcc = model.accessors[positionAttr->second];
+                if (indicesAcc.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
+                    printf("Assets:: model[%s]::mesh[%d] indices are not u16", filename.c_str(), i);
+                    break;
+                }
+                if (positionAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
+                    positionAcc.type != TINYGLTF_TYPE_VEC3
+                ) {
+                    printf("Assets:: model[%s]::mesh[%d] positions are not vec3f", filename.c_str(), i);
+                    break;
+                }
+                indicesView = model.bufferViews[indicesAcc.bufferView];
+                positionView = model.bufferViews[positionAcc.bufferView];
+                if (indicesView.byteStride != 0) {
+                    printf("Assets:: model[%s]::mesh[%d] indices has invalid stride", filename.c_str(), i);
+                    break;
+                }
+                if (positionView.byteStride != 0) {
+                    printf("Assets:: model[%s]::mesh[%d] position has invalid stride", filename.c_str(), i);
+                    break;
+                }
+                vCount = indicesAcc.count;
+            } else {
+                printf("Assets:: model[%s]::mesh[%d] missing position attribute", filename.c_str(), i);
             }
 
-            Accessor& indicesAcc = model.accessors[prim.indices];
-            Accessor& positionAcc = model.accessors[positionAttr->second];
-            Accessor& colorAcc = model.accessors[colorAttr->second];
-
-            if (indicesAcc.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
-                printf("Assets:: model[%s]::mesh[%d] indices are not u16", filename.c_str(), i);
-                break;
-            }
-            if (positionAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
-                positionAcc.type != TINYGLTF_TYPE_VEC3
-            ) {
-                printf("Assets:: model[%s]::mesh[%d] positions are not vec3f", filename.c_str(), i);
-                break;
-            }
-            if (colorAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
-                colorAcc.type != TINYGLTF_TYPE_VEC3
-            ) {
-                printf("Assets:: model[%s]::mesh[%d] colors are not vec3f", filename.c_str(), i);
-                break;
+            if (uvAttr != prim.attributes.end()) {
+                Accessor& uvAcc = model.accessors[uvAttr->second];
+                if (uvAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
+                    uvAcc.type != TINYGLTF_TYPE_VEC2
+                ) {
+                    printf("Assets:: model[%s]::mesh[%d] uvs are not vec2f", filename.c_str(), i);
+                    break;
+                }
+                uvView = model.bufferViews[uvAcc.bufferView];
+                if (uvView.byteStride != 0) {
+                    printf("Assets:: model[%s]::mesh[%d] uv has invalid stride", filename.c_str(), i);
+                    break;
+                }
             }
 
-            BufferView& indicesView = model.bufferViews[indicesAcc.bufferView];
-            BufferView& positionView = model.bufferViews[positionAcc.bufferView];
-            BufferView& colorView = model.bufferViews[colorAcc.bufferView];
+            if (colorAttr != prim.attributes.end()) {
+                Accessor& colorAcc = model.accessors[colorAttr->second];
+                if (colorAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
+                    colorAcc.type != TINYGLTF_TYPE_VEC3
+                ) {
+                    printf("Assets:: model[%s]::mesh[%d] colors are not vec3f", filename.c_str(), i);
+                    break;
+                }
+                colorView = model.bufferViews[colorAcc.bufferView];
+                if (colorView.byteStride != 0) {
+                    printf("Assets:: model[%s]::mesh[%d] color has invalid stride", filename.c_str(), i);
+                    break;
+                }
+            }
+
             
-            
-            if (indicesView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] indices has invalid stride", filename.c_str(), i);
-                break;
-            }
-            if (positionView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] position has invalid stride", filename.c_str(), i);
-                break;
-            }
-            if (colorView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] color has invalid stride", filename.c_str(), i);
-                break;
-            }
 
             std::string key = filename + m.name;
             MeshDesc meshDesc = {
                 .bufferId = bufferId,
-                .vCount = indicesAcc.count,
+                .vCount = vCount,
                 .indices = {
                     .offset = indicesView.byteOffset,
                     .size = indicesView.byteLength,
@@ -114,6 +134,10 @@ public:
                 .position = {
                     .offset = positionView.byteOffset,
                     .size = positionView.byteLength,
+                },
+                .uv = {
+                    .offset = uvView.byteOffset,
+                    .size = uvView.byteLength,
                 },
                 .color = {
                     .offset = colorView.byteOffset,

@@ -287,6 +287,7 @@ struct Mesh {
     size_t                      vCount;
     D3D12_INDEX_BUFFER_VIEW     indicesView;
     D3D12_VERTEX_BUFFER_VIEW    positionView;
+    D3D12_VERTEX_BUFFER_VIEW    uvView;
     D3D12_VERTEX_BUFFER_VIEW    colorView;
 };
 
@@ -303,6 +304,23 @@ private:
     std::vector<Mesh>   meshes;
 };
 
+struct Texture {
+    Microsoft::WRL::ComPtr<ID3D12Resource> res;
+    Microsoft::WRL::ComPtr<ID3D12Resource> resUp;
+};
+
+class TextureRegistry {
+public:
+    bool init(Device* device, Queue* queue);
+    int addTexture(const char* filename);
+    Texture& get(int idx);
+private:
+    Device* device;
+    Queue* queue;
+    std::vector<Texture> textures;
+    Microsoft::WRL::ComPtr<ID3D12CommandAllocator>  cmdAllocator;
+    Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   cmdList;
+};
 
 
 
@@ -312,7 +330,7 @@ public:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> obj;
     bool initVoid(Device& device);
     bool init1Cbv(Device& device);
-    bool initStd(Device& device);
+    bool init1Cbv1TableNSamplers(Device& device);
 
 };
 
@@ -331,6 +349,12 @@ public:
 };
 
 class PipelineWire {
+public:
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
+    bool init(Device& device, RootSig& sig);
+};
+
+class PipelineTex {
 public:
     Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
     bool init(Device& device, RootSig& sig);

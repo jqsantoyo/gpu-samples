@@ -1,5 +1,6 @@
 #include "utilsD3D.h"
 #include <utils/utils.h>
+#include <ddsTextureLoader/DDSTextureLoader12.h>
 using namespace DirectX;
 using namespace Microsoft::WRL;
 
@@ -470,6 +471,11 @@ int MeshControl::addMesh(const MeshDesc& desc) {
             .SizeInBytes = static_cast<uint32_t>(desc.position.size),
             .StrideInBytes = sizeof(float) * 3,
         },
+        .uvView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.uv.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.uv.size),
+            .StrideInBytes = sizeof(float) * 2,
+        },
         .colorView = {
             .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.color.offset,
             .SizeInBytes = static_cast<uint32_t>(desc.color.size),
@@ -482,6 +488,95 @@ int MeshControl::addMesh(const MeshDesc& desc) {
 Mesh& MeshControl::getMesh(int idx) {
     return meshes[idx];
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+bool TextureRegistry::init(Device* device, Queue* queue) {
+    this->device = device;
+    this->queue = queue;
+    GUARDHR(device->obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&cmdAllocator)));
+    GUARDHR(device->obj->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
+    GUARDHR(cmdList->Close());
+    return true;
+}
+
+int TextureRegistry::addTexture(const char* filename) {
+    textures.push_back({});
+    Texture& texture = textures.back();
+
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources;
+    std::vector<uint8_t> data;
+    GUARD(readFile(filename, data));
+
+    HRESULT res = LoadDDSTextureFromMemory(device->obj.Get(), data.data(), data.size(), texture.res.GetAddressOf(), subresources);
+    D3D12_CPU_DESCRIPTOR_HANDLE descriptor = device->cbvHeap->GetCPUDescriptorHandleForHeapStart();
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+        .Format = texture.res->GetDesc().Format,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = texture.res->GetDesc().MipLevels,
+            .PlaneSlice = 0,
+            .ResourceMinLODClamp = 0.0f,
+        }
+    };
+    device->obj->CreateShaderResourceView(texture.res.Get(), &srvDesc, descriptor);
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.res.Get(), 0, subresources.size());
+    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+    GUARDHR(device->obj->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&texture.resUp)));
+    GUARDHR(cmdAllocator->Reset());
+    GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
+    auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->ResourceBarrier(1, &barr0);
+    UpdateSubresources(cmdList.Get(), texture.res.Get(), texture.resUp.Get(), 0, 0, subresources.size(), subresources.data());
+    cmdList->ResourceBarrier(1, &barr1);
+    HRESULT res2 = cmdList->Close();
+    queue->execute({ cmdList.Get() });
+    return textures.size() - 1;
+}
+
+Texture& TextureRegistry::get(int idx) {
+    return textures[idx];
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -523,17 +618,20 @@ bool RootSig::init1Cbv(Device& device) {
     return true;
 }
 
-bool RootSig::initStd(Device& device) {
+bool RootSig::init1Cbv1TableNSamplers(Device& device) {
     ComPtr<ID3DBlob>            sig;
     ComPtr<ID3DBlob>            error;
 
-    CD3DX12_DESCRIPTOR_RANGE cbvTable;
-    cbvTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0);
-    CD3DX12_ROOT_PARAMETER rootParam[1];
-    rootParam[0].InitAsDescriptorTable(1, &cbvTable);
+    CD3DX12_DESCRIPTOR_RANGE descTable;
+    descTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+    CD3DX12_ROOT_PARAMETER rootParam[2];
+    rootParam[0].InitAsConstantBufferView(0);
+    rootParam[1].InitAsDescriptorTable(1, &descTable);
     
+    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(1, rootParam, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(2, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
     GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
     return true;
@@ -550,7 +648,7 @@ bool PipelineBasic::init(Device& device, RootSig& sig) {
 
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "COLOR",    0, DXGI_FORMAT_R32G32B32A32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+        { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 1, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
     };
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {
         .pRootSignature         = sig.obj.Get(),
@@ -700,6 +798,60 @@ bool PipelineWire::init(Device& device, RootSig& sig) {
     GUARDHR(device.obj->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&obj)));
     return true;
 };
+
+
+
+bool PipelineTex::init(Device& device, RootSig& sig) {
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    Shader vShader;
+    Shader pShader;
+    GUARD(vShader.load("shaders_v"));
+    GUARD(pShader.load("shaders_p"));
+
+    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "UV",    0, DXGI_FORMAT_R32G32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+    };
+    D3D12_RASTERIZER_DESC wireRasterDesc = {
+        .FillMode               = D3D12_FILL_MODE_SOLID,
+        .CullMode               = D3D12_CULL_MODE_NONE,
+        .FrontCounterClockwise  = FALSE,
+        .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
+        .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        .SlopeScaledDepthBias   = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        .DepthClipEnable        = TRUE,
+        .MultisampleEnable      = FALSE,
+        .AntialiasedLineEnable  = FALSE,
+        .ForcedSampleCount      = 0,
+        .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+    };
+    D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
+        .DepthEnable        = TRUE,
+        .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        .StencilEnable      = FALSE,
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoWireDesc = {
+        .pRootSignature         = sig.obj.Get(),
+        .VS                     = vShader.bytecode,
+        .PS                     = pShader.bytecode,
+        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .SampleMask             = UINT_MAX,
+        .RasterizerState        = wireRasterDesc,
+        .DepthStencilState      = depthStateDesc,
+        .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
+        .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        .NumRenderTargets       = 1,
+        .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
+        .SampleDesc             = sampleDesc,
+    };
+    GUARDHR(device.obj->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&obj)));
+    return true;
+};
+
 
 
 

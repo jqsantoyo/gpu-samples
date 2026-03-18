@@ -4,38 +4,30 @@ cbuffer ObjectData : register(b0)
     float4 v;
 };
 
+Texture2D diffuse : register(t0);
+SamplerState samplerLinearWrap : register(s0);
 
 struct VSInput
 {
     float3 position : POSITION;
-    float3 color : COLOR;
+    float2 uv : UV;
 };
 
 struct PSInput
 {
     float4 position : SV_POSITION;
-    float4 color : COLOR;
+    float2 uv : UV;
 };
 
 PSInput VSMain(VSInput input)
 {
-    float4x4 test =
-    {
-        .61, 0, 0, 0,
-        0, .61, 0, 0,
-        0, 0, .61, 0,
-        0, 0, 0, 1
-    };
     PSInput output;
-    // output.position = float4(input.position, 1);
-    // output.position = mul(float4(input.position, 1), mvp);
     output.position = mul(mvp, float4(input.position, 1));
-    output.color = float4(input.color, 1);
+    output.uv = input.uv;
     return output;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return input.color;
-    // return v;
+    return diffuse.Sample(samplerLinearWrap, input.uv);
 }

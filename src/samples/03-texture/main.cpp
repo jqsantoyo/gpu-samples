@@ -30,7 +30,7 @@ public:
 
         assets = createAssets();
         assets->setup(renderer.get(), scene.get());
-        // assets->load("create.gltf");
+        assets->load("crate.gltf");
 
         camera = createCamera();
 

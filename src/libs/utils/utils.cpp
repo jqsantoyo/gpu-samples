@@ -32,4 +32,23 @@ std::string getAssetsPath() {
 uint32_t align256(uint32_t x) {
     return (x + 255) & ~255;
 }
+
+bool readFile(const char* filename, std::vector<uint8_t>& data) {
+    std::string path = getAssetsPath() + filename;
+    FILE* file;
+    errno_t err = fopen_s(&file, path.c_str(), "rb");
+    if (err != 0 || file == nullptr) {
+        return false;
+    }
+
+    fseek(file, 0, SEEK_END);
+    size_t size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    
+    data.resize(size);
+    fread(data.data(), size, 1, file);
+    fclose(file);
+    return true;
+}
+
 }

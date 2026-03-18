@@ -11,6 +11,8 @@
         { "name": "[debug] 01-compute-vk",  "program": "${workspaceFolder}/.build/debug/01-compute/02-compute-vk.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 02-objects",     "program": "${workspaceFolder}/.build/debug/02-objects/02-objects.exe",    "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] 02-objects-vk",  "program": "${workspaceFolder}/.build/debug/02-objects/02-objects-vk.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 03-texture",     "program": "${workspaceFolder}/.build/debug/03-texture/03-texture.exe",    "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] 03-texture-vk",  "program": "${workspaceFolder}/.build/debug/03-texture/03-texture-vk.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
 
     ]
 }

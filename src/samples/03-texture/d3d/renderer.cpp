@@ -16,7 +16,6 @@ namespace gpu {
 
 struct ObjectData {
     XMFLOAT4X4 mvp;
-    float v[4];
 };
 
 
@@ -35,70 +34,24 @@ public:
             .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
             .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
         };
-
         GUARD(factory.init());
         GUARD(factory.select());
-        GUARD(device.init(factory.getSelected(), frameCount, 0, 100));
+        GUARD(device.init(factory.getSelected(), frameCount, 1, 100));
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 1));
+        GUARD(rootSignature.init1Cbv1TableNSamplers(device));
+        GUARD(pso.init(device, rootSignature));
+        GUARD(depthBuffer.init(device, width, height));
+        GUARD(textures.init(&device, &queue));
+        objectConstants.init(device.obj.Get(), 100);
+
+        int texIdx = textures.addTexture("crate.dds");
+
+        queue.wait();
 
 
-        objectConstants.init(device.obj.Get(), 100); 
-        for (int i = 0; i < 100; i++) {
-            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectConstants.getBufferViewDesc(i);
-            CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(device.cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-            device.obj->CreateConstantBufferView(&viewDesc, cbvView);
-        }
 
-
-        // ////////////////////////////////////////////////////////////////////////////////////////////
-        // // Depth
-        // D3D12_RESOURCE_DESC depthDesc = {
-        //     .Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
-        //     .Alignment          = 0,
-        //     .Width              = width,
-        //     .Height             = height,
-        //     .DepthOrArraySize   = 1,
-        //     .MipLevels          = 1,
-        //     .Format             = DXGI_FORMAT_D32_FLOAT,
-        //     .SampleDesc         = sampleDesc,
-        //     .Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN,
-        //     .Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
-        // };
-        // D3D12_CLEAR_VALUE optClear = {
-        //     .Format = DXGI_FORMAT_D32_FLOAT,
-        //     .DepthStencil = { .Depth = 1, .Stencil = 0 },
-        // };
-        // CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
-        // GUARDHR(device->CreateCommittedResource(
-        //     &defaultHeap,
-        //     D3D12_HEAP_FLAG_NONE,
-        //     &depthDesc,
-        //     D3D12_RESOURCE_STATE_COMMON,
-        //     &optClear,
-        //     IID_PPV_ARGS(depthTarget.GetAddressOf())
-        // ));
-        // auto barrDepth = CD3DX12_RESOURCE_BARRIER::Transition(depthTarget.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-
-        // ID3D12CommandList* cmdLists[] = { cmdList.Get() };
-        // cmdList->ResourceBarrier(1, &barrDepth);
-        // GUARDHR(cmdList.Get()->Close());
-        // cmdQueue->ExecuteCommandLists(_countof(cmdLists), cmdLists);
-        // GUARD(waitForPreviousFrame());
-
-        // D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
-        //     .Format         = DXGI_FORMAT_D32_FLOAT,
-        //     .ViewDimension  = D3D12_DSV_DIMENSION_TEXTURE2D,
-        //     .Flags          = D3D12_DSV_FLAG_NONE,
-        //     .Texture2D      = { .MipSlice = 0 },
-        // };
-        // device.obj->CreateDepthStencilView(depthTarget.Get(), &depthViewDesc, device.dsvHeap->GetCPUDescriptorHandleForHeapStart());
-
-
-        GUARD(rootSignature.initStd(device));
-        GUARD(psoFill.init(device, rootSignature));
-        GUARD(psoWire.init(device, rootSignature));
         return true;
     }
 
@@ -127,7 +80,7 @@ public:
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
-        // D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
         auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         ID3D12DescriptorHeap* heaps[] = { device.cbvHeap.Get() };
@@ -136,9 +89,9 @@ public:
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
         frameControl.cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
-        frameControl.cmdList->OMSetRenderTargets(1, &target.view, 0, nullptr);//&depthView);
+        frameControl.cmdList->OMSetRenderTargets(1, &target.view, 1, &depthView);
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
-        // frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+        frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
         frameControl.cmdList->SetDescriptorHeaps(1, heaps);
 
         
@@ -146,69 +99,44 @@ public:
             const RenderItem& item = items[i];
             int meshId = item.meshId;
             Mesh& m = meshControl.getMesh(meshId);
-            ObjectData objectData = {
-                {},
-                {1, 0, 0, 1},
-            };
-            
+    
             XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
             q = XMQuaternionNormalize(q);
             XMMATRIX S = XMMatrixScaling(item.scale[0], item.scale[1], -item.scale[2]);
             XMMATRIX R = XMMatrixRotationQuaternion(q);
             XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
             XMMATRIX model = S * R * T;
-            
+
             XMMATRIX view = XMLoadFloat4x4(&viewMat);
             XMMATRIX proj = XMLoadFloat4x4(&projMat);
             XMMATRIX mat = model * view * proj;
-            // XMMATRIX mat = XMMatrixIdentity();
 
+            ObjectData objectData = {};
             XMStoreFloat4x4(&objectData.mvp, mat);
             // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
             objectConstants.set(i, objectData);
         }
 
-        if (fillMode == Fill || fillMode == FillWire) {
-            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Fill %llu", frameIdx);
-            frameControl.cmdList->SetPipelineState(psoFill.obj.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            for (int i = 0; i < items.size(); i++) {
-                const RenderItem& item = items[i];
-                int meshId = item.meshId;
-                Mesh& m = meshControl.getMesh(meshId);
-                CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(device.cbvHeap->GetGPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(0, cbv);
-                frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
-                frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
-            }
-            // PIXEndEvent(queue.obj.Get());
-        }
-
-        if (fillMode == Wire || fillMode == FillWire) {
-            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
-            frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            for (int i = 0; i < items.size(); i++) {
-                int meshId = items[i].meshId;
-                Mesh& m = meshControl.getMesh(meshId);
-                CD3DX12_GPU_DESCRIPTOR_HANDLE cbv(device.cbvHeap->GetGPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(0, cbv);
-                frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
-                frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
-            }
-            // PIXEndEvent(queue.obj.Get());
+        frameControl.cmdList->SetPipelineState(pso.obj.Get());
+        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
+        frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        for (int i = 0; i < items.size(); i++) {
+            const RenderItem& item = items[i];
+            int meshId = item.meshId;
+            Mesh& m = meshControl.getMesh(meshId);
+            D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.get(i);
+            frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
+            frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
+            frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
+            frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
+            frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
         }
 
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
         GUARD(frameControl.execute());
-        GUARD(swapchain.present(true));
+        GUARD(swapchain.present(false));
         GUARD(frameControl.end());
         PIXEndEvent();
         frameIdx++;
@@ -232,13 +160,13 @@ private:
     Factory                             factory;
     Device                              device;
     Swapchain                           swapchain;
+    DepthBuffer                         depthBuffer;
     Queue                               queue;
     FrameControl                        frameControl;
     MeshControl                         meshControl;
-    ComPtr<ID3D12Resource>              depthTarget;
+    TextureRegistry                     textures;
     RootSig                             rootSignature;
-    PipelineFill                        psoFill;
-    PipelineWire                        psoWire;
+    PipelineTex                         pso;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
     float                               screenAR;
@@ -252,5 +180,3 @@ std::unique_ptr<IRenderer> createRenderer() {
     return std::make_unique<RendererD3D>();
 }
 }
-
-// 563

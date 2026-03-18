@@ -58,7 +58,7 @@ public:
             .position   = { 0, sizeof(float) * 3 * 3 },
             .normal     = { 0, 0 },
             .uv         = { 0, 0 },
-            .color      = { sizeof(float) * 3 * 3, sizeof(float) * 4 * 3 },
+            .color      = { sizeof(float) * 3 * 3, sizeof(float) * 3 * 3 },
         };
         meshId = meshControl.addMesh(meshDesc);
 

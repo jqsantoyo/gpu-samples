@@ -10,6 +10,7 @@ Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing
 | **00-triangle**       |                 | vertex color             |  |
 | **01-compute**        |                 |                          |  |
 | **02-objects**        | ✓               | vertex color             |  |
+| **03-texture**        | ✓               | diffuse texture          |  |
 
 | Libraries         | Internal |
 |-------------------|----------|
@@ -26,10 +27,17 @@ Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing
 | dxgi              |          |
 | d3dcompiler       |          |
 | d3dx12            |          |
+| ddsTextureLoader  |          |
+| pixEvents         |          |
 | tinygltf          |          |
 
 
 ## Build and Run
+
+Ensure the following programs are installed:
+```
+texconv
+```
 
 Ensure the following environment variables are defined:
 ```
