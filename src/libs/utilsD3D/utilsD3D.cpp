@@ -113,9 +113,9 @@ bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount)
     // }
     GUARDHR(D3D12CreateDevice(adapter->obj, D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&obj)));
     if (SUCCEEDED(obj.As(&iq))) {
-        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
-        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
-        // iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
+        iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, TRUE);
+        iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
+        iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
     }
     
     rtvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -703,5 +703,46 @@ bool PipelineWire::init(Device& device, RootSig& sig) {
 
 
 
+
+
+
+
+bool DepthBuffer::init(Device& device, uint64_t width, uint32_t height) {
+    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
+    D3D12_RESOURCE_DESC depthDesc = {
+        .Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Alignment          = 0,
+        .Width              = width,
+        .Height             = height,
+        .DepthOrArraySize   = 1,
+        .MipLevels          = 1,
+        .Format             = DXGI_FORMAT_D32_FLOAT,
+        .SampleDesc         = sampleDesc,
+        .Layout             = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        .Flags              = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+    };
+    CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+    D3D12_CLEAR_VALUE optClear = {
+        .Format = DXGI_FORMAT_D32_FLOAT,
+        .DepthStencil = { .Depth = 1, .Stencil = 0 },
+    };
+    GUARDHR(device.obj->CreateCommittedResource(
+        &defaultHeap,
+        D3D12_HEAP_FLAG_NONE,
+        &depthDesc,
+        // D3D12_RESOURCE_STATE_COMMON,
+        D3D12_RESOURCE_STATE_DEPTH_WRITE,
+        &optClear,
+        IID_PPV_ARGS(obj.GetAddressOf())
+    ));
+    D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
+        .Format         = DXGI_FORMAT_D32_FLOAT,
+        .ViewDimension  = D3D12_DSV_DIMENSION_TEXTURE2D,
+        .Flags          = D3D12_DSV_FLAG_NONE,
+        .Texture2D      = { .MipSlice = 0 },
+    };
+    device.obj->CreateDepthStencilView(obj.Get(), &depthViewDesc, device.dsvHeap->GetCPUDescriptorHandleForHeapStart());
+    return true;
+}
 
 }

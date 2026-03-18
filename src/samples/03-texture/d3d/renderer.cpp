@@ -44,9 +44,9 @@ public:
         GUARD(frameControl.init(device, &queue, 1));
 
 
-        objectCBuffers.init(device.obj.Get(), 100); 
+        objectConstants.init(device.obj.Get(), 100); 
         for (int i = 0; i < 100; i++) {
-            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectCBuffers.getBufferViewDesc(i);
+            D3D12_CONSTANT_BUFFER_VIEW_DESC viewDesc = objectConstants.getBufferViewDesc(i);
             CD3DX12_CPU_DESCRIPTOR_HANDLE cbvView(device.cbvHeap->GetCPUDescriptorHandleForHeapStart(), i, device.cbvDescSize);
             device.obj->CreateConstantBufferView(&viewDesc, cbvView);
         }
@@ -165,7 +165,7 @@ public:
 
             XMStoreFloat4x4(&objectData.mvp, mat);
             // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
-            objectCBuffers.set(i, objectData);
+            objectConstants.set(i, objectData);
         }
 
         if (fillMode == Fill || fillMode == FillWire) {
@@ -243,7 +243,7 @@ private:
     D3D12_RECT                          scissorRect;
     float                               screenAR;
     FillMode                            fillMode = Fill;
-    CBuffer<ObjectData>                 objectCBuffers;
+    CBuffer<ObjectData>                 objectConstants;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;
 };

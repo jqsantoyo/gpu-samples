@@ -337,4 +337,13 @@ public:
 };
 
 
+class DepthBuffer {
+public:
+    bool init(Device& device, uint64_t width, uint32_t height);
+private:
+    Microsoft::WRL::ComPtr<ID3D12Resource> obj;
+};
+
+
+
 }
