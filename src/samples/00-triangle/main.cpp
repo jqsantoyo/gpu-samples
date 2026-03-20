@@ -1,5 +1,5 @@
-#include "app/app.h"
-#include "renderer/renderer.h"
+#include "utils/app.h"
+#include "utils/renderer.h"
 #include "string.h"
 
 namespace gpu {

@@ -1,6 +1,6 @@
-#include <renderer/renderer.h>
-#include <app/app.h>
 #include <utils/utils.h>
+#include <utils/app.h>
+#include <utils/renderer.h>
 #include <utilsD3D/utilsD3D.h>
 #define UNICODE
 #ifndef WIN32_LEAN_AND_MEAN

@@ -1,7 +1,7 @@
-#include <app/app.h>
-#include <renderer/renderer.h>
-#include <assets/assets.h>
-#include <camera/camera.h>
+#include <utils/app.h>
+#include <utils/renderer.h>
+#include <utils/assets.h>
+#include <utils/camera.h>
 #include <string>
 
 namespace gpu {
