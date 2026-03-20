@@ -11,6 +11,7 @@ Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing
 | **01-compute**        |                 |                          |  |
 | **02-objects**        | ✓               | vertex color             |  |
 | **03-texture**        | ✓               | diffuse texture          |  |
+| **04-forward**        | ✓               |                          |  |
 
 | Libraries         | Internal |
 |-------------------|----------|

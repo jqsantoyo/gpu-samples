@@ -43,7 +43,6 @@ addExternal(tinygltf URL https://github.com/syoyo/tinygltf.git TAG v2.9.7)
 
 addInterface(d3dx12)
 
-addInterface(input      )
 addInterface(renderer   )
 addLibrary  (utils      )
 addLibrary  (app        )
@@ -58,3 +57,4 @@ addSample   (00-triangle        LIBS app renderer utils pixEvents)
 addSample   (01-compute         LIBS)
 addSample   (02-objects         LIBS app renderer utils pixEvents assets scene camera)
 addSample   (03-texture         LIBS app renderer utils pixEvents assets scene camera ddsTextureLoader)
+addSample   (04-forward         LIBS app renderer utils pixEvents assets scene camera ddsTextureLoader)

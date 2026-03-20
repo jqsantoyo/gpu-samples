@@ -149,7 +149,7 @@ function(addSample targetName)
     
     get_target_output_dir(${targetName} outputDir)
     set(dir             ${CMAKE_SOURCE_DIR}/src/samples/${targetName})
-    set(assetsDir       ${CMAKE_SOURCE_DIR}/src/samples/${targetName}/assets)
+    set(assetsDir       ${CMAKE_SOURCE_DIR}/src/assets)
     set(LIBS            ${arg_LIBS} utilsD3D d3d12 d3dx12 dxgi d3dcompiler utilsVk vulkan)
     file(GLOB HEADERS    CONFIGURE_DEPENDS ${dir}/*.h)
     file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/d3d/*.cpp ${dir}/vk/*.cpp)
@@ -160,7 +160,7 @@ function(addSample targetName)
 
     message(STATUS "--------------------------------------------------------------------------------")
     message(STATUS "Sample: ${targetName}")
-    printList(HEADERS SOURCES SHADERS SHADERS_VK LIBS)
+    printList(HEADERS SOURCES SHADERS SHADERS_VK LIBS TEXTURES ASSETS)
 
     add_executable              (${targetName})
     target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs ${dir})

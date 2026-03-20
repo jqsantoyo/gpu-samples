@@ -40,11 +40,19 @@ public:
         GUARD(queue.init(device, queueDesc));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 1));
-        GUARD(rootSignature.init1Cbv(device));
-        GUARD(psoFill.init(device, rootSignature));
+        GUARD(rootSignature.init1Cbv1TableNSamplers(device));
+        GUARD(pso.init(device, rootSignature));
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
+        GUARD(textures.init(&device, &queue));
         objectConstants.init(device.obj.Get(), 100);
+
+        int texIdx = textures.addTexture("crate.dds");
+
+        queue.wait();
+
+
+
         return true;
     }
 
@@ -111,9 +119,9 @@ public:
         }
 
         if (fillMode == Fill || fillMode == FillWire) {
-            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Fill %llu", frameIdx);
-            frameControl.cmdList->SetPipelineState(psoFill.obj.Get());
+            frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < items.size(); i++) {
                 const RenderItem& item = items[i];
@@ -123,16 +131,16 @@ public:
                 frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
+                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
                 frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
             }
-            // PIXEndEvent(queue.obj.Get());
         }
 
         if (fillMode == Wire || fillMode == FillWire) {
             // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
             frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < items.size(); i++) {
                 int meshId = items[i].meshId;
@@ -141,7 +149,9 @@ public:
                 frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
+                // frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
                 frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
+                // device.printErrors();
             }
             // PIXEndEvent(queue.obj.Get());
         }
@@ -149,7 +159,7 @@ public:
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
         GUARD(frameControl.execute());
-        GUARD(swapchain.present(true));
+        GUARD(swapchain.present(false));
         GUARD(frameControl.end());
         PIXEndEvent();
         frameIdx++;
@@ -177,8 +187,9 @@ private:
     Queue                               queue;
     FrameControl                        frameControl;
     MeshControl                         meshControl;
+    TextureRegistry                     textures;
     RootSig                             rootSignature;
-    PipelineFill                        psoFill;
+    PipelineTex                         pso;
     PipelineWire                        psoWire;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
@@ -193,5 +204,3 @@ std::unique_ptr<IRenderer> createRenderer() {
     return std::make_unique<RendererD3D>();
 }
 }
-
-// 563
