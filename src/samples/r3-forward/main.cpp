@@ -16,20 +16,16 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
-        if (useVulkan) {
-            title = "04-forward-vk";
-            renderer = createRendererVk();
-        } else {
-            title = "04-forward";
-            renderer = createRenderer();
-        }
+        title = useVulkan ? "03-forward-vk" : "03-forward";
+
+        renderer = createRenderer(useVulkan);
         renderer->init(window, width, height);
         renderer->setFillMode(FillWire);
 
         scene = createScene();
 
         assets = createAssets();
-        assets->setup(renderer.get(), scene.get());
+        assets->init(renderer.get(), scene.get());
         assets->load("crate.gltf");
 
         camera = createCamera();
@@ -40,24 +36,11 @@ public:
 
     bool update() {
         FrameData frame = getFrameData();
+        float aspect = (float)512 / (float)512;
+        vec3 pos = camera->getCartesian();
         setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
-        float posX;
-        float posY;
-        float posZ;
-        camera->getCartesian(posX, posY, posZ);
-        ViewDesc viewDesc = {
-            { posX, posY, posZ },
-            { 0, 0, 0 },
-            { 0, 1, 0 },
-        };
-        ProjectionDesc projDesc = {
-            .fovAngleY = 3.14159 / 4.0f,
-            .aspectRatio = (float)512 / (float)512,
-            .nearZ = 0.1f,
-            .farZ = 100.0f,
-        };
-        renderer->setView(viewDesc);
-        renderer->setProjection(projDesc);
+        renderer->setView(pos, { 0, 0, 0 }, { 0, 1, 0 });
+        renderer->setProjection(3.14159 / 4.0f, aspect, 0.1f, 100.0f);
         return renderer->render({ 0.1f, 0.1f, 0.1f, 1.0f }, scene->get());
     }
 

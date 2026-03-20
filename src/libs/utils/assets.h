@@ -10,7 +10,7 @@ namespace gpu {
 class IAssets {
 public:
     virtual ~IAssets() = default;
-    virtual void setup(IRenderer* renderer, IScene* scene) = 0;
+    virtual void init(IRenderer* renderer, IScene* scene) = 0;
     virtual bool load(const std::string& filename) = 0;
 private:
 

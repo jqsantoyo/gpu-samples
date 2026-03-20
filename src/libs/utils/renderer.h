@@ -1,21 +1,9 @@
 #pragma once
+#include <utils/utils.h>
 #include <memory>
 #include <vector>
 
 namespace gpu {
-
-struct ViewDesc {
-    float pos[3];
-    float target[3];
-    float up[3];
-};
-
-struct ProjectionDesc {
-    float fovAngleY;
-    float aspectRatio;
-    float nearZ;
-    float farZ;
-};
 
 struct BufferDesc {
     size_t offset;
@@ -72,13 +60,14 @@ public:
     virtual bool render(const Color& clearColor, const std::vector<RenderItem>& items) = 0;
 
     virtual void setFillMode(FillMode mode) {}
-    virtual void setView(ViewDesc& desc) {};
-    virtual void setProjection(ProjectionDesc& desc) {};
+    virtual void setView(vec3 pos, vec3 target, vec3 up) {};
+    virtual void setProjection(float fovY, float aspect, float nearZ, float farZ) {};
     virtual int addBuffer(const BufferDesc& desc) { return -1; };
     virtual int addMesh(const MeshDesc& desc) { return -1; };
 };
 
-std::unique_ptr<IRenderer> createRenderer();
+std::unique_ptr<IRenderer> createRenderer(bool vulkan);
+std::unique_ptr<IRenderer> createRendererD3D();
 std::unique_ptr<IRenderer> createRendererVk();
 
 

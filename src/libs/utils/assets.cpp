@@ -16,7 +16,7 @@ namespace gpu {
 class Assets: public IAssets {
 public:
 
-    void setup(IRenderer* renderer, IScene* scene) {
+    void init(IRenderer* renderer, IScene* scene) {
         this->renderer = renderer;
         this->scene = scene;
     }

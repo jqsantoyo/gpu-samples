@@ -1,6 +1,7 @@
 #pragma once
-#include <memory>
+#include <utils/utils.h>
 #include <utils/app.h>
+#include <memory>
 
 namespace gpu {
 
@@ -12,7 +13,7 @@ public:
     virtual void updateRadius(float dr) = 0;
     virtual void updateTheta(float dTheta) = 0;
     virtual void updatePhi(float dPhi) = 0;
-    virtual void getCartesian(float& x, float& y, float& z) = 0;
+    virtual vec3 getCartesian() = 0;
     virtual void mouseEvent(MouseEvent event) = 0;
 };
 

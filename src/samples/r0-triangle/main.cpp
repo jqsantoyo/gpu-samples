@@ -11,13 +11,9 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
-        if (useVulkan) {
-            title = "00-triangle-vk";
-            renderer = createRendererVk();
-        } else {
-            title = "00-triangle";
-            renderer = createRenderer();
-        }
+        title = useVulkan ? "00-triangle-vk" : "00-triangle";
+        
+        renderer = createRenderer(useVulkan);
         renderer->init(window, width, height);
         return true;
     }

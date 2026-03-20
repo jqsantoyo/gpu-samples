@@ -119,7 +119,7 @@ private:
     int                                 meshId;
 };
 
-std::unique_ptr<IRenderer> createRenderer() {
+std::unique_ptr<IRenderer> createRendererD3D() {
     return std::make_unique<RendererD3D>();
 }
 }

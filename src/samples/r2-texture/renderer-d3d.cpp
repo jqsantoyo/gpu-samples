@@ -63,16 +63,16 @@ public:
         return 1;
     }
 
-    void setView(ViewDesc& desc) {
-        XMVECTOR pos    = XMVectorSet(desc.pos[0],    desc.pos[1],    desc.pos[2],    1.0f);
-        XMVECTOR target = XMVectorSet(desc.target[0], desc.target[1], desc.target[2], 1.0f);
-        XMVECTOR up     = XMVectorSet(desc.up[0],     desc.up[1],     desc.up[2],     1.0f);
-        XMMATRIX view   = XMMatrixLookAtLH(pos, target, up);
+    void setView(vec3 pos, vec3 target, vec3 up) {
+        XMVECTOR posVec    = XMVectorSet(pos.x,    pos.y,    pos.z,    1.0f);
+        XMVECTOR targetVec = XMVectorSet(target.x, target.y, target.z, 1.0f);
+        XMVECTOR upVec     = XMVectorSet(up.x,     up.y,     up.z,     1.0f);
+        XMMATRIX view   = XMMatrixLookAtLH(posVec, targetVec, upVec);
         XMStoreFloat4x4(&viewMat, view);
     }
     
-    void setProjection(ProjectionDesc& desc) {
-        XMMATRIX proj = XMMatrixPerspectiveFovLH(desc.fovAngleY, desc.aspectRatio, desc.nearZ, desc.farZ);
+    void setProjection(float fovY, float aspect, float nearZ, float farZ) {
+        XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
         XMStoreFloat4x4(&projMat, proj);
     }
 
@@ -176,7 +176,7 @@ private:
     XMFLOAT4X4                          projMat;
 };
 
-std::unique_ptr<IRenderer> createRenderer() {
+std::unique_ptr<IRenderer> createRendererD3D() {
     return std::make_unique<RendererD3D>();
 }
 }

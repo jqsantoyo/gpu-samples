@@ -25,17 +25,19 @@ public:
         }
     }
 
-    void getCartesian(float& x, float& y, float& z) {
+    vec3 getCartesian() {
         // printf("Camera:: theta: %f, phi: %f, z: %f\n", theta, phi, r);
-        float h = r * cos(phi);
-        x = h * cos(theta);
-        z = h * sin(theta);
-        y = r * sin(phi);
         // static float t = .1f;
         // t += .005f;
         // x = 4 * sin(t) + 8.0f;
         // y = -5 * sin(t) + 8.0f;
         // z = -10;
+        float h = r * cos(phi);
+        return {
+            h * cos(theta),
+            h * sin(theta),
+            r * sin(phi)
+        };
     }
 
     void mouseEvent(MouseEvent event) {
