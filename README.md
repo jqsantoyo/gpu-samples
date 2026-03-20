@@ -35,6 +35,8 @@ Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing
 
 ## Build and Run
 
+Ensure `Git LFS` is installed and initialized before cloning.
+
 Ensure the following programs are installed:
 ```
 texconv
