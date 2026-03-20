@@ -152,9 +152,9 @@ function(addSample targetName)
     set(assetsDir       ${CMAKE_SOURCE_DIR}/src/assets)
     set(LIBS            ${arg_LIBS} utilsD3D d3d12 d3dx12 dxgi d3dcompiler utilsVk vulkan)
     file(GLOB HEADERS    CONFIGURE_DEPENDS ${dir}/*.h)
-    file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp ${dir}/d3d/*.cpp ${dir}/vk/*.cpp)
-    file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/d3d/*.hlsl)
-    file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/vk/*.vert ${dir}/vk/*.frag ${dir}/vk/*.comp)
+    file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp)
+    file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/*.hlsl)
+    file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/*.vert ${dir}/*.frag ${dir}/*.comp)
     file(GLOB TEXTURES   CONFIGURE_DEPENDS ${assetsDir}/*.png)
     file(GLOB ASSETS     CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin)
 
@@ -176,7 +176,7 @@ function(addSample targetName)
     set_target_properties       (${targetName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outputDir})
 
     source_group(TREE ${dir} PREFIX "Source" FILES ${HEADERS} ${SOURCES} ${SHADERS} ${SHADERS_VK})
-    source_group("Assets"    FILES ${ASSETS})
+    source_group("Assets"    FILES ${TEXTURES} ${ASSETS})
     source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|dds|gltf|bin)")
 
     add_custom_command(
