@@ -35,8 +35,8 @@ public:
         float h = r * cos(phi);
         return {
             h * cos(theta),
-            h * sin(theta),
-            r * sin(phi)
+            r * sin(phi),
+            h * sin(theta)
         };
     }
 

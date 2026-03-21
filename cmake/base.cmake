@@ -175,7 +175,7 @@ function(addSample targetName)
     set_target_properties       (${targetName} PROPERTIES FOLDER "samples")
     set_target_properties       (${targetName} PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${outputDir})
 
-    source_group(TREE ${dir} PREFIX "Source" FILES ${HEADERS} ${SOURCES} ${SHADERS} ${SHADERS_VK})
+    source_group(""          FILES ${HEADERS} ${SOURCES} ${SHADERS} ${SHADERS_VK})
     source_group("Assets"    FILES ${TEXTURES} ${ASSETS})
     source_group("Generated" REGULAR_EXPRESSION ".*\\.(dxil|spv|dds|gltf|bin)")
 
@@ -248,7 +248,6 @@ function(target_assets targetName)
             OUTPUT ${outAsset}
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${asset} ${outAsset}
             DEPENDS ${asset}
-            MAIN_DEPENDENCY ${asset}
             VERBATIM
         )
     endforeach()
@@ -269,7 +268,6 @@ function(target_textures targetName)
             OUTPUT ${outFile}
             COMMAND texconv -f BC3_UNORM ${file} -o ${outputDir}
             DEPENDS ${file}
-            MAIN_DEPENDENCY ${file}
             VERBATIM
         )
     endforeach()
