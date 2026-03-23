@@ -119,7 +119,7 @@ public:
                 const RenderItem& item = items[i];
                 int meshId = item.meshId;
                 Mesh& m = meshControl.getMesh(meshId);
-                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.get(i);
+                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
                 frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
@@ -137,7 +137,7 @@ public:
             for (int i = 0; i < items.size(); i++) {
                 int meshId = items[i].meshId;
                 Mesh& m = meshControl.getMesh(meshId);
-                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.get(i);
+                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
                 frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
@@ -184,7 +184,7 @@ private:
     D3D12_RECT                          scissorRect;
     float                               screenAR;
     FillMode                            fillMode = Fill;
-    CBuffer<ObjectData>                 objectConstants;
+    ConstantBuffer<ObjectData>          objectConstants;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;
 };

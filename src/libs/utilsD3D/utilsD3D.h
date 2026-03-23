@@ -206,64 +206,39 @@ struct Shader {
 
 
 
+// Type unsafe Constant Buffer class, use derived ConstantBuffer.
+class ConstantBufferBase {
+public:
+    ~ConstantBufferBase();
+    bool init(ID3D12Device* device, uint32_t elementCount, uint32_t elementSize);
+    ID3D12Resource* getRes();
+    void set(int idx, void* element);
+    D3D12_GPU_VIRTUAL_ADDRESS getAddress(int idx);
+    D3D12_CONSTANT_BUFFER_VIEW_DESC getView(int idx);
+    
+private:
+    ID3D12Device* device;
+    Microsoft::WRL::ComPtr<ID3D12Resource> obj;
+    uint8_t* data;
+    uint32_t elementCount;
+    uint32_t elementSize;
+    uint32_t elementSizePadded;
+    
+};
 
 
 
 template<typename T>
-class CBuffer {
+class ConstantBuffer : public ConstantBufferBase {
 public:
-    CBuffer() {};
 
-    ~CBuffer() {
-        if (cb != nullptr) {
-            cb->Unmap(0, nullptr);
-        }
-        data = nullptr;
-    }
-
-    void init(ID3D12Device* device, uint32_t elementCount) {
-        this->device = device;
-        this->elementCount = elementCount;
-        this->elementSize = align256(sizeof(T));
-        CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-        auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(elementSize * elementCount);
-        HRESULT res = device->CreateCommittedResource(
-            &heapProps,
-            D3D12_HEAP_FLAG_NONE,
-            &resDesc,
-            D3D12_RESOURCE_STATE_GENERIC_READ,
-            nullptr,
-            IID_PPV_ARGS(&cb)
-        );
-        cb->Map(0, nullptr, reinterpret_cast<void**>(&data));
+    bool init(ID3D12Device* device, uint32_t elementCount) {
+        return ConstantBufferBase::init(device, elementCount, sizeof(T));
     }
 
     void set(int idx, T& element) {
-        memcpy(data + elementSize * idx, &element, sizeof(T));
+        ConstantBufferBase::set(idx, &element);
     }
-
-    D3D12_CONSTANT_BUFFER_VIEW_DESC getBufferViewDesc(int idx) {
-        return {
-            .BufferLocation = cb->GetGPUVirtualAddress() + idx * elementSize,
-            .SizeInBytes = elementSize,
-        };
-    }
-
-    ID3D12Resource* get() {
-        return cb.Get();
-    }
-
-    
-    D3D12_GPU_VIRTUAL_ADDRESS get(int idx) {
-        return cb.Get()->GetGPUVirtualAddress() + idx * elementSize;
-    }
-    
-private:
-    ID3D12Device* device;
-    Microsoft::WRL::ComPtr<ID3D12Resource> cb;
-    uint8_t* data;
-    uint32_t elementCount;
-    uint32_t elementSize;
 };
 
 

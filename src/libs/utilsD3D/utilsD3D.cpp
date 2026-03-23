@@ -414,6 +414,50 @@ bool Shader::load(std::string name) {
 
 
 
+ConstantBufferBase::~ConstantBufferBase() {
+    if (obj != nullptr) {
+        obj->Unmap(0, nullptr);
+    }
+    data = nullptr;
+}
+
+bool ConstantBufferBase::init(ID3D12Device* device, uint32_t elementCount, uint32_t elementSize) {
+    this->device = device;
+    this->elementCount = elementCount;
+    this->elementSize = elementSize;
+    this->elementSizePadded = align256(elementSize);
+    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(elementSizePadded * elementCount);
+    HRESULT res = device->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &resDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&obj)
+    );
+    obj->Map(0, nullptr, reinterpret_cast<void**>(&data));
+    return true;
+}
+
+ID3D12Resource* ConstantBufferBase::getRes() {
+    return obj.Get();
+}
+
+void ConstantBufferBase::set(int idx, void* element) {
+    memcpy(data + elementSizePadded * idx, element, elementSize);
+}
+
+D3D12_GPU_VIRTUAL_ADDRESS ConstantBufferBase::getAddress(int idx) {
+    return obj.Get()->GetGPUVirtualAddress() + idx * elementSizePadded;
+}
+
+D3D12_CONSTANT_BUFFER_VIEW_DESC ConstantBufferBase::getView(int idx) {
+    return {
+        .BufferLocation = obj->GetGPUVirtualAddress() + idx * elementSizePadded,
+        .SizeInBytes = elementSizePadded,
+    };
+}
 
 
 
