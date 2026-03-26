@@ -29,8 +29,9 @@ public:
         assets->load("crate.gltf");
 
         camera = createCamera();
-
-        printf("Completed start\n");
+        
+        renderer->addTexture("crate.dds"); // single texture for now, should connect in asset loading
+        renderer->wait();
         return true;
     }
 

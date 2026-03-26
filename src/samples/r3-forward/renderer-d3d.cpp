@@ -45,8 +45,6 @@ public:
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
-
-        int texIdx = textureRegistry.addTexture("crate.dds");
         queue.wait();
         return true;
     }
@@ -160,6 +158,10 @@ public:
     
     int addMesh(const MeshDesc& desc) {
         return meshRegistry.addMesh(desc);
+    }
+
+    int addTexture(const char* filename) {
+        return textureRegistry.addTexture(filename);
     }
 
     void setFillMode(FillMode mode) {

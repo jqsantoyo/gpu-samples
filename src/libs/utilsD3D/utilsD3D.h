@@ -68,18 +68,27 @@ public:
 
 
 
-
 class Device {
 public:
     bool init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount);
     void terminate();
     void printErrors();
+    bool nextCbv(int& idx);
+    D3D12_CPU_DESCRIPTOR_HANDLE getCbv(UINT idx);
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpuCbv(UINT idx);
+
 
     Microsoft::WRL::ComPtr<ID3D12Device>            obj;
     Microsoft::WRL::ComPtr<ID3D12InfoQueue>         iq;
     UINT                                            rtvDescSize = 0;
     UINT                                            dsvDescSize = 0;
     UINT                                            cbvDescSize = 0;
+    int                                             rtvCount;
+    int                                             dsvCount;
+    int                                             cbvCount;
+    int                                             rtvIdx = 0;
+    int                                             dsvIdx = 0;
+    int                                             cbvIdx = 0;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    rtvHeap;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    dsvHeap;
     Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    cbvHeap;
@@ -297,6 +306,7 @@ private:
 struct Texture {
     Microsoft::WRL::ComPtr<ID3D12Resource> res;
     Microsoft::WRL::ComPtr<ID3D12Resource> resUp;
+    int descriptor;
 };
 
 class TextureRegistry {

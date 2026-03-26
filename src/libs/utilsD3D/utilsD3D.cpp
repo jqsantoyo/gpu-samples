@@ -103,6 +103,9 @@ Adapter* Factory::getSelected() {
 
 
 bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount) {
+    this->rtvCount = rtvCount;
+    this->dsvCount = dsvCount;
+    this->cbvCount = cbvCount;
     ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
         printf("Debug layer enabled\n");
@@ -168,8 +171,25 @@ void Device::printErrors() {
     __debugbreak();
 }
 
+bool Device::nextCbv(int& idx) {
+    if (cbvIdx < cbvCount - 1) {
+        idx = cbvIdx;
+        cbvIdx++;
+        return true;
+    } else {
+        idx = -1;
+        printf("Reached CBV SRV UAV heap limit of %d\n", cbvCount);
+        return false;
+    }
+}
 
+D3D12_CPU_DESCRIPTOR_HANDLE Device::getCbv(UINT idx) {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvHeap->GetCPUDescriptorHandleForHeapStart(), idx, cbvDescSize);
+}
 
+D3D12_GPU_DESCRIPTOR_HANDLE Device::getGpuCbv(UINT idx) {
+    return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvHeap->GetGPUDescriptorHandleForHeapStart(), idx, cbvDescSize);
+}
 
 
 
@@ -657,8 +677,12 @@ int TextureRegistry::addTexture(const char* filename) {
     std::vector<uint8_t> data;
     GUARD(readFile(filename, data));
 
-    HRESULT res = LoadDDSTextureFromMemory(device->obj.Get(), data.data(), data.size(), texture.res.GetAddressOf(), subresources);
-    D3D12_CPU_DESCRIPTOR_HANDLE descriptor = device->cbvHeap->GetCPUDescriptorHandleForHeapStart();
+    GUARDHR(LoadDDSTextureFromMemory(device->obj.Get(), data.data(), data.size(), texture.res.GetAddressOf(), subresources));
+
+    
+    GUARD(device->nextCbv(texture.descriptor));
+    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
+
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
         .Format = texture.res->GetDesc().Format,
         .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
@@ -670,7 +694,7 @@ int TextureRegistry::addTexture(const char* filename) {
             .ResourceMinLODClamp = 0.0f,
         }
     };
-    device->obj->CreateShaderResourceView(texture.res.Get(), &srvDesc, descriptor);
+    device->obj->CreateShaderResourceView(texture.res.Get(), &srvDesc, texDesc);
 
     const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.res.Get(), 0, subresources.size());
     CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);

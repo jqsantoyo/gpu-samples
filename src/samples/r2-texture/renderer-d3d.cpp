@@ -40,20 +40,17 @@ public:
         GUARD(device.init(factory.getSelected(), frameCount, 1, 100));
         GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
-
         GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
         GUARD(rootSignature.init1Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
-
-        int texIdx = textureRegistry.addTexture("crate.dds");
-
         queue.wait();
-
-
-
         return true;
+    }
+
+    void wait() {
+        queue.wait();
     }
 
     void terminate() {
@@ -95,12 +92,14 @@ public:
 
         frameControl.cmdList->SetPipelineState(pso.obj.Get());
         frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-        frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
         frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         for (int i = 0; i < items.size(); i++) {
             const RenderItem& item = items[i];
             int meshId = item.meshId;
+            int textureId = item.materialId; // using material id to identify a single texture for now
             Mesh& m = meshRegistry.getMesh(meshId);
+            Texture& tex = textureRegistry.get(textureId);
+
     
             XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
             q = XMQuaternionNormalize(q);
@@ -114,8 +113,10 @@ public:
             ObjectData objectData = {};
             XMStoreFloat4x4(&objectData.mvp, mat);
             // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
-                
+            
+            
             frameControl.setConstantBuffer(0, objectData);
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.getGpuCbv(tex.descriptor));
             frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
             frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
             frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
@@ -139,6 +140,10 @@ public:
     
     int addMesh(const MeshDesc& desc) {
         return meshRegistry.addMesh(desc);
+    }
+
+    int addTexture(const char* filename) {
+        return textureRegistry.addTexture(filename);
     }
 
     void setFillMode(FillMode mode) {
