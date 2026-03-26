@@ -558,11 +558,11 @@ D3D12_CONSTANT_BUFFER_VIEW_DESC ConstantBufferBase::getView(int idx) {
 
 
 
-bool MeshControl::init() {
+bool MeshRegistry::init() {
     return true;
 }
 
-int MeshControl::addBuffer(Device& device, const BufferDesc& desc) {
+int MeshRegistry::addBuffer(Device& device, const BufferDesc& desc) {
     buffers.push_back(Buffer());
     Buffer& b = buffers.back();
 
@@ -589,7 +589,7 @@ int MeshControl::addBuffer(Device& device, const BufferDesc& desc) {
     return buffers.size() - 1;
 }
 
-int MeshControl::addMesh(const MeshDesc& desc) {
+int MeshRegistry::addMesh(const MeshDesc& desc) {
     Buffer& buffer = buffers[desc.bufferId];
     meshes.push_back(Mesh());
     Mesh& m = meshes.back();
@@ -620,7 +620,7 @@ int MeshControl::addMesh(const MeshDesc& desc) {
     return meshes.size() - 1;
 }
 
-Mesh& MeshControl::getMesh(int idx) {
+Mesh& MeshRegistry::getMesh(int idx) {
     return meshes[idx];
 }
 

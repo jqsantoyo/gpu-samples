@@ -44,9 +44,9 @@ public:
         GUARD(pso.init(device, rootSignature));
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
-        GUARD(textures.init(&device, &queue));
+        GUARD(textureRegistry.init(&device, &queue));
 
-        int texIdx = textures.addTexture("crate.dds");
+        int texIdx = textureRegistry.addTexture("crate.dds");
 
         queue.wait();
 
@@ -100,7 +100,7 @@ public:
             for (int i = 0; i < items.size(); i++) {
                 const RenderItem& item = items[i];
                 int meshId = item.meshId;
-                Mesh& m = meshControl.getMesh(meshId);
+                Mesh& m = meshRegistry.getMesh(meshId);
     
                 XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
                 q = XMQuaternionNormalize(q);
@@ -131,7 +131,7 @@ public:
         //     frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         //     for (int i = 0; i < items.size(); i++) {
         //         int meshId = items[i].meshId;
-        //         Mesh& m = meshControl.getMesh(meshId);
+        //         Mesh& m = meshRegistry.getMesh(meshId);
         //         D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
         //         frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
         //         frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
@@ -155,11 +155,11 @@ public:
     
 
     int addBuffer(const BufferDesc& desc) {
-        return meshControl.addBuffer(device, desc);
+        return meshRegistry.addBuffer(device, desc);
     }
     
     int addMesh(const MeshDesc& desc) {
-        return meshControl.addMesh(desc);
+        return meshRegistry.addMesh(desc);
     }
 
     void setFillMode(FillMode mode) {
@@ -173,8 +173,8 @@ private:
     DepthBuffer                         depthBuffer;
     Queue                               queue;
     FrameControl                        frameControl;
-    MeshControl                         meshControl;
-    TextureRegistry                     textures;
+    MeshRegistry                        meshRegistry;
+    TextureRegistry                     textureRegistry;
     RootSig                             rootSignature;
     PipelineTex                         pso;
     PipelineWire                        psoWire;

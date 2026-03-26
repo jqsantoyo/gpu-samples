@@ -1022,7 +1022,7 @@ bool copyBuffer(VkQueue q, VkCommandBuffer cmdBuffer, VkBuffer src, VkBuffer dst
     return true;
 }
 
-bool MeshControl::init(Device* device) {
+bool MeshRegistry::init(Device* device) {
     this->device =  device;
     VkCommandPoolCreateInfo poolInfo = {
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -1040,7 +1040,7 @@ bool MeshControl::init(Device* device) {
     return true;
 }
 
-void MeshControl::terminate() {
+void MeshRegistry::terminate() {
     for (int i = 0; i < meshes.size(); i++) {
         vkDestroyBuffer(device->device, meshes[i].buffer, nullptr);
         vkFreeMemory(device->device, meshes[i].memory, nullptr);
@@ -1048,7 +1048,7 @@ void MeshControl::terminate() {
     vkDestroyCommandPool(device->device, cmdPool, nullptr);
 }
 
-bool MeshControl::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx) {
+bool MeshRegistry::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx) {
     meshIdx = meshes.size();
     meshes.push_back({});
     Mesh& mesh = meshes.back();
@@ -1088,7 +1088,7 @@ bool MeshControl::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_
 
 
 
-Mesh& MeshControl::getMesh(int i) {
+Mesh& MeshRegistry::getMesh(int i) {
     return meshes[i];
 }
 

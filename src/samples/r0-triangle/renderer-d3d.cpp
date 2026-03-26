@@ -46,7 +46,7 @@ public:
             0.0f, 0.0f, 1.0f
         };
         BufferDesc bufferDesc = { 0, sizeof(vertices), reinterpret_cast<uint8_t*>(vertices) };
-        int bufferId = meshControl.addBuffer(device, bufferDesc);
+        int bufferId = meshRegistry.addBuffer(device, bufferDesc);
         MeshDesc meshDesc = {
             .bufferId   = bufferId,
             .vCount     = 3,
@@ -56,7 +56,7 @@ public:
             .uv         = { 0, 0 },
             .color      = { sizeof(float) * 3 * 3, sizeof(float) * 3 * 3 },
         };
-        meshId = meshControl.addMesh(meshDesc);
+        meshId = meshRegistry.addMesh(meshDesc);
 
         queue.wait();
         return true;
@@ -84,7 +84,7 @@ public:
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        Mesh& mesh = meshControl.getMesh(meshId);
+        Mesh& mesh = meshRegistry.getMesh(meshId);
         frameControl.cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
         frameControl.cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
         frameControl.cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
@@ -104,7 +104,7 @@ private:
     Swapchain                           swapchain;
     Queue                               queue;
     FrameControl                        frameControl;
-    MeshControl                         meshControl;
+    MeshRegistry                        meshRegistry;
     RootSig                             rootSignature;
     PipelineBasic                       pso;
     D3D12_VIEWPORT                      viewport;

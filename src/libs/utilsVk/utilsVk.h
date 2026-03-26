@@ -229,7 +229,7 @@ struct Mesh {
     VkDeviceMemory  idxMemory;
 };
 
-class MeshControl {
+class MeshRegistry {
 public:
     bool init(Device* device);
     void terminate();

@@ -283,7 +283,7 @@ struct Mesh {
 
 
 
-class MeshControl {
+class MeshRegistry {
 public:
     bool init();
     int addBuffer(Device& device, const BufferDesc& desc);
