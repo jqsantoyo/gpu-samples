@@ -1,28 +1,31 @@
 # GPU Samples (WIP)
 
-GPU samples using D3D12 and Vulkan for Windows.
+Ongoing exploration of rendering and compute topics using D3D12 and Vulkan.
 
-Each sample has a D3D12 backend and may have a Vulkan backend, switch by passing the command line argument "-vk".
+Each sample supports both backends, using D3D12 by default, or using Vulkan when passing `-vk`.
 
 
-| Sample                | Camera Control  | Shading                  |  |
-|-----------------------|-----------------|--------------------------|--|
-| **00-triangle**       |                 | vertex color             |  |
-| **01-compute**        |                 |                          |  |
-| **02-objects**        | ✓               | vertex color             |  |
-| **03-texture**        | ✓               | diffuse texture          |  |
-| **04-forward**        | ✓               |                          |  |
+
+| Render sample         | Camera Control  | Shading                  | D3D12 status | Vulkan status |
+|-----------------------|-----------------|--------------------------|--------------|---------------|
+| **r0-triangle**       |                 | vertex color             | ✓            | ✓            |
+| **r2-objects**        | ✓               | vertex color             | ✓            | ...          |
+| **r3-texture**        | ✓               | diffuse texture          | ✓            | ...          |
+| **r4-forward**        | ✓               |                          | WIP          | ...          |
+
+
+
+| Compute sample        |                 |                          | D3D12 status | Vulkan status |
+|-----------------------|-----------------|--------------------------|--------------|---------------|
+| **c0-compute**        |                 |                          | ...          | ...           |
+
+
 
 | Libraries         | Internal |
 |-------------------|----------|
 | utils             | ✓        |
-| app               | ✓        |
-| camera            | ✓        |
-| scene             | ✓        |
-| assets            | ✓        |
 | utilsVk           | ✓        |
 | utilsD3D          | ✓        |
-| renderer          | ✓        |
 | vulkan            |          |
 | d3d12             |          |
 | dxgi              |          |
@@ -58,18 +61,18 @@ In the command line enter:
 ```
 cmake --preset=debug
 cmake --build --preset=debug
-.build/debug/00-triangle/00-triangle.exe            // D3D12
-.build/debug//00-triangle/00-triangle.exe -vk       // Vulkan
+.build/debug/r0-triangle/r0-triangle.exe            // D3D12
+.build/debug/r0-triangle/r0-triangle.exe -vk       // Vulkan
 
 cmake --preset=release
 cmake --build --preset=release
-.build/release/00-triangle/00-triangle.exe          // D3D12
-.build/release/00-triangle/00-triangle.exe -vk      // Vulkan
+.build/release/r0-triangle/r0-triangle.exe          // D3D12
+.build/release/r0-triangle/r0-triangle.exe -vk      // Vulkan
 
 cmake --preset=vs
 cmake --build --preset=vs --config=Debug            // or Release or RelWithDebInfo
-.build/vs/Debug/00-triangle/00-triangle.exe         // D3D12
-.build/vs/Debug/00-triangle/00-triangle.exe -vk     // Vulkan
+.build/vs/Debug/r0-triangle/r0-triangle.exe         // D3D12
+.build/vs/Debug/r0-triangle/r0-triangle.exe -vk     // Vulkan
 ```
 
 
