@@ -26,16 +26,12 @@ public:
         viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight) };
         scissorRect = { 0, 0, long(screenWidth), long(screenHeight) };
         UINT frameCount = 2;
-        D3D12_COMMAND_QUEUE_DESC queueDesc = {
-            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-        };
 
         GUARD(factory.init());
         factory.print();
         GUARD(factory.select());
         GUARD(device.init(factory.getSelected(), frameCount, 0, 0));
-        GUARD(queue.init(device, queueDesc));
+        GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, screenWidth, screenHeight, frameCount));
         GUARD(frameControl.init(device, &queue, 1));
         GUARD(rootSignature.initVoid(device));

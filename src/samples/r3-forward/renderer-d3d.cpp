@@ -30,22 +30,21 @@ public:
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
-        D3D12_COMMAND_QUEUE_DESC queueDesc = {
-            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-        };
+        uint32_t objectMemory = sizeof(ObjectData);
+        uint32_t alignedObjectMemory = align256(objectMemory);
+        uint32_t maxFrameMemory = 100 * alignedObjectMemory;
+
         GUARD(factory.init());
         GUARD(factory.select());
         GUARD(device.init(factory.getSelected(), frameCount, 1, 100));
-        GUARD(queue.init(device, queueDesc));
+        GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
-        GUARD(frameControl.init(device, &queue, 1));
+        GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
         GUARD(rootSignature.init1Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textures.init(&device, &queue));
-        objectConstants.init(device.obj.Get(), 100);
 
         int texIdx = textures.addTexture("crate.dds");
 
@@ -95,28 +94,6 @@ public:
         frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
         frameControl.cmdList->SetDescriptorHeaps(1, heaps);
 
-        
-        for (int i = 0; i < items.size(); i++) {
-            const RenderItem& item = items[i];
-            int meshId = item.meshId;
-            Mesh& m = meshControl.getMesh(meshId);
-    
-            XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
-            q = XMQuaternionNormalize(q);
-            XMMATRIX S = XMMatrixScaling(item.scale[0], item.scale[1], -item.scale[2]);
-            XMMATRIX R = XMMatrixRotationQuaternion(q);
-            XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
-            XMMATRIX model = S * R * T;
-
-            XMMATRIX view = XMLoadFloat4x4(&viewMat);
-            XMMATRIX proj = XMLoadFloat4x4(&projMat);
-            XMMATRIX mat = model * view * proj;
-
-            ObjectData objectData = {};
-            XMStoreFloat4x4(&objectData.mvp, mat);
-            // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
-            objectConstants.set(i, objectData);
-        }
 
         if (fillMode == Fill || fillMode == FillWire) {
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
@@ -127,8 +104,22 @@ public:
                 const RenderItem& item = items[i];
                 int meshId = item.meshId;
                 Mesh& m = meshControl.getMesh(meshId);
-                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
-                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
+    
+                XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
+                q = XMQuaternionNormalize(q);
+                XMMATRIX S = XMMatrixScaling(item.scale[0], item.scale[1], -item.scale[2]);
+                XMMATRIX R = XMMatrixRotationQuaternion(q);
+                XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
+                XMMATRIX model = S * R * T;
+                XMMATRIX view = XMLoadFloat4x4(&viewMat);
+                XMMATRIX proj = XMLoadFloat4x4(&projMat);
+                XMMATRIX mat = model * view * proj;
+                ObjectData objectData = {};
+                XMStoreFloat4x4(&objectData.mvp, mat);
+                // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
+                D3D12_GPU_VIRTUAL_ADDRESS objectConstantAddr = frameControl.set(objectData);
+                
+                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, objectConstantAddr);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
@@ -136,25 +127,25 @@ public:
             }
         }
 
-        if (fillMode == Wire || fillMode == FillWire) {
-            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
-            frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            for (int i = 0; i < items.size(); i++) {
-                int meshId = items[i].meshId;
-                Mesh& m = meshControl.getMesh(meshId);
-                D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
-                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
-                frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                // frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
-                frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
-                // device.printErrors();
-            }
-            // PIXEndEvent(queue.obj.Get());
-        }
+        // if (fillMode == Wire || fillMode == FillWire) {
+        //     // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
+        //     frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
+        //     frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
+        //     frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        //     frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        //     for (int i = 0; i < items.size(); i++) {
+        //         int meshId = items[i].meshId;
+        //         Mesh& m = meshControl.getMesh(meshId);
+        //         D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
+        //         frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
+        //         frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
+        //         frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
+        //         // frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
+        //         frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
+        //         // device.printErrors();
+        //     }
+        //     // PIXEndEvent(queue.obj.Get());
+        // }
 
 
         frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
@@ -195,7 +186,6 @@ private:
     D3D12_RECT                          scissorRect;
     float                               screenAR;
     FillMode                            fillMode = Fill;
-    ConstantBuffer<ObjectData>          objectConstants;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;
 };

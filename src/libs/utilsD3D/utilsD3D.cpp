@@ -179,7 +179,28 @@ void Device::printErrors() {
 
 
 
-bool Queue::init(Device& device, D3D12_COMMAND_QUEUE_DESC desc) {
+
+
+
+
+
+
+
+
+
+bool Queue::init(
+    Device& device,
+    D3D12_COMMAND_LIST_TYPE type,
+    INT priority,
+    D3D12_COMMAND_QUEUE_FLAGS flags,
+    UINT nodeMask
+) {
+    D3D12_COMMAND_QUEUE_DESC desc = {
+        .Type = type,
+        .Priority = priority,
+        .Flags = flags,
+        .NodeMask = nodeMask
+    };
     GUARDHR(device.obj->CreateCommandQueue(&desc, IID_PPV_ARGS(&obj)));
     GUARDHR(device.obj->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&fence)));
     fenceEvent = CreateEvent(nullptr, FALSE, FALSE, nullptr);
@@ -309,12 +330,29 @@ bool Swapchain::present(bool vsync) {
 
 
 
-bool FrameControl::init(Device& device, Queue* queue, int frameCount) {
+bool FrameControl::init(Device& device, Queue* queue, int frameCount, uint32_t maxMemory) {
     this->queue = queue;
+    this->maxMemory = align256(maxMemory);
     frames.resize(frameCount);
     for (auto& frame : frames) {
         GUARDHR(device.obj->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&frame.cmdAllocator)));
         frame.fenceValue = 0;
+        if (maxMemory != 0) {
+            CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
+            auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(this->maxMemory);
+            HRESULT res = device.obj->CreateCommittedResource(
+                &heapProps,
+                D3D12_HEAP_FLAG_NONE,
+                &resDesc,
+                D3D12_RESOURCE_STATE_GENERIC_READ,
+                nullptr,
+                IID_PPV_ARGS(&frame.constantBuffer)
+            );
+            frame.constantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&frame.data));
+        } else {
+            frame.data = nullptr;
+        }
+        
     }
     GUARDHR(device.obj->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, frames[0].cmdAllocator.Get(), nullptr, IID_PPV_ARGS(&cmdList)));
     GUARDHR(cmdList.Get()->Close());
@@ -327,6 +365,7 @@ bool FrameControl::begin(ID3D12PipelineState* initialState) {
     queue->wait(frame.fenceValue);
     GUARDHR(frame.cmdAllocator->Reset());
     GUARDHR(cmdList->Reset(frame.cmdAllocator.Get(), initialState));
+    frame.allocatedMemory = 0;
     return true;
 }
 
@@ -344,6 +383,13 @@ bool FrameControl::end() {
     return true;
 }
 
+D3D12_GPU_VIRTUAL_ADDRESS FrameControl::set(void* data, int dataSize) {
+    Frame& frame = frames[frameIdx];
+    memcpy(frame.data + frame.allocatedMemory, data, dataSize);
+    D3D12_GPU_VIRTUAL_ADDRESS addr = frame.constantBuffer->GetGPUVirtualAddress() + frame.allocatedMemory;
+    frame.allocatedMemory += dataSize;
+    return addr;
+}
 
 
 
@@ -414,6 +460,25 @@ bool Shader::load(std::string name) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ConstantBufferBase::~ConstantBufferBase() {
     if (obj != nullptr) {
         obj->Unmap(0, nullptr);
@@ -458,6 +523,21 @@ D3D12_CONSTANT_BUFFER_VIEW_DESC ConstantBufferBase::getView(int idx) {
         .SizeInBytes = elementSizePadded,
     };
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

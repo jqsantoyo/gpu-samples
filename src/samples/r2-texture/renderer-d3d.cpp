@@ -30,21 +30,22 @@ public:
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
-        D3D12_COMMAND_QUEUE_DESC queueDesc = {
-            .Type = D3D12_COMMAND_LIST_TYPE_DIRECT,
-            .Flags = D3D12_COMMAND_QUEUE_FLAG_NONE,
-        };
+        uint32_t objectMemory = sizeof(ObjectData);
+        uint32_t alignedObjectMemory = align256(objectMemory);
+        uint32_t maxFrameMemory = 100 * alignedObjectMemory;
+
+
         GUARD(factory.init());
         GUARD(factory.select());
         GUARD(device.init(factory.getSelected(), frameCount, 1, 100));
-        GUARD(queue.init(device, queueDesc));
+        GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
-        GUARD(frameControl.init(device, &queue, 1));
+
+        GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
         GUARD(rootSignature.init1Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textures.init(&device, &queue));
-        objectConstants.init(device.obj.Get(), 100);
 
         int texIdx = textures.addTexture("crate.dds");
 
@@ -94,7 +95,11 @@ public:
         frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
         frameControl.cmdList->SetDescriptorHeaps(1, heaps);
 
-        
+
+        frameControl.cmdList->SetPipelineState(pso.obj.Get());
+        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
+        frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
+        frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         for (int i = 0; i < items.size(); i++) {
             const RenderItem& item = items[i];
             int meshId = item.meshId;
@@ -106,27 +111,16 @@ public:
             XMMATRIX R = XMMatrixRotationQuaternion(q);
             XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
             XMMATRIX model = S * R * T;
-
             XMMATRIX view = XMLoadFloat4x4(&viewMat);
             XMMATRIX proj = XMLoadFloat4x4(&projMat);
             XMMATRIX mat = model * view * proj;
-
             ObjectData objectData = {};
             XMStoreFloat4x4(&objectData.mvp, mat);
             // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
-            objectConstants.set(i, objectData);
-        }
+            D3D12_GPU_VIRTUAL_ADDRESS objectConstantAddr = frameControl.set(objectData);
 
-        frameControl.cmdList->SetPipelineState(pso.obj.Get());
-        frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-        frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        for (int i = 0; i < items.size(); i++) {
-            const RenderItem& item = items[i];
-            int meshId = item.meshId;
-            Mesh& m = meshControl.getMesh(meshId);
-            D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
-            frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
+
+            frameControl.cmdList->SetGraphicsRootConstantBufferView(0, objectConstantAddr);
             frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
             frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
             frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
@@ -171,7 +165,6 @@ private:
     D3D12_RECT                          scissorRect;
     float                               screenAR;
     FillMode                            fillMode = Fill;
-    ConstantBuffer<ObjectData>          objectConstants;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;
 };
