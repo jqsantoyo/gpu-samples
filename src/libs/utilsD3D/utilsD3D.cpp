@@ -383,12 +383,23 @@ bool FrameControl::end() {
     return true;
 }
 
-D3D12_GPU_VIRTUAL_ADDRESS FrameControl::set(void* data, int dataSize) {
+void FrameControl::barrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after) {
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(resource, before, after);
+    cmdList->ResourceBarrier(1, &barrier);
+}
+
+void FrameControl::heaps(ID3D12DescriptorHeap* cbvSrvUavHeap, ID3D12DescriptorHeap* samplerHeap) {
+    ID3D12DescriptorHeap* heaps[] = { cbvSrvUavHeap, samplerHeap };
+    int heapCount = samplerHeap == nullptr ? 1 : 2;
+    cmdList->SetDescriptorHeaps(heapCount, heaps);
+}
+
+void FrameControl::setConstantBuffer(UINT idx, void* data, int dataSize) {
     Frame& frame = frames[frameIdx];
     memcpy(frame.data + frame.allocatedMemory, data, dataSize);
     D3D12_GPU_VIRTUAL_ADDRESS addr = frame.constantBuffer->GetGPUVirtualAddress() + frame.allocatedMemory;
+    cmdList->SetGraphicsRootConstantBufferView(idx, addr);
     frame.allocatedMemory += dataSize;
-    return addr;
 }
 
 

@@ -182,11 +182,13 @@ public:
     bool begin(ID3D12PipelineState* initialState);
     bool execute();
     bool end();
+    void barrier(ID3D12Resource* resource, D3D12_RESOURCE_STATES before, D3D12_RESOURCE_STATES after);
+    void heaps(ID3D12DescriptorHeap* cbvSrvUavHeap, ID3D12DescriptorHeap* samplerHeap = nullptr);
 
     template<typename T>
-    D3D12_GPU_VIRTUAL_ADDRESS set(T& t) {
+    void setConstantBuffer(UINT idx, T& t) {
         uint32_t dataSize = align256(sizeof(T));
-        return set(&t, dataSize);
+        setConstantBuffer(idx, &t, dataSize);
     }
 
     Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>   cmdList;
@@ -196,7 +198,7 @@ private:
     int                                                 frameCounter = 0;
     int                                                 frameIdx     = 0;
     uint32_t                                            maxMemory;
-    D3D12_GPU_VIRTUAL_ADDRESS set(void* data, int dataSize);
+    void setConstantBuffer(UINT idx, void* data, int dataSize);
 };
 
 

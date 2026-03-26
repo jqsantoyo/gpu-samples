@@ -74,14 +74,12 @@ public:
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
-        auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
 
         frameControl.begin(pso.obj.Get());
         frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
-        frameControl.cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
+        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         frameControl.cmdList->OMSetRenderTargets(1, &target.view, FALSE, nullptr);
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -91,7 +89,7 @@ public:
         frameControl.cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
         frameControl.cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
 
-        frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
+        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         GUARD(frameControl.execute());
         GUARD(swapchain.present(false));
         GUARD(frameControl.end());

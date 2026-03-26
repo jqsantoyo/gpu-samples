@@ -81,18 +81,15 @@ public:
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
         D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
-        auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        ID3D12DescriptorHeap* heaps[] = { device.cbvHeap.Get() };
 
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
-        frameControl.cmdList->ResourceBarrier(1, &barr0); // Use back buffer as a render target.
+        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         frameControl.cmdList->OMSetRenderTargets(1, &target.view, 1, &depthView);
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-        frameControl.cmdList->SetDescriptorHeaps(1, heaps);
+        frameControl.heaps(device.cbvHeap.Get());
 
 
         if (fillMode == Fill || fillMode == FillWire) {
@@ -117,9 +114,8 @@ public:
                 ObjectData objectData = {};
                 XMStoreFloat4x4(&objectData.mvp, mat);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
-                D3D12_GPU_VIRTUAL_ADDRESS objectConstantAddr = frameControl.set(objectData);
                 
-                frameControl.cmdList->SetGraphicsRootConstantBufferView(0, objectConstantAddr);
+                frameControl.setConstantBuffer(0, objectData);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
@@ -148,7 +144,7 @@ public:
         // }
 
 
-        frameControl.cmdList->ResourceBarrier(1, &barr1); // Use back buffer to present.
+        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         GUARD(frameControl.execute());
         GUARD(swapchain.present(false));
         GUARD(frameControl.end());
