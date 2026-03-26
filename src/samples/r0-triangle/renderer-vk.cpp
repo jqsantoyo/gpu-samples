@@ -78,6 +78,10 @@ public:
         instance.terminate();
     }
 
+    void wait() {
+        vkDeviceWaitIdle (device.device);
+    }
+
     bool resize(int width, int height) {
         this->width = width;
         this->height = height;

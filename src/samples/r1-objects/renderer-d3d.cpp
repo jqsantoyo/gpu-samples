@@ -51,6 +51,10 @@ public:
         queue.wait();
     }
 
+    void wait() {
+        queue.wait();
+    }
+
     bool resize(int width, int height) {
         return 1;
     }

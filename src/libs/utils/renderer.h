@@ -56,6 +56,7 @@ public:
     virtual ~IRenderer() = default;
     virtual bool init(void* window, uint32_t width, uint32_t height) = 0;
     virtual void terminate() = 0;
+    virtual void wait() = 0;
     virtual bool resize(int width, int height) = 0;
     virtual bool render(const Color& clearColor, const std::vector<RenderItem>& items) = 0;
 
@@ -64,6 +65,7 @@ public:
     virtual void setProjection(float fovY, float aspect, float nearZ, float farZ) {};
     virtual int addBuffer(const BufferDesc& desc) { return -1; };
     virtual int addMesh(const MeshDesc& desc) { return -1; };
+    virtual int addTexture(const char* filename) { return -1; };
 };
 
 std::unique_ptr<IRenderer> createRenderer(bool vulkan);

@@ -47,15 +47,15 @@ public:
         GUARD(textureRegistry.init(&device, &queue));
 
         int texIdx = textureRegistry.addTexture("crate.dds");
-
         queue.wait();
-
-
-
         return true;
     }
 
     void terminate() {
+        queue.wait();
+    }
+
+    void wait() {
         queue.wait();
     }
 

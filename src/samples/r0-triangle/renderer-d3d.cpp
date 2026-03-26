@@ -22,7 +22,6 @@ class RendererD3D : public IRenderer {
 public:
     bool init(void* window, uint32_t screenWidth, uint32_t screenHeight) {
         auto hwnd = static_cast<HWND>(window);
-        screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
         viewport = { 0.0f, 0.0f, static_cast<float>(screenWidth), static_cast<float>(screenHeight) };
         scissorRect = { 0, 0, long(screenWidth), long(screenHeight) };
         UINT frameCount = 2;
@@ -36,33 +35,15 @@ public:
         GUARD(frameControl.init(device, &queue, 1));
         GUARD(rootSignature.initVoid(device));
         GUARD(pso.init(device, rootSignature));
-
-        float vertices[] = {
-             0.0f,   0.25f * screenAR, 0.0f,
-             0.25f, -0.25f * screenAR, 0.0f,
-            -0.25f, -0.25f * screenAR, 0.0f,
-            1.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 1.0f
-        };
-        BufferDesc bufferDesc = { 0, sizeof(vertices), reinterpret_cast<uint8_t*>(vertices) };
-        int bufferId = meshRegistry.addBuffer(device, bufferDesc);
-        MeshDesc meshDesc = {
-            .bufferId   = bufferId,
-            .vCount     = 3,
-            .indices    = { 0, 0 },
-            .position   = { 0, sizeof(float) * 3 * 3 },
-            .normal     = { 0, 0 },
-            .uv         = { 0, 0 },
-            .color      = { sizeof(float) * 3 * 3, sizeof(float) * 3 * 3 },
-        };
-        meshId = meshRegistry.addMesh(meshDesc);
-
         queue.wait();
         return true;
     }
 
     void terminate() {
+        queue.wait();
+    }
+
+    void wait() {
         queue.wait();
     }
 
@@ -84,10 +65,14 @@ public:
         frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
         frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         
-        Mesh& mesh = meshRegistry.getMesh(meshId);
-        frameControl.cmdList->IASetVertexBuffers(0, 1, &mesh.positionView);
-        frameControl.cmdList->IASetVertexBuffers(1, 1, &mesh.colorView);
-        frameControl.cmdList->DrawInstanced(mesh.vCount, 1, 0, 0);
+        for (int i = 0; i < items.size(); i++) {
+            const RenderItem& item = items[i];
+            int meshId = item.meshId;
+            Mesh& m = meshRegistry.getMesh(meshId);
+            frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
+            frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
+            frameControl.cmdList->DrawInstanced(m.vCount, 1, 0, 0);
+        }
 
         frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
         GUARD(frameControl.execute());
@@ -96,6 +81,14 @@ public:
         PIXEndEvent();
         frameIdx++;
         return 1;
+    }
+
+    int addBuffer(const BufferDesc& desc) {
+        return meshRegistry.addBuffer(device, desc);
+    }
+    
+    int addMesh(const MeshDesc& desc) {
+        return meshRegistry.addMesh(desc);
     }
 
 private:
@@ -109,7 +102,6 @@ private:
     PipelineBasic                       pso;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
-    float                               screenAR;
     int                                 meshId;
 };
 
