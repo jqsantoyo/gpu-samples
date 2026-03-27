@@ -796,6 +796,26 @@ bool RootSig::init1Cbv1TableNSamplers(Device& device) {
     return true;
 }
 
+bool RootSig::init2Cbv1TableNSamplers(Device& device) {
+    ComPtr<ID3DBlob>            sig;
+    ComPtr<ID3DBlob>            error;
+
+    CD3DX12_DESCRIPTOR_RANGE descTable;
+    descTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+
+    CD3DX12_ROOT_PARAMETER rootParam[3];
+    rootParam[0].InitAsConstantBufferView(0);
+    rootParam[1].InitAsConstantBufferView(1);
+    rootParam[2].InitAsDescriptorTable(1, &descTable);
+    
+    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+    CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
+    rootSignatureDesc.Init(3, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
+    GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
+    return true;
+}
+
 
 
 

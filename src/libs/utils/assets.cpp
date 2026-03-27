@@ -148,7 +148,7 @@ public:
         }
 
 
-        printf("Assets:: obejcts: %zu\n", model.nodes.size());
+        printf("Assets:: objects: %zu\n", model.nodes.size());
         for (int i = 0; i < model.nodes.size(); i++) {
             const Node& n = model.nodes[i];
             std::string name = std::string("") + "object_" + std::to_string(i);

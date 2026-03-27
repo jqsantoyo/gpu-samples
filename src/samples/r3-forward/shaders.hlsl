@@ -1,7 +1,21 @@
+
+
 cbuffer ObjectData : register(b0)
 {
     float4x4 mvp;
     float4 v;
+};
+
+cbuffer PassData : register(b1)
+{
+    float4x4 view;
+    float4x4 proj;
+    float4x4 viewProj;
+    float3 eye;
+    float pad0;
+    float2 screenSize;
+    float deltaTime;
+    float absoluteTime;
 };
 
 Texture2D diffuse : register(t0);
@@ -29,5 +43,5 @@ PSInput VSMain(VSInput input)
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    return diffuse.Sample(samplerLinearWrap, input.uv);
+    return diffuse.Sample(samplerLinearWrap, input.uv) + float4(absoluteTime * .005, 0, 0, 0);
 }

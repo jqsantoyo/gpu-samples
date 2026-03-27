@@ -26,7 +26,6 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         auto hwnd = static_cast<HWND>(window);
-        screenAR = static_cast<float>(width) / static_cast<float>(height);
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
@@ -163,7 +162,6 @@ private:
     PipelineTex                         pso;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
-    float                               screenAR;
     FillMode                            fillMode = Fill;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;

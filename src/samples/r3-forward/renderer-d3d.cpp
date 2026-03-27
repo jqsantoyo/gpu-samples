@@ -14,6 +14,17 @@ using namespace Microsoft::WRL;
 namespace gpu {
 
 
+struct PassData {
+    XMFLOAT4X4 view;
+    XMFLOAT4X4 proj;
+    XMFLOAT4X4 viewProj;
+    vec3 eye;
+    float pad0;
+    vec2 screenSize;
+    float deltaTime;
+    float absoluteTime;
+};
+
 struct ObjectData {
     XMFLOAT4X4 mvp;
 };
@@ -26,7 +37,6 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         auto hwnd = static_cast<HWND>(window);
-        screenAR = static_cast<float>(width) / static_cast<float>(height);
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
@@ -40,9 +50,9 @@ public:
         GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
-        GUARD(rootSignature.init1Cbv1TableNSamplers(device));
+        GUARD(rootSignature.init2Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
-        GUARD(psoWire.init(device, rootSignature));
+        // GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
         queue.wait();
@@ -80,6 +90,13 @@ public:
         RenderTarget target = swapchain.next();
         D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
+        static float t = 0;
+        t += .016;
+        PassData passData = {
+            .deltaTime = 0,
+            .absoluteTime = t,
+        };
+        
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
@@ -93,12 +110,14 @@ public:
         if (fillMode == Fill || fillMode == FillWire) {
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
+            frameControl.setConstantBuffer(1, passData);
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < items.size(); i++) {
                 const RenderItem& item = items[i];
                 int meshId = item.meshId;
+                int textureId = item.materialId; // using material id to identify a single texture for now
                 Mesh& m = meshRegistry.getMesh(meshId);
+                Texture& tex = textureRegistry.get(textureId);
     
                 XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
                 q = XMQuaternionNormalize(q);
@@ -114,6 +133,7 @@ public:
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
                 frameControl.setConstantBuffer(0, objectData);
+                frameControl.cmdList->SetGraphicsRootDescriptorTable(2, device.getGpuCbv(tex.descriptor));
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
@@ -182,7 +202,6 @@ private:
     PipelineWire                        psoWire;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
-    float                               screenAR;
     FillMode                            fillMode = Fill;
     XMFLOAT4X4                          viewMat;
     XMFLOAT4X4                          projMat;

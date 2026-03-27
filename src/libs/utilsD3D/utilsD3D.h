@@ -331,6 +331,7 @@ public:
     bool initVoid(Device& device);
     bool init1Cbv(Device& device);
     bool init1Cbv1TableNSamplers(Device& device);
+    bool init2Cbv1TableNSamplers(Device& device);
 
 };
 
