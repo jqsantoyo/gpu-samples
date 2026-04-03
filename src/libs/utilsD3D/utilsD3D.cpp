@@ -626,6 +626,11 @@ int MeshRegistry::addMesh(const MeshDesc& desc) {
             .SizeInBytes = static_cast<uint32_t>(desc.position.size),
             .StrideInBytes = sizeof(float) * 3,
         },
+        .normalView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.normal.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.normal.size),
+            .StrideInBytes = sizeof(float) * 3,
+        },
         .uvView = {
             .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.uv.offset,
             .SizeInBytes = static_cast<uint32_t>(desc.uv.size),
@@ -796,21 +801,22 @@ bool RootSig::init1Cbv1TableNSamplers(Device& device) {
     return true;
 }
 
-bool RootSig::init2Cbv1TableNSamplers(Device& device) {
+bool RootSig::init3Cbv1TableNSamplers(Device& device) {
     ComPtr<ID3DBlob>            sig;
     ComPtr<ID3DBlob>            error;
 
     CD3DX12_DESCRIPTOR_RANGE descTable;
     descTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 
-    CD3DX12_ROOT_PARAMETER rootParam[3];
+    CD3DX12_ROOT_PARAMETER rootParam[4];
     rootParam[0].InitAsConstantBufferView(0);
     rootParam[1].InitAsConstantBufferView(1);
-    rootParam[2].InitAsDescriptorTable(1, &descTable);
+    rootParam[2].InitAsConstantBufferView(2);
+    rootParam[3].InitAsDescriptorTable(1, &descTable);
     
     CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
-    rootSignatureDesc.Init(3, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+    rootSignatureDesc.Init(4, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
     GUARDHR(device.obj->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(), IID_PPV_ARGS(&obj)));
     return true;
@@ -1030,7 +1036,57 @@ bool PipelineTex::init(Device& device, RootSig& sig) {
     return true;
 };
 
+bool PipelineLights::init(Device& device, RootSig& sig) {
+    UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+    Shader vShader;
+    Shader pShader;
+    GUARD(vShader.load("shaders_v"));
+    GUARD(pShader.load("shaders_p"));
 
+    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
+
+    D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "UV",       0, DXGI_FORMAT_R32G32_FLOAT,    2,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+    };
+    D3D12_RASTERIZER_DESC wireRasterDesc = {
+        .FillMode               = D3D12_FILL_MODE_SOLID,
+        .CullMode               = D3D12_CULL_MODE_NONE,
+        .FrontCounterClockwise  = FALSE,
+        .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
+        .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
+        .SlopeScaledDepthBias   = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
+        .DepthClipEnable        = TRUE,
+        .MultisampleEnable      = FALSE,
+        .AntialiasedLineEnable  = FALSE,
+        .ForcedSampleCount      = 0,
+        .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
+    };
+    D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
+        .DepthEnable        = TRUE,
+        .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        .StencilEnable      = FALSE,
+    };
+    D3D12_GRAPHICS_PIPELINE_STATE_DESC psoWireDesc = {
+        .pRootSignature         = sig.obj.Get(),
+        .VS                     = vShader.bytecode,
+        .PS                     = pShader.bytecode,
+        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .SampleMask             = UINT_MAX,
+        .RasterizerState        = wireRasterDesc,
+        .DepthStencilState      = depthStateDesc,
+        .InputLayout            = { inputElementDescs, _countof(inputElementDescs) },
+        .PrimitiveTopologyType  = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+        .NumRenderTargets       = 1,
+        .RTVFormats             = { DXGI_FORMAT_R8G8B8A8_UNORM },
+        .DSVFormat              = DXGI_FORMAT_D32_FLOAT,
+        .SampleDesc             = sampleDesc,
+    };
+    GUARDHR(device.obj->CreateGraphicsPipelineState(&psoWireDesc, IID_PPV_ARGS(&obj)));
+    return true;
+};
 
 
 

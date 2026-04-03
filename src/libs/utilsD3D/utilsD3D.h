@@ -286,6 +286,7 @@ struct Mesh {
     size_t                      vCount;
     D3D12_INDEX_BUFFER_VIEW     indicesView;
     D3D12_VERTEX_BUFFER_VIEW    positionView;
+    D3D12_VERTEX_BUFFER_VIEW    normalView;
     D3D12_VERTEX_BUFFER_VIEW    uvView;
     D3D12_VERTEX_BUFFER_VIEW    colorView;
 };
@@ -331,7 +332,7 @@ public:
     bool initVoid(Device& device);
     bool init1Cbv(Device& device);
     bool init1Cbv1TableNSamplers(Device& device);
-    bool init2Cbv1TableNSamplers(Device& device);
+    bool init3Cbv1TableNSamplers(Device& device);
 
 };
 
@@ -356,6 +357,12 @@ public:
 };
 
 class PipelineTex {
+public:
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
+    bool init(Device& device, RootSig& sig);
+};
+
+class PipelineLights {
 public:
     Microsoft::WRL::ComPtr<ID3D12PipelineState> obj;
     bool init(Device& device, RootSig& sig);

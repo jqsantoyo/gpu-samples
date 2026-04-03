@@ -14,19 +14,36 @@ using namespace Microsoft::WRL;
 namespace gpu {
 
 
+struct Light {
+    vec3  position;
+    float fallOff0;
+    vec3  direction;
+    float fallOff1;
+    vec3  intensity;
+    float spotPower;
+};
+
+struct ObjectData {
+    XMFLOAT4X4 m;
+};
+
+struct MaterialData
+{
+    vec4 albedoColor;
+    float R0;
+    float roughness;
+};
+
 struct PassData {
     XMFLOAT4X4 view;
     XMFLOAT4X4 proj;
     XMFLOAT4X4 viewProj;
     vec3 eye;
     float pad0;
+    Light light[12];
     vec2 screenSize;
     float deltaTime;
     float absoluteTime;
-};
-
-struct ObjectData {
-    XMFLOAT4X4 mvp;
 };
 
 
@@ -40,9 +57,11 @@ public:
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
+        uint32_t materialData = align256(sizeof(MaterialData));
+        uint32_t passData = align256(sizeof(PassData));
         uint32_t objectMemory = sizeof(ObjectData);
         uint32_t alignedObjectMemory = align256(objectMemory);
-        uint32_t maxFrameMemory = 100 * alignedObjectMemory;
+        uint32_t maxFrameMemory = passData + 10 * materialData + 100 * alignedObjectMemory;
 
         GUARD(factory.init());
         GUARD(factory.select());
@@ -50,7 +69,7 @@ public:
         GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
         GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
         GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
-        GUARD(rootSignature.init2Cbv1TableNSamplers(device));
+        GUARD(rootSignature.init3Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
         // GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
@@ -90,12 +109,23 @@ public:
         RenderTarget target = swapchain.next();
         D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
+        XMMATRIX view = XMLoadFloat4x4(&viewMat);
+        XMMATRIX proj = XMLoadFloat4x4(&projMat);
+        XMMATRIX viewProj = view * proj;
+        
         static float t = 0;
         t += .016;
         PassData passData = {
+            .light = {
+                { { 2, 2, 2}, 1, { -1, -1, 0 }, 5, { 1.0f, 1.0f, 1.0f }, 8 },
+                // { { 2, 2, 0}, 1, { -1, 0, 0 }, 4, { 1.0f, 1.0f, 1.0f }, 0 },
+            },
             .deltaTime = 0,
             .absoluteTime = t,
         };
+        XMStoreFloat4x4(&passData.view, view);
+        XMStoreFloat4x4(&passData.proj, proj);
+        XMStoreFloat4x4(&passData.viewProj, viewProj);
         
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
@@ -110,7 +140,7 @@ public:
         if (fillMode == Fill || fillMode == FillWire) {
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.setConstantBuffer(1, passData);
+            frameControl.setConstantBuffer(2, passData);
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < items.size(); i++) {
                 const RenderItem& item = items[i];
@@ -125,18 +155,20 @@ public:
                 XMMATRIX R = XMMatrixRotationQuaternion(q);
                 XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
                 XMMATRIX model = S * R * T;
-                XMMATRIX view = XMLoadFloat4x4(&viewMat);
-                XMMATRIX proj = XMLoadFloat4x4(&projMat);
                 XMMATRIX mat = model * view * proj;
                 ObjectData objectData = {};
-                XMStoreFloat4x4(&objectData.mvp, mat);
+                // XMStoreFloat4x4(&objectData.mvp, mat);
+                XMStoreFloat4x4(&objectData.m, model);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
+                MaterialData materialData = { { 1, 1, 1, 1 }, 0, 0 };
                 frameControl.setConstantBuffer(0, objectData);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(2, device.getGpuCbv(tex.descriptor));
+                frameControl.setConstantBuffer(1, materialData);
+                frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.getGpuCbv(tex.descriptor));
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.uvView);
+                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.normalView);
+                frameControl.cmdList->IASetVertexBuffers(2, 1, &m.uvView);
                 frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
             }
         }
@@ -198,7 +230,7 @@ private:
     MeshRegistry                        meshRegistry;
     TextureRegistry                     textureRegistry;
     RootSig                             rootSignature;
-    PipelineTex                         pso;
+    PipelineLights                      pso;
     PipelineWire                        psoWire;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;

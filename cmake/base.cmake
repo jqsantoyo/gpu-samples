@@ -202,8 +202,8 @@ function(target_shaders_d3d targetName)
         list(APPEND outShaders ${vShader} ${pShader})
         add_custom_command(
             OUTPUT ${vShader} ${pShader}
-            COMMAND ${compiler} -T vs_6_0 -E VSMain -Fo ${vShader} ${inShader}
-            COMMAND ${compiler} -T ps_6_0 -E PSMain -Fo ${pShader} ${inShader}
+            COMMAND ${compiler} -T vs_6_0 -E VSMain -Zi -Qembed_debug -Od -Fo ${vShader} ${inShader}
+            COMMAND ${compiler} -T ps_6_0 -E PSMain -Zi -Qembed_debug -Od -Fo ${pShader} ${inShader}
             DEPENDS ${inShader}
             MAIN_DEPENDENCY ${inShader}
             VERBATIM
