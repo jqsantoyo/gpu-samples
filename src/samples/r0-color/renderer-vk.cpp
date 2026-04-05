@@ -17,12 +17,15 @@
 using namespace gpu::vk;
 namespace gpu {
 
-uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
+uint16_t indices[] = { 0, 1, 2 };//, 1, 3, 2 };
 float vertices[] = {
-    -0.5f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
-     0.5f, -0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
+     0.0f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
+     0.5f,  0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
     -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
-     0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+    // -0.5f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
+    //  0.5f, -0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
+    // -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+    //  0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
 };
 
 
@@ -127,7 +130,7 @@ public:
         vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
         vkCmdBindIndexBuffer(frame.cmdBuffer, m.idxBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdDrawIndexed(frame.cmdBuffer, 6, 1, 0, 0, 0);
+        vkCmdDrawIndexed(frame.cmdBuffer, 3, 1, 0, 0, 0);
         vkCmdEndRenderPass(frame.cmdBuffer);
         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
         

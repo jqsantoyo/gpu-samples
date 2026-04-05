@@ -8,10 +8,8 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 
 | Render sample         | Camera | Shading      | Lights | D3D12 status | Vulkan status |
 |-----------------------|--------|--------------|--------|--------------|---------------|
-| **r0-triangle**       |        | vertex color |        | ✓            | ✓            |
-| **r2-objects**        | ✓      | vertex color |        | ✓            | ...          |
-| **r3-texture**        | ✓      | diffuse      |        | ✓            | ...          |
-| **r4-forward**        | ✓      | diffuse      | ✓      | WIP          | ...          |
+| **r0-color**          | ✓      | vertex color |        | ✓            | ✓            |
+| **r1-forward**        | ✓      | pbr          | ✓      | WIP          | ...          |
 
 
 

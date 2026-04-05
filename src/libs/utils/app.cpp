@@ -97,8 +97,8 @@ LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 AppRunner::AppRunner(int argc, char** argv, IApp& app) : argc(argc), argv(argv), app(app) {}
 
 int AppRunner::run() {
-    int screenWidth = 512;
-    int screenHeight = 512;
+    int screenWidth = 1024;
+    int screenHeight = 1024;
     float screenAR = static_cast<float>(screenWidth) / static_cast<float>(screenHeight);
 
     HINSTANCE instance = GetModuleHandle(NULL);

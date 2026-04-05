@@ -47,10 +47,8 @@ addLibrary  (utils              LIBS tinygltf)
 addLibrary  (utilsVk            LIBS utils vulkan)
 addLibrary  (utilsD3D           LIBS utils d3d12 dxgi d3dcompiler d3dx12 ddsTextureLoader)
 
-addSample   (r0-triangle        LIBS utils pixEvents)
-addSample   (r1-objects         LIBS utils pixEvents)
-addSample   (r2-texture         LIBS utils pixEvents ddsTextureLoader)
-addSample   (r3-forward         LIBS utils pixEvents ddsTextureLoader)
+addSample   (r0-color           LIBS utils pixEvents)
+addSample   (r1-forward         LIBS utils pixEvents ddsTextureLoader)
 addSample   (c0-compute         LIBS utils)
 
 set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT r3-forward)

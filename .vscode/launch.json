@@ -5,14 +5,10 @@
     "version": "0.2.0",
     "configurations": [
 
-        { "name": "[debug] r0-triangle",    "program": "${workspaceFolder}/.build/debug/r0-triangle/r0-triangle.exe", "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r0-triangle-vk", "program": "${workspaceFolder}/.build/debug/r0-triangle/r0-triangle.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r1-objects",     "program": "${workspaceFolder}/.build/debug/r1-objects/r1-objects.exe",   "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r1-objects-vk",  "program": "${workspaceFolder}/.build/debug/r1-objects/r1-objects.exe",   "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r2-texture",     "program": "${workspaceFolder}/.build/debug/r2-texture/r2-texture.exe",   "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r2-texture-vk",  "program": "${workspaceFolder}/.build/debug/r2-texture/r2-texture.exe",   "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r3-forward",     "program": "${workspaceFolder}/.build/debug/r3-forward/r3-forward.exe",   "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
-        { "name": "[debug] r3-forward-vk",  "program": "${workspaceFolder}/.build/debug/r3-forward/r3-forward.exe",   "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] r0-color",    "program": "${workspaceFolder}/.build/debug/r0-color/r0-color.exe", "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] r0-color-vk", "program": "${workspaceFolder}/.build/debug/r0-color/r0-color.exe", "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] r1-forward",     "program": "${workspaceFolder}/.build/debug/r1-forward/r1-forward.exe",   "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
+        { "name": "[debug] r1-forward-vk",  "program": "${workspaceFolder}/.build/debug/r1-forward/r1-forward.exe",   "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] c0-compute",     "program": "${workspaceFolder}/.build/debug/c0-compute/c0-compute.exe",   "args": [],      "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         { "name": "[debug] c0-compute-vk",  "program": "${workspaceFolder}/.build/debug/c0-compute/c0-compute.exe",   "args": ["-vk"], "type": "cppvsdbg", "request": "launch", "cwd": "${fileDirname}", "console": "externalTerminal" },
         
