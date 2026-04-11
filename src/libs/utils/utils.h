@@ -4,7 +4,9 @@
 #include <vector>
 
 namespace gpu {
-    
+
+#define GUARD(x)              if (!(x)) {  printf("Error: "#x"\n"); return 0; }
+#define GUARDM(x, fmt, ...)   if (!(x)) {  printf("Error: " fmt "\n", ##__VA_ARGS__);  return 0; }
 
 struct uvec2 { uint32_t x, y;       };
 struct uvec3 { uint32_t x, y, z;    };
@@ -15,7 +17,12 @@ struct ivec4 { int32_t  x, y, z, w; };
 struct  vec2 { float    x, y;       };
 struct  vec3 { float    x, y, z;    };
 struct  vec4 { float    x, y, z, w; };
-
+struct  mat4 { float    v[16]; };
+struct Trs {
+    vec3 position;
+    vec4 rotation;
+    vec3 scale;
+};
 
 std::wstring getAssetsPathW();
 std::string getAssetsPath();
@@ -32,5 +39,8 @@ public:
 };
 
 std::unique_ptr<IExecutor> createExecutor();
+
+vec3 spherical2Cartesian(float r, float theta, float phi);
+
 
 }

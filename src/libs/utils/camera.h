@@ -1,22 +1,21 @@
 #pragma once
 #include <utils/utils.h>
 #include <utils/app.h>
+#include <utils/scene.h>
+#include <utils/renderer.h>
 #include <memory>
 
 namespace gpu {
 
 
-
-class ICamera {
+class CameraCtrl {
 public:
-    virtual ~ICamera() = default;
-    virtual void updateRadius(float dr) = 0;
-    virtual void updateTheta(float dTheta) = 0;
-    virtual void updatePhi(float dPhi) = 0;
-    virtual vec3 getCartesian() = 0;
-    virtual void mouseEvent(MouseEvent event) = 0;
+    void mouseEvent(MouseEvent event, int count, CameraPos* cameraPos, Camera* cameras);
+private:
+    int selectedCamera = 0;
+    bool mouseActive = false;
+    int mouseX = 0;
+    int mouseY = 0;
 };
-
-std::unique_ptr<ICamera> createCamera();
 
 }

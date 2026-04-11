@@ -1,7 +1,6 @@
 cbuffer ObjectData : register(b0)
 {
     float4x4 mvp;
-    float4 v;
 };
 
 

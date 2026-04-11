@@ -14,14 +14,6 @@ using namespace Microsoft::WRL;
 namespace gpu {
 
 
-struct Light {
-    vec3  position;
-    float fallOff0;
-    vec3  direction;
-    float fallOff1;
-    vec3  intensity;
-    float spotPower;
-};
 
 struct ObjectData {
     XMFLOAT4X4 m;
@@ -71,7 +63,7 @@ public:
         GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
         GUARD(rootSignature.init3Cbv1TableNSamplers(device));
         GUARD(pso.init(device, rootSignature));
-        // GUARD(psoWire.init(device, rootSignature));
+        GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
         queue.wait();
@@ -89,29 +81,19 @@ public:
     bool resize(int width, int height) {
         return 1;
     }
-    
-    void setView(vec3 pos, vec3 target, vec3 up) {
-        XMVECTOR posVec    = XMVectorSet(pos.x,    pos.y,    pos.z,    1.0f);
-        XMVECTOR targetVec = XMVectorSet(target.x, target.y, target.z, 1.0f);
-        XMVECTOR upVec     = XMVectorSet(up.x,     up.y,     up.z,     1.0f);
-        XMMATRIX view   = XMMatrixLookAtLH(posVec, targetVec, upVec);
-        XMStoreFloat4x4(&viewMat, view);
-    }
-    
-    void setProjection(float fovY, float aspect, float nearZ, float farZ) {
-        XMMATRIX proj = XMMatrixPerspectiveFovLH(fovY, aspect, nearZ, farZ);
-        XMStoreFloat4x4(&projMat, proj);
-    }
 
-    bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
+    bool render(const RenderView& view) {
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
         D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
 
-        XMMATRIX view = XMLoadFloat4x4(&viewMat);
-        XMMATRIX proj = XMLoadFloat4x4(&projMat);
-        XMMATRIX viewProj = view * proj;
+        XMVECTOR posVec      = XMVectorSet(view.camera->pos.x,    view.camera->pos.y,    view.camera->pos.z,    1.0f);
+        XMVECTOR targetVec   = XMVectorSet(view.camera->target.x, view.camera->target.y, view.camera->target.z, 1.0f);
+        XMVECTOR upVec       = XMVectorSet(view.camera->up.x,     view.camera->up.y,     view.camera->up.z,     1.0f);
+        XMMATRIX viewMat     = XMMatrixLookAtLH(posVec, targetVec, upVec);
+        XMMATRIX projMat     = XMMatrixPerspectiveFovLH(view.camera->fovY, view.camera->aspect, view.camera->nearZ, view.camera->farZ);
+        XMMATRIX viewProjMat = viewMat * projMat;
         
         static float t = 0;
         t += .016;
@@ -123,42 +105,38 @@ public:
             .deltaTime = 0,
             .absoluteTime = t,
         };
-        XMStoreFloat4x4(&passData.view, view);
-        XMStoreFloat4x4(&passData.proj, proj);
-        XMStoreFloat4x4(&passData.viewProj, viewProj);
+        XMStoreFloat4x4(&passData.view,     viewMat);
+        XMStoreFloat4x4(&passData.proj,     projMat);
+        XMStoreFloat4x4(&passData.viewProj, viewProjMat);
         
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
         frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
         frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
         frameControl.cmdList->OMSetRenderTargets(1, &target.view, 1, &depthView);
-        frameControl.cmdList->ClearRenderTargetView(target.view, clearColor.v, 0, nullptr);
+        frameControl.cmdList->ClearRenderTargetView(target.view, &view.clearColor.x, 0, nullptr);
         frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
         frameControl.heaps(device.cbvHeap.Get());
 
 
-        if (fillMode == Fill || fillMode == FillWire) {
+        if (view.fillMode == Fill || view.fillMode == FillWire) {
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
             frameControl.setConstantBuffer(2, passData);
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            for (int i = 0; i < items.size(); i++) {
-                const RenderItem& item = items[i];
-                int meshId = item.meshId;
-                int textureId = item.materialId; // using material id to identify a single texture for now
+            for (int i = 0; i < view.modelCount; i++) {
+                const Model& model = view.models[i];
+                const mat4& transform = view.transforms[i];
+                int meshId = model.meshId;
+                int textureId = model.materialId; // using material id to identify a single texture for now
                 Mesh& m = meshRegistry.getMesh(meshId);
                 Texture& tex = textureRegistry.get(textureId);
     
-                XMVECTOR q = XMVectorSet(item.rotation[0], item.rotation[1], -item.rotation[2], -item.rotation[3]);
-                q = XMQuaternionNormalize(q);
-                XMMATRIX S = XMMatrixScaling(item.scale[0], item.scale[1], -item.scale[2]);
-                XMMATRIX R = XMMatrixRotationQuaternion(q);
-                XMMATRIX T = XMMatrixTranslation(item.position[0], item.position[1], -item.position[2]);
-                XMMATRIX model = S * R * T;
-                XMMATRIX mat = model * view * proj;
+                XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(transform.v));
+                XMMATRIX mvpMat = modelMat * viewMat * projMat;
+
                 ObjectData objectData = {};
-                // XMStoreFloat4x4(&objectData.mvp, mat);
-                XMStoreFloat4x4(&objectData.m, model);
+                XMStoreFloat4x4(&objectData.m, modelMat);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
                 MaterialData materialData = { { 1, 1, 1, 1 }, 0, 0 };
@@ -202,7 +180,18 @@ public:
         frameIdx++;
         return 1;
     }
-    
+
+    void trs2Transform(int count, const Trs* trs, mat4* transforms) {
+        for (int i = 0; i < count; i++, trs++, transforms++) {
+            XMVECTOR q = XMVectorSet(trs->rotation.x, trs->rotation.y, -trs->rotation.z, -trs->rotation.w);
+            q = XMQuaternionNormalize(q);
+            XMMATRIX S = XMMatrixScaling(trs->scale.x, trs->scale.y, -trs->scale.z);
+            XMMATRIX R = XMMatrixRotationQuaternion(q);
+            XMMATRIX T = XMMatrixTranslation(trs->position.x, trs->position.y, -trs->position.z);
+            XMMATRIX transformMat = S * R * T;
+            XMStoreFloat4x4(reinterpret_cast<XMFLOAT4X4*>(transforms->v), transformMat);
+        }
+    }
 
     int addBuffer(const BufferDesc& desc) {
         return meshRegistry.addBuffer(device, desc);
@@ -214,10 +203,6 @@ public:
 
     int addTexture(const char* filename) {
         return textureRegistry.addTexture(filename);
-    }
-
-    void setFillMode(FillMode mode) {
-        fillMode = mode;
     }
 
 private:
@@ -234,9 +219,6 @@ private:
     PipelineWire                        psoWire;
     D3D12_VIEWPORT                      viewport;
     D3D12_RECT                          scissorRect;
-    FillMode                            fillMode = Fill;
-    XMFLOAT4X4                          viewMat;
-    XMFLOAT4X4                          projMat;
 };
 
 std::unique_ptr<IRenderer> createRendererD3D() {

@@ -1,87 +1,60 @@
 #include "camera.h"
-
+#include <algorithm>
+#include <utils/utils.h>
 
 namespace gpu {
-class Camera : public ICamera {
-public:
-    void updateRadius(float dr) {
-        r += dr;
-        if (r <= 5) {
-            r = 5;
-        }
-        if (r > 50) {
-            r = 50;
-        }
-    }
 
-    void updateTheta(float dTheta) {
-        theta += dTheta;
-    }
 
-    void updatePhi(float dPhi) {
-        phi += dPhi;
-        if (phi >= halfPi) {
-            phi = halfPi;
+void CameraCtrl::mouseEvent(MouseEvent event, int count, CameraPos* cameraPos, Camera* cameras) {
+    cameraPos += selectedCamera;
+    cameras += selectedCamera;
+    bool dirty = false;
+    switch(event.type) {
+    case Move:
+        // printf("Camera:: mouse moved %d, %d\n", event.x, event.y);
+        if (mouseActive) {
+            float halfPi = 3.14159 / 2;
+            float s = 0.01f;
+            float dTheta = s * (mouseX - event.x);
+            float dPhi = -s * (mouseY - event.y);
+            cameraPos->theta += dTheta;
+            cameraPos->phi += dPhi;
+            cameraPos->phi = std::clamp(cameraPos->phi, -halfPi, halfPi);
+            mouseX = event.x;
+            mouseY = event.y;
+            dirty = true;
         }
+        break;
+    case Wheel:
+        // printf("Camera:: mouse wheel %d\n", event.wheel);
+        cameraPos->r += -static_cast<float>(event.wheel) / 240.0f;
+        cameraPos->r = std::clamp(cameraPos->r, 5.0f, 50.0f);
+        dirty = true;
+        break;
+    case Button:
+        // printf("Camera:: mouse button: %d, %d\n", event.button, event.down);
+        if (event.button == Left || event.button == Middle) {
+            mouseActive = event.down;
+            mouseX = event.x;
+            mouseY = event.y;
+        }
+        break;
     }
-
-    vec3 getCartesian() {
-        // printf("Camera:: theta: %f, phi: %f, z: %f\n", theta, phi, r);
-        // static float t = .1f;
-        // t += .005f;
-        // x = 4 * sin(t) + 8.0f;
-        // y = -5 * sin(t) + 8.0f;
-        // z = -10;
-        float h = r * cos(phi);
-        return {
-            h * cos(theta),
-            r * sin(phi),
-            h * sin(theta)
+    if (dirty) {
+        // printf("Camera: %f, %f, %f, <%f, %f, %f>\n",
+        //     cameraPos->r, cameraPos->theta, cameraPos->phi,
+        //     cameras->pos.x, cameras->pos.y, cameras->pos.z
+        // );
+        *cameras = {
+            .pos    = spherical2Cartesian(cameraPos->r, cameraPos->theta, cameraPos->phi),
+            .target = { 0, 0, 0 },
+            .up     = { 0, 1, 0 },
+            .fovY   = 3.14159 / 4.0f,
+            .aspect =  512.0f / 512.0f,
+            .nearZ  = 0.1f,
+            .farZ   = 100.0f
         };
     }
-
-    void mouseEvent(MouseEvent event) {
-        switch(event.type) {
-        case Move:
-            // printf("Camera:: mouse moved %d, %d\n", event.x, event.y);
-            if (mouseActive) {
-                float s = 0.01f;
-                float dTheta = s * (mouseX - event.x);
-                float dPhi = -s * (mouseY - event.y);
-                mouseX = event.x;
-                mouseY = event.y;
-                updateTheta(dTheta);
-                updatePhi(dPhi);
-            }
-            break;
-        case Wheel:
-            // printf("Camera:: mouse wheel %d\n", event.wheel);
-            updateRadius(-static_cast<float>(event.wheel) / 240.0f);
-            break;
-        case Button:
-            // printf("Camera:: mouse button: %d, %d\n", event.button, event.down);
-            if (event.button == Left || event.button == Middle) {
-                mouseActive = event.down;
-                mouseX = event.x;
-                mouseY = event.y;
-            }
-            break;
-        }
-    }
-
-private:
-    float r = 20;
-    float theta = 0;
-    float phi = 0;
-    bool mouseActive = false;
-    int mouseX = 0;
-    int mouseY = 0;
-    float halfPi = 3.14159 / 2;
-};
-
-
-std::unique_ptr<ICamera> createCamera() {
-    return std::make_unique<Camera>();
 }
 
 };

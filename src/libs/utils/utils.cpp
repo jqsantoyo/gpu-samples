@@ -51,4 +51,9 @@ bool readFile(const char* filename, std::vector<uint8_t>& data) {
     return true;
 }
 
+vec3 spherical2Cartesian(float r, float theta, float phi) {
+    float h = r * cosf(phi);
+    return { h * cosf(theta), r * sinf(phi), h * sinf(theta) };
+}
+
 }

@@ -89,7 +89,7 @@ public:
     }
 
 
-    bool render(const Color& clearColor, const std::vector<RenderItem>& items) {
+    bool render(const RenderView& view) {
         Frame frame = frameControl.next();
         GUARD(swapchain.next(frame.imageReady));
         if (swapchain.recreated()) {
@@ -98,7 +98,7 @@ public:
         frameControl.begin();
         
     
-        VkClearValue vkClearColor = { {{clearColor.v[0], clearColor.v[1], clearColor.v[2], clearColor.v[3]}} };
+        VkClearValue vkClearColor = { {{view.clearColor.x, view.clearColor.y, view.clearColor.z, view.clearColor.w}} };
         VkRenderPassBeginInfo renderPassInfo = {
             .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass           = renderPass,
@@ -137,6 +137,9 @@ public:
         frameControl.end(swapchain.renderReady);
         swapchain.present();
         return 1;
+    }
+    
+    void trs2Transform(int count, const Trs* trs, mat4* transforms) {
     }
     
     void setFillMode(FillMode mode) {

@@ -12,7 +12,6 @@
 #include <dxgi1_6.h>
 #include <windows.h>
 
-#define GUARD(x)   if (!(x))      {  printf("Error: "#x"\n"); return 0; }
 #define GUARDHR(x) if (FAILED(x)) {  printf("Error: "#x"\n"); return 0; }
 
 namespace gpu {

@@ -1,6 +1,6 @@
 #include <utils/app.h>
 #include <utils/renderer.h>
-#include <utils/assets.h>
+#include <utils/sceneLoader.h>
 #include <utils/camera.h>
 #include <string>
 
@@ -9,26 +9,24 @@ namespace gpu {
 class App: public IApp {
 public:
     const char* title;
-    std::unique_ptr<IRenderer> renderer;
-    std::unique_ptr<IScene> scene;
-    std::unique_ptr<IAssets> assets;
-    std::unique_ptr<ICamera> camera;
+    std::unique_ptr<IRenderer>   renderer;
+    std::unique_ptr<Scene>       scene;
+    std::unique_ptr<SceneLoader> sceneLoader;
+    std::unique_ptr<CameraCtrl>  cameraCtrl;
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
         title = useVulkan ? "03-forward-vk" : "03-forward";
 
-        renderer = createRenderer(useVulkan);
+        renderer    = createRenderer(useVulkan);
+        scene       = std::make_unique<Scene>();
+        cameraCtrl  = std::make_unique<CameraCtrl>();
+        sceneLoader = std::make_unique<SceneLoader>();
+
         renderer->init(window, width, height);
-        renderer->setFillMode(FillWire);
-
-        scene = createScene();
-
-        assets = createAssets();
-        assets->init(renderer.get(), scene.get());
-        assets->load("crate.gltf");
-
-        camera = createCamera();
+        sceneLoader->init(scene.get(), renderer.get());
+        
+        sceneLoader->load("crate.gltf");
         
         renderer->addTexture("crate.dds"); // single texture for now, should connect in asset loading
         renderer->wait();
@@ -37,12 +35,19 @@ public:
 
     bool update() {
         FrameData frame = getFrameData();
-        float aspect = (float)512 / (float)512;
-        vec3 pos = camera->getCartesian();
         setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
-        renderer->setView(pos, { 0, 0, 0 }, { 0, 1, 0 });
-        renderer->setProjection(3.14159 / 4.0f, aspect, 0.1f, 100.0f);
-        return renderer->render({ 0.1f, 0.1f, 0.1f, 1.0f }, scene->get());
+        renderer->trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
+        RenderView view = {
+            .clearColor = { 0.1f, 0.1f, 0.1f, 1.0f },
+            .fillMode   = Fill,
+            .lightCount = 0,
+            .modelCount = scene->objects.size(),
+            .camera     = scene->cameras.getCamera(),
+            .lights     = nullptr,
+            .transforms = scene->objects.getTransform(),
+            .models     = scene->objects.getModel(),
+        };
+        return renderer->render(view);
     }
 
     bool resize(int width, int height) {
@@ -51,7 +56,7 @@ public:
     }
 
     bool mouseEvent(MouseEvent event) {
-        camera->mouseEvent(event);
+        cameraCtrl->mouseEvent(event, scene->cameras.size(), scene->cameras.getCameraPos(), scene->cameras.getCamera());
         return true;
     }
 

@@ -49,6 +49,6 @@ addLibrary  (utilsD3D           LIBS utils d3d12 dxgi d3dcompiler d3dx12 ddsText
 
 addSample   (r0-color           LIBS utils pixEvents)
 addSample   (r1-forward         LIBS utils pixEvents ddsTextureLoader)
-addSample   (c0-compute         LIBS utils)
+# addSample   (c0-compute         LIBS utils)
 
-set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT r3-forward)
+set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT r1-forward)
