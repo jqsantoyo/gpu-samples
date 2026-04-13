@@ -27,8 +27,8 @@ void CameraCtrl::mouseEvent(MouseEvent event, int count, CameraPos* cameraPos, C
         break;
     case Wheel:
         // printf("Camera:: mouse wheel %d\n", event.wheel);
-        cameraPos->r += -static_cast<float>(event.wheel) / 240.0f;
-        cameraPos->r = std::clamp(cameraPos->r, 5.0f, 50.0f);
+        cameraPos->r += -static_cast<float>(event.wheel) / 60.0f;
+        cameraPos->r = std::clamp(cameraPos->r, 5.0f, 100.0f);
         dirty = true;
         break;
     case Button:
@@ -52,7 +52,7 @@ void CameraCtrl::mouseEvent(MouseEvent event, int count, CameraPos* cameraPos, C
             .fovY   = 3.14159 / 4.0f,
             .aspect =  512.0f / 512.0f,
             .nearZ  = 0.1f,
-            .farZ   = 100.0f
+            .farZ   = 200.0f
         };
     }
 }

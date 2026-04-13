@@ -50,6 +50,11 @@ public:
         queue.wait();
     }
 
+    void reset() {
+        wait();
+        meshRegistry.reset();
+    }
+
     void wait() {
         queue.wait();
     }

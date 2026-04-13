@@ -295,6 +295,7 @@ struct Mesh {
 class MeshRegistry {
 public:
     bool init();
+    void reset();
     int addBuffer(Device& device, const BufferDesc& desc);
     int addMesh(const MeshDesc& desc);
     Mesh& getMesh(int idx);
@@ -312,7 +313,9 @@ struct Texture {
 class TextureRegistry {
 public:
     bool init(Device* device, Queue* queue);
+    void reset();
     int addTexture(const char* filename);
+    int addTexture(const uint8_t* data, uint32_t size);
     Texture& get(int idx);
 private:
     Device* device;

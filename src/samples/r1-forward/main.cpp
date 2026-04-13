@@ -9,10 +9,11 @@ namespace gpu {
 class App: public IApp {
 public:
     const char* title;
-    std::unique_ptr<IRenderer>   renderer;
-    std::unique_ptr<Scene>       scene;
-    std::unique_ptr<SceneLoader> sceneLoader;
-    std::unique_ptr<CameraCtrl>  cameraCtrl;
+    std::unique_ptr<IRenderer>      renderer;
+    std::unique_ptr<Scene>          scene;
+    std::unique_ptr<SceneLoader>    sceneLoader;
+    std::unique_ptr<SceneSelector>  sceneSelector;
+    std::unique_ptr<CameraCtrl>     cameraCtrl;
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
@@ -22,13 +23,25 @@ public:
         scene       = std::make_unique<Scene>();
         cameraCtrl  = std::make_unique<CameraCtrl>();
         sceneLoader = std::make_unique<SceneLoader>();
+        sceneSelector   = std::make_unique<SceneSelector>();
 
         renderer->init(window, width, height);
         sceneLoader->init(scene.get(), renderer.get());
-        
-        sceneLoader->load("crate.gltf");
-        
-        renderer->addTexture("crate.dds"); // single texture for now, should connect in asset loading
+        sceneSelector->init(scene.get(), renderer.get(), {
+            [&]() {
+                bool result = sceneLoader->load("crate/crate.gltf");
+                return result;
+            },
+            [&]() {
+                bool result = sceneLoader->load("damagedHelmet/DamagedHelmet.gltf");
+                return result;
+            },
+            [&]() {
+                bool result = sceneLoader->load("ponyCar/car.gltf");
+                return result;
+            },
+        });
+        sceneSelector->load(2);
         renderer->wait();
         return true;
     }
@@ -58,6 +71,10 @@ public:
     bool mouseEvent(MouseEvent event) {
         cameraCtrl->mouseEvent(event, scene->cameras.size(), scene->cameras.getCameraPos(), scene->cameras.getCamera());
         return true;
+    }
+    
+    bool keyboardEvent(KeyboardEvent event) {
+        return sceneSelector->loadOnKeyboard(event);
     }
 
     void terminate() {

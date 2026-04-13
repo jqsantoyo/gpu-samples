@@ -3,6 +3,7 @@
 #define TINYGLTF_IMPLEMENTATION
 #define STB_IMAGE_IMPLEMENTATION
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#define TINYGLTF_NO_STB_IMAGE
 // #define TINYGLTF_NOEXCEPTION // optional. disable exception handling.
 #include <tiny_gltf.h>
 #include <string>
@@ -12,6 +13,23 @@
 
 namespace gpu {
 
+
+bool loadImage(
+    tinygltf::Image* image,
+    const int imageIdx,
+    std::string* error,
+    std::string* warning,
+    int reqWidth,
+    int reqHeight,
+    const unsigned char* bytes,
+    int size,
+    void* userData
+) {
+    IRenderer* renderer = reinterpret_cast<IRenderer*>(userData);
+    printf("Load image[%d][%s]\n", imageIdx, image->name.c_str());
+    renderer->addTexture(bytes, size);
+    return true;
+}
 
 void SceneLoader::init(Scene* scene, IRenderer* renderer) {
     this->scene = scene;
@@ -24,7 +42,10 @@ bool SceneLoader::load(const std::string& filename) {
     tinygltf::TinyGLTF loader;
     std::string err;
     std::string warn;
+        
+    loader.SetImageLoader(loadImage, renderer); 
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path);
+                           
     if (!warn.empty()) {
         printf("Warn: %s\n", warn.c_str());
     }
@@ -72,6 +93,7 @@ bool SceneLoader::load(const std::string& filename) {
         const tinygltf::Primitive& prim = m.primitives[0];
 
         size_t vCount = 0;
+        bool indexFormatU16 = true;
         tinygltf::BufferView indicesView;
         tinygltf::BufferView positionView;
         tinygltf::BufferView normalView;
@@ -84,8 +106,11 @@ bool SceneLoader::load(const std::string& filename) {
         if (positionAttr != prim.attributes.end()) {
             tinygltf::Accessor& indicesAcc = model.accessors[prim.indices];
             tinygltf::Accessor& positionAcc = model.accessors[positionAttr->second];
-            if (indicesAcc.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT) {
-                printf("Assets:: model[%s]::mesh[%d] indices are not u16", filename.c_str(), i);
+            indexFormatU16 = indicesAcc.componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT;
+            if (indicesAcc.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT &&
+                indicesAcc.componentType != TINYGLTF_COMPONENT_TYPE_UNSIGNED_INT
+            ) {
+                printf("Assets:: model[%s]::mesh[%d] indices are not u16 or u32", filename.c_str(), i);
                 break;
             }
             if (positionAcc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
@@ -158,6 +183,7 @@ bool SceneLoader::load(const std::string& filename) {
         std::string key = filename + m.name;
         MeshDesc meshDesc = {
             .bufferId = bufferId,
+            .indexFormatU16 = indexFormatU16,
             .vCount = vCount,
             .indices = {
                 .offset = indicesView.byteOffset,
@@ -213,7 +239,40 @@ bool SceneLoader::load(const std::string& filename) {
         int objectIdx = scene->addObject(n.name, { x, y, z }, { rx, ry, rz, rw }, { sx, sy, sz }, n.mesh, 0);
     }
 
-    scene->addCamera("defaultCamera", 20, 0, 0, 3.14159 / 4.0f, 1, 0.1f, 100.0f);
+    scene->addCamera("defaultCamera", 20, 0, 0, 3.14159 / 4.0f, 1, 0.1f, 200.0f);
     return true;
 }
+
+
+
+void SceneSelector::init(Scene* scene, IRenderer* renderer, std::initializer_list<std::function<bool()>> loaders) {
+    this->scene = scene;
+    this->renderer = renderer;
+    this->loaders.assign(loaders.begin(), loaders.end());
+}
+
+bool SceneSelector::load(int loader = 0) {
+    return loaders[loader]();
+}
+
+bool SceneSelector::loadOnKeyboard(KeyboardEvent event) {
+    if (event.press) {
+        int sceneNumber = event.key - 0x30;
+        int maxSceneNumber = std::min(static_cast<size_t>(9), loaders.size());
+        if (sceneNumber >= 0 && sceneNumber < maxSceneNumber) {
+            printf("Load scene %c.\n", event.key);
+            scene->reset();
+            renderer->reset();
+            bool result = loaders[sceneNumber]();
+            renderer->wait();
+            return result;
+        } else {
+            printf("Scene %c not in range [0-%d]\n", event.key, maxSceneNumber - 1);
+            return false;
+        }
+    } else {
+        return true;
+    }
+}
+
 }

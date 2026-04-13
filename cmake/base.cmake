@@ -155,8 +155,8 @@ function(addSample targetName)
     file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp)
     file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/*.hlsl)
     file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/*.vert ${dir}/*.frag ${dir}/*.comp)
-    file(GLOB TEXTURES   CONFIGURE_DEPENDS ${assetsDir}/*.png)
-    file(GLOB ASSETS     CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin)
+    file(GLOB_RECURSE TEXTURES CONFIGURE_DEPENDS ${assetsDir}/*.png ${assetsDir}/*.jpeg ${assetsDir}/*.jpg)
+    file(GLOB_RECURSE ASSETS   CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin ${assetsDir}/*.glb)
 
     message(STATUS "--------------------------------------------------------------------------------")
     message(STATUS "Sample: ${targetName}")
@@ -241,15 +241,26 @@ function(target_assets targetName)
     set(inAssets ${ARGN})
     get_target_output_dir(${targetName} outputDir)
     foreach(asset IN LISTS inAssets)
-        cmake_path(GET asset FILENAME assetFilename)
-        set(outAsset ${outputDir}/${assetFilename})
+        cmake_path(GET asset    PARENT_PATH assetDir)
+        cmake_path(GET asset    FILENAME    assetFilename)
+        cmake_path(GET asset    EXTENSION   assetExtension)
+        cmake_path(GET assetDir FILENAME    assetName)
+
+        set(outAsset ${outputDir}/${assetName}/${assetFilename})
         list(APPEND outAssets ${outAsset})
-        add_custom_command(
-            OUTPUT ${outAsset}
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${asset} ${outAsset}
-            DEPENDS ${asset}
-            VERBATIM
-        )
+
+        if(assetExtension STREQUAL ".gltf")
+            file(READ "${asset}" CONTENT)
+            string(REGEX REPLACE "\\.(png|jpeg|jpg)" ".dds" CONTENT "${CONTENT}")
+            file(WRITE "${outAsset}" "${CONTENT}")
+        else()
+            add_custom_command(
+                OUTPUT ${outAsset}
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different ${asset} ${outAsset}
+                DEPENDS ${asset}
+                VERBATIM
+            )
+        endif()
     endforeach()
     target_sources(${targetName} PRIVATE ${inAssets} ${outAssets})
 endfunction()
@@ -261,12 +272,14 @@ function(target_textures targetName)
     set(inFiles ${ARGN})
     get_target_output_dir(${targetName} outputDir)
     foreach(file IN LISTS inFiles)
-        cmake_path(GET file STEM stem)
-        set(outFile ${outputDir}/${stem}.dds)
+        cmake_path(GET file     PARENT_PATH fileDir)
+        cmake_path(GET fileDir  FILENAME    assetName)
+        cmake_path(GET file     STEM        stem)
+        set(outFile ${outputDir}/${assetName}/${stem}.dds)
         list(APPEND outFiles ${outFile})
         add_custom_command(
             OUTPUT ${outFile}
-            COMMAND texconv -f BC3_UNORM ${file} -o ${outputDir}
+            COMMAND texconv -f BC3_UNORM ${file} -o ${outputDir}/${assetName}
             DEPENDS ${file}
             VERBATIM
         )

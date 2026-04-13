@@ -65,6 +65,7 @@ public:
     Cameras cameras;
     Lights lights;
     bool init(int cameraCapacity, int lightsCapacity, int objectCapacity);
+    void reset();
 
     int addCamera(const std::string name, float r, float theta, float phi, float fovY, float aspect, float nearZ, float farZ);
     int addObject(const std::string name, vec3 position, vec4 rotation, vec3 scale, int meshId, int materialId);

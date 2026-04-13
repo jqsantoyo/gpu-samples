@@ -29,7 +29,8 @@ struct MouseEvent {
 };
 
 struct KeyboardEvent {
-    int x = 0;
+    bool press;
+    uint32_t key;
 };
 
 struct FrameData {

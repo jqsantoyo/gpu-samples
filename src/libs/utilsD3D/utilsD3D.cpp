@@ -582,6 +582,11 @@ bool MeshRegistry::init() {
     return true;
 }
 
+void MeshRegistry::reset() {
+    buffers.clear();
+    meshes.clear();
+}
+
 int MeshRegistry::addBuffer(Device& device, const BufferDesc& desc) {
     buffers.push_back(Buffer());
     Buffer& b = buffers.back();
@@ -674,17 +679,23 @@ bool TextureRegistry::init(Device* device, Queue* queue) {
     return true;
 }
 
+void TextureRegistry::reset() {
+    textures.clear();
+}
+
 int TextureRegistry::addTexture(const char* filename) {
+    std::vector<uint8_t> data;
+    GUARD(readFile(filename, data));
+    return addTexture(data.data(), data.size());
+}
+
+int TextureRegistry::addTexture(const uint8_t* data, uint32_t size) {
     textures.push_back({});
     Texture& texture = textures.back();
 
     std::vector<D3D12_SUBRESOURCE_DATA> subresources;
-    std::vector<uint8_t> data;
-    GUARD(readFile(filename, data));
+    GUARDHR(LoadDDSTextureFromMemory(device->obj.Get(), data, size, texture.res.GetAddressOf(), subresources));
 
-    GUARDHR(LoadDDSTextureFromMemory(device->obj.Get(), data.data(), data.size(), texture.res.GetAddressOf(), subresources));
-
-    
     GUARD(device->nextCbv(texture.descriptor));
     D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
 

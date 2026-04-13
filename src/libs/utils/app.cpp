@@ -61,6 +61,14 @@ bool IApp::updateInternal() {
     return result;
 }
 
+
+uint32_t translateKey(WPARAM key) {
+    // switch(key) { // no special keys are needed currently
+    //     case VK_ESCAPE: return ;
+    // }
+    return static_cast<uint32_t>(key);
+}
+
 LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     IApp* app;
 
@@ -85,6 +93,8 @@ LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
             case WM_LBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Left,   false }); break;
             case WM_RBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Right,  false }); break;
             case WM_MBUTTONUP  : app->mouseEvent({ gpu::MouseEventType::Button, GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam), 0, gpu::MouseButton::Middle, false }); break;
+            case WM_KEYDOWN    : app->keyboardEvent({true,  translateKey(wParam)}); break;
+            case WM_KEYUP      : app->keyboardEvent({false, translateKey(wParam)}); break;
             default:  return DefWindowProc(hwnd, msg, wParam, lParam);
         }
     } else {

@@ -74,6 +74,12 @@ public:
         queue.wait();
     }
 
+    void reset() {
+        wait();
+        meshRegistry.reset();
+        textureRegistry.reset();
+    }
+
     void wait() {
         queue.wait();
     }
@@ -99,7 +105,9 @@ public:
         t += .016;
         PassData passData = {
             .light = {
-                { { 2, 2, 2}, 1, { -1, -1, 0 }, 5, { 1.0f, 1.0f, 1.0f }, 8 },
+                { { -2, -2, -2}, 1, { 1, 1, 0 }, 5, { 5.0f, 5.0f, 5.0f }, 3 },
+                { { 0,  -2, -2}, 3, { 1, 1, 0 }, 8, { 4.0f, 4.0f, 4.0f }, 4 },
+                { { 2, 5, 2},  1, { 1, -1, 1 }, 5, { 6.0f, 6.0f, 6.0f }, 4 },
                 // { { 2, 2, 0}, 1, { -1, 0, 0 }, 4, { 1.0f, 1.0f, 1.0f }, 0 },
             },
             .deltaTime = 0,
@@ -129,6 +137,9 @@ public:
                 const mat4& transform = view.transforms[i];
                 int meshId = model.meshId;
                 int textureId = model.materialId; // using material id to identify a single texture for now
+                if (meshId < 0) {
+                    continue;
+                }
                 Mesh& m = meshRegistry.getMesh(meshId);
                 Texture& tex = textureRegistry.get(textureId);
     
@@ -194,6 +205,7 @@ public:
     }
 
     int addBuffer(const BufferDesc& desc) {
+        wait();
         return meshRegistry.addBuffer(device, desc);
     }
     
@@ -202,7 +214,13 @@ public:
     }
 
     int addTexture(const char* filename) {
+        wait();
         return textureRegistry.addTexture(filename);
+    }
+
+    int addTexture(const uint8_t* data, uint32_t size) {
+        wait();
+        return textureRegistry.addTexture(data, size);
     }
 
 private:

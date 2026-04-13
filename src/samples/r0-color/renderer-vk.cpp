@@ -76,6 +76,10 @@ public:
         surface.terminate();
         instance.terminate();
     }
+    
+    void reset() {
+
+    }
 
     void wait() {
         vkDeviceWaitIdle (device.device);

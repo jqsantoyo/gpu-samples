@@ -1,8 +1,10 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <utils/app.h>
 #include <utils/scene.h>
 #include <utils/renderer.h>
+#include <functional>
 
 
 namespace gpu {
@@ -15,5 +17,18 @@ private:
     Scene* scene;
     IRenderer* renderer;
 };
+
+
+class SceneSelector {
+public:
+    void init(Scene* scene, IRenderer* renderer, std::initializer_list<std::function<bool()>> loaders);
+    bool load(int loader);
+    bool loadOnKeyboard(KeyboardEvent event);
+private:
+    Scene* scene;
+    IRenderer* renderer;
+    std::vector<std::function<bool()>> loaders;
+};
+
 
 }

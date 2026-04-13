@@ -60,9 +60,11 @@ float3 computeLight(float3 position, float3 normal, float3 eye, Light light, flo
     float3 Ldir = L / d;
     float3 intensity = max(dot(Ldir, normal), 0) * light.intensity;
 
+    float3 ambient = float3(.1, .1, .1);
     float attenuation = (light.fallOff1 - d) / (light.fallOff1 - light.fallOff0);
     float spot = pow(max(dot(-Ldir, light.direction), 0), light.spotPower);
-    float3 value = attenuation * spot * intensity * albedo;
+    // float3 value = .1 * ambient + attenuation * spot * intensity * albedo;
+    float3 value = albedo;
     return value;
 }
 
@@ -80,7 +82,12 @@ float4 PSMain(PSInput input) : SV_TARGET
 {
     float3 normal = normalize(input.normalW);
     float4 diffuseMapValue = diffuseMap.Sample(samplerLinearWrap, input.uv);
-    float4 albedo = albedoColor * diffuseMapValue;
-    float3 light = computeLight(input.positionW, input.normalW, eye, lights[0], albedo.rgb, R0, roughness);
-    return float4(light, albedo.a);
+    // float4 albedo = albedoColor * diffuseMapValue;
+    float4 albedo = diffuseMapValue;
+    float3 light = float3(0, 0, 0);
+    for (int i = 0; i < 3; i++) {
+        light += computeLight(input.positionW, input.normalW, eye, lights[i], albedo.rgb, R0, roughness);
+    }
+    // return float4(light, albedo.a);
+    return diffuseMapValue;
 }

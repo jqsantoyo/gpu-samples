@@ -10,12 +10,14 @@ namespace gpu {
 
 
 bool Cameras::init(int capacity) {
-    cameras.reserve(capacity);
     cameraPos.reserve(capacity);
+    cameras.reserve(capacity);
     return true;
 }
 
 void Cameras::reset() {
+    indexMap.clear();
+    cameraPos.clear();
     cameras.clear();
 }
 
@@ -60,6 +62,7 @@ bool Lights::init(int capacity) {
 }
 
 void Lights::reset() {
+    indexMap.clear();
     lights.clear();
 }
 
@@ -101,6 +104,7 @@ bool Objects::init(int capacity) {
 }
 
 void Objects::reset() {
+    indexMap.clear();
     trs.clear();
     transforms.clear();
     models.clear();
@@ -150,6 +154,12 @@ bool Scene::init(int cameraCapacity, int lightsCapacity, int objectCapacity) {
     lights.init(lightsCapacity);
     objects.init(objectCapacity);
     return true;
+}
+
+void Scene::reset() {
+    cameras.reset();
+    lights.reset();
+    objects.reset();
 }
 
 
