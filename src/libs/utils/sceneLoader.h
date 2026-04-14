@@ -22,12 +22,13 @@ private:
 class SceneSelector {
 public:
     void init(Scene* scene, IRenderer* renderer, std::initializer_list<std::function<bool()>> loaders);
-    bool load(int loader);
+    bool load(int idx);
     bool loadOnKeyboard(KeyboardEvent event);
 private:
     Scene* scene;
     IRenderer* renderer;
     std::vector<std::function<bool()>> loaders;
+    int sceneIdx = 0;
 };
 
 

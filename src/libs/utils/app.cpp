@@ -63,10 +63,13 @@ bool IApp::updateInternal() {
 
 
 uint32_t translateKey(WPARAM key) {
-    // switch(key) { // no special keys are needed currently
-    //     case VK_ESCAPE: return ;
-    // }
-    return static_cast<uint32_t>(key);
+    switch(key) { // no special keys are needed currently
+        case VK_LEFT:  return KeyLeft;
+        case VK_RIGHT: return KeyRight;
+        case VK_DOWN:  return KeyDown;
+        case VK_UP:    return KeyUp;
+        default:       return static_cast<uint32_t>(key);
+    }
 }
 
 LRESULT CALLBACK windowProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {

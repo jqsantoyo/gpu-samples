@@ -19,6 +19,13 @@ enum MouseButton {
     Middle,
 };
 
+enum KeyCode { // do not overlap with alphanumeric range 0x30-0x5A as per win32
+    KeyLeft,
+    KeyRight,
+    KeyDown,
+    KeyUp,
+};
+
 struct MouseEvent {
     MouseEventType type;
     int x;

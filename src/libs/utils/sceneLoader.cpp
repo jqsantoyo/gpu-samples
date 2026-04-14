@@ -251,25 +251,32 @@ void SceneSelector::init(Scene* scene, IRenderer* renderer, std::initializer_lis
     this->loaders.assign(loaders.begin(), loaders.end());
 }
 
-bool SceneSelector::load(int loader = 0) {
-    return loaders[loader]();
+bool SceneSelector::load(int idx = 0) {
+    sceneIdx = idx;
+    return loaders[idx]();
 }
 
 bool SceneSelector::loadOnKeyboard(KeyboardEvent event) {
     if (event.press) {
-        int sceneNumber = event.key - 0x30;
-        int maxSceneNumber = std::min(static_cast<size_t>(9), loaders.size());
-        if (sceneNumber >= 0 && sceneNumber < maxSceneNumber) {
-            printf("Load scene %c.\n", event.key);
-            scene->reset();
-            renderer->reset();
-            bool result = loaders[sceneNumber]();
-            renderer->wait();
-            return result;
+        if (event.key == KeyRight) {
+            sceneIdx++;
+            if (sceneIdx >= loaders.size()) {
+                sceneIdx = 0;
+            }
+        } else if (event.key == KeyLeft) {
+            sceneIdx--;
+            if (sceneIdx < 0) {
+                sceneIdx = loaders.size() - 1;
+            }
         } else {
-            printf("Scene %c not in range [0-%d]\n", event.key, maxSceneNumber - 1);
             return false;
         }
+        printf("Load scene %d.\n", sceneIdx);
+        scene->reset();
+        renderer->reset();
+        bool result = loaders[sceneIdx]();
+        renderer->wait();
+        return result;
     } else {
         return true;
     }
