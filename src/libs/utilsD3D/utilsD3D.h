@@ -71,6 +71,7 @@ class Device {
 public:
     bool init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount);
     void terminate();
+    void reset();
     void printErrors();
     bool nextCbv(int& idx);
     D3D12_CPU_DESCRIPTOR_HANDLE getCbv(UINT idx);

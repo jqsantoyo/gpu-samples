@@ -156,6 +156,9 @@ bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount)
     return true;
 }
 
+void Device::reset() {
+    cbvIdx = 0;
+}
 
 void Device::printErrors() {
     UINT64 count = iq->GetNumStoredMessages();

@@ -76,6 +76,7 @@ public:
 
     void reset() {
         wait();
+        device.reset();
         meshRegistry.reset();
         textureRegistry.reset();
     }
