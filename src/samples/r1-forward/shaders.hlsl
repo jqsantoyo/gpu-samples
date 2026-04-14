@@ -9,6 +9,14 @@ struct Light {
     float  spotPower;
 };
 
+struct MaterialValues {
+    float4 bc;
+    float2 mr;
+    float3 e;
+    float3 n;
+    float  o;
+};
+
 cbuffer ObjectData : register(b0)
 {
     float4x4 m;
@@ -16,9 +24,15 @@ cbuffer ObjectData : register(b0)
 
 cbuffer MaterialData : register(b1)
 {
-    float4 albedoColor;
-    float R0;
-    float roughness;
+    float4  baseColor;
+    float3  emissive;
+    float   metallic;
+    float   roughness;
+    int     baseColorMap;
+    int     metallicRoughnessMap;
+    int     normalMap;
+    int     emissiveMap;
+    int     occlusionMap;
 };
 
 cbuffer PassData : register(b2)
@@ -34,7 +48,7 @@ cbuffer PassData : register(b2)
     float absoluteTime;
 };
 
-Texture2D diffuseMap : register(t0);
+Texture2D    textures[]        : register(t0);
 SamplerState samplerLinearWrap : register(s0);
 
 struct VSInput
@@ -52,7 +66,7 @@ struct PSInput
     float2 uv : UV;
 };
 
-float3 computeLight(float3 position, float3 normal, float3 eye, Light light, float3 albedo, float R0, float roughness)
+float3 computeLight(float3 position, float3 normal, float3 eye, Light light, MaterialValues material)
 {
     float3 v = eye - position;
     float3 L = light.position - position;
@@ -60,12 +74,13 @@ float3 computeLight(float3 position, float3 normal, float3 eye, Light light, flo
     float3 Ldir = L / d;
     float3 intensity = max(dot(Ldir, normal), 0) * light.intensity;
 
-    float3 ambient = float3(.1, .1, .1);
+    float3 ambient = float3(.01, .01, .01);
     float attenuation = (light.fallOff1 - d) / (light.fallOff1 - light.fallOff0);
     float spot = pow(max(dot(-Ldir, light.direction), 0), light.spotPower);
-    // float3 value = .1 * ambient + attenuation * spot * intensity * albedo;
-    float3 value = albedo;
-    return value;
+    float3 lightValue = ambient + attenuation * spot * intensity;
+
+    float3 color = lightValue * material.bc.rgb + material.e;
+    return color;
 }
 
 PSInput VSMain(VSInput input)
@@ -81,13 +96,17 @@ PSInput VSMain(VSInput input)
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float3 normal = normalize(input.normalW);
-    float4 diffuseMapValue = diffuseMap.Sample(samplerLinearWrap, input.uv);
-    // float4 albedo = albedoColor * diffuseMapValue;
-    float4 albedo = diffuseMapValue;
+    MaterialValues material;
+    material.bc = baseColor                   * textures[baseColorMap]        .Sample(samplerLinearWrap, input.uv);
+    material.mr = float2(metallic, roughness) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).xy;
+    material.e  = emissive                    * textures[emissiveMap]         .Sample(samplerLinearWrap, input.uv).xyz;
+    material.n  = 2                           * textures[normalMap]           .Sample(samplerLinearWrap, input.uv).xyz - 1;
+    material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).x;
+
     float3 light = float3(0, 0, 0);
     for (int i = 0; i < 3; i++) {
-        light += computeLight(input.positionW, input.normalW, eye, lights[i], albedo.rgb, R0, roughness);
+        light += computeLight(input.positionW, input.normalW, eye, lights[i], material);
     }
-    // return float4(light, albedo.a);
-    return diffuseMapValue;
+    return float4(light, material.bc.a);
+    // return diffuseMapValue;
 }

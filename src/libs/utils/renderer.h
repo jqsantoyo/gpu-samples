@@ -27,6 +27,19 @@ struct MeshDesc {
     BufferViewDesc color;
 };
 
+struct Material
+{
+    vec4 baseColor;
+    vec3 emissive;
+    float metallic;
+    float roughness;
+    int baseColorMap;
+    int metallicRoughnessMap;
+    int normalMap;
+    int emissiveMap;
+    int occlusionMap;
+};
+
 enum FillMode {
     Fill,
     FillWire,
@@ -85,6 +98,7 @@ public:
     virtual int addMesh(const MeshDesc& desc) { return -1; };
     virtual int addTexture(const char* filename) { return -1; };
     virtual int addTexture(const uint8_t* data, uint32_t size) { return -1; };
+    virtual int addMaterial(Material& material) { return -1; };
 };
 
 std::unique_ptr<IRenderer> createRenderer(bool vulkan);

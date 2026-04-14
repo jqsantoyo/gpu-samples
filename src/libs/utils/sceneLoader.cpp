@@ -209,6 +209,37 @@ bool SceneLoader::load(const std::string& filename) {
         int meshIdx = renderer->addMesh(meshDesc);
     }
 
+    printf("Assets:: materials: %zu\n", model.materials.size());
+    for (int i = 0; i < model.materials.size(); i++) {
+        const tinygltf::Material& m = model.materials[i];
+        std::string name = std::string("") + "material_" + std::to_string(i);
+        int baseColorMap            = m.pbrMetallicRoughness.baseColorTexture.index;
+        int metallicRoughnessMap    = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
+        int normalMap               = m.normalTexture.index;
+        int emissiveMap             = m.emissiveTexture.index;
+        int occlusionMap            = m.occlusionTexture.index;
+        Material mat = {
+            .baseColor = {
+                static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[0]),
+                static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[1]),
+                static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[2]),
+                static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[3]),
+            },
+            .emissive = {
+                static_cast<float>(m.emissiveFactor[0]),
+                static_cast<float>(m.emissiveFactor[1]),
+                static_cast<float>(m.emissiveFactor[2]),
+            },
+            .metallic               = static_cast<float>(m.pbrMetallicRoughness.metallicFactor),
+            .roughness              = static_cast<float>(m.pbrMetallicRoughness.roughnessFactor),
+            .baseColorMap           = baseColorMap          >= 0 ? baseColorMap         : 0,
+            .metallicRoughnessMap   = metallicRoughnessMap  >= 0 ? metallicRoughnessMap : 0,
+            .normalMap              = normalMap             >= 0 ? normalMap            : 0,
+            .emissiveMap            = emissiveMap           >= 0 ? emissiveMap          : 0,
+            .occlusionMap           = occlusionMap          >= 0 ? occlusionMap         : 0,
+        };
+        renderer->addMaterial(mat);
+    }
 
     printf("Assets:: objects: %zu\n", model.nodes.size());
     for (int i = 0; i < model.nodes.size(); i++) {
@@ -236,7 +267,11 @@ bool SceneLoader::load(const std::string& filename) {
             rz = static_cast<float>(n.rotation[2]);
             rw = static_cast<float>(n.rotation[3]);
         }
-        int objectIdx = scene->addObject(n.name, { x, y, z }, { rx, ry, rz, rw }, { sx, sy, sz }, n.mesh, 0);
+        if (n.mesh >= 0) {
+            const tinygltf::Mesh mesh = model.meshes[n.mesh];
+            const tinygltf::Primitive prim = mesh.primitives[0];
+            int objectIdx = scene->addObject(n.name, { x, y, z }, { rx, ry, rz, rw }, { sx, sy, sz }, n.mesh, prim.material);
+        }
     }
 
     scene->addCamera("defaultCamera", 20, 0, 0, 3.14159 / 4.0f, 1, 0.1f, 200.0f);

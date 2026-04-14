@@ -329,6 +329,20 @@ private:
 
 
 
+class MaterialRegistry {
+public:
+    bool init(Device* device);
+    void reset();
+    int addMaterial(Material& material);
+    Material& getMaterial(int idx);
+private:
+    Device* device;
+    std::vector<Material> materials;
+};
+
+
+
+
 class RootSig {
 public:
     Microsoft::WRL::ComPtr<ID3D12RootSignature> obj;

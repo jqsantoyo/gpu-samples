@@ -19,13 +19,6 @@ struct ObjectData {
     XMFLOAT4X4 m;
 };
 
-struct MaterialData
-{
-    vec4 albedoColor;
-    float R0;
-    float roughness;
-};
-
 struct PassData {
     XMFLOAT4X4 view;
     XMFLOAT4X4 proj;
@@ -49,7 +42,7 @@ public:
         viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
         scissorRect = { 0, 0, long(width), long(height) };
         UINT frameCount = 2;
-        uint32_t materialData = align256(sizeof(MaterialData));
+        uint32_t materialData = align256(sizeof(Material));
         uint32_t passData = align256(sizeof(PassData));
         uint32_t objectMemory = sizeof(ObjectData);
         uint32_t alignedObjectMemory = align256(objectMemory);
@@ -66,6 +59,7 @@ public:
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
+        GUARD(materialRegistry.init(&device));
         queue.wait();
         return true;
     }
@@ -79,6 +73,7 @@ public:
         device.reset();
         meshRegistry.reset();
         textureRegistry.reset();
+        materialRegistry.reset();
     }
 
     void wait() {
@@ -106,10 +101,9 @@ public:
         t += .016;
         PassData passData = {
             .light = {
-                { { -2, -2, -2}, 1, { 1, 1, 0 }, 5, { 5.0f, 5.0f, 5.0f }, 3 },
-                { { 0,  -2, -2}, 3, { 1, 1, 0 }, 8, { 4.0f, 4.0f, 4.0f }, 4 },
-                { { 2, 5, 2},  1, { 1, -1, 1 }, 5, { 6.0f, 6.0f, 6.0f }, 4 },
-                // { { 2, 2, 0}, 1, { -1, 0, 0 }, 4, { 1.0f, 1.0f, 1.0f }, 0 },
+                { { -5, 2, 5 },  2, {  1, -1, -1 }, 10, { 1.0f, 1.0f, 1.0f }, 1 },
+                { { 5,  5, 0 },  2, { -1, -1,  0 }, 10, { 1.0f, 1.0f, 1.0f }, 3 },
+                { { 0, 1, -5 },  2, {  0,  0,  1 }, 10, { 1.0f, 1.0f, 1.0f }, 4 },
             },
             .deltaTime = 0,
             .absoluteTime = t,
@@ -132,17 +126,18 @@ public:
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
             frameControl.setConstantBuffer(2, passData);
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.getGpuCbv(0));
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
                 int meshId = model.meshId;
-                int textureId = model.materialId; // using material id to identify a single texture for now
+                int materialId = model.materialId;
                 if (meshId < 0) {
                     continue;
                 }
                 Mesh& m = meshRegistry.getMesh(meshId);
-                Texture& tex = textureRegistry.get(textureId);
+                Material& mat = materialRegistry.getMaterial(materialId);
     
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(transform.v));
                 XMMATRIX mvpMat = modelMat * viewMat * projMat;
@@ -151,10 +146,8 @@ public:
                 XMStoreFloat4x4(&objectData.m, modelMat);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
-                MaterialData materialData = { { 1, 1, 1, 1 }, 0, 0 };
                 frameControl.setConstantBuffer(0, objectData);
-                frameControl.setConstantBuffer(1, materialData);
-                frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.getGpuCbv(tex.descriptor));
+                frameControl.setConstantBuffer(1, mat);
                 frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.normalView);
@@ -223,6 +216,10 @@ public:
         wait();
         return textureRegistry.addTexture(data, size);
     }
+    
+    virtual int addMaterial(Material& material) {
+        return materialRegistry.addMaterial(material);
+    }
 
 private:
     Factory                             factory;
@@ -233,6 +230,7 @@ private:
     FrameControl                        frameControl;
     MeshRegistry                        meshRegistry;
     TextureRegistry                     textureRegistry;
+    MaterialRegistry                    materialRegistry;
     RootSig                             rootSignature;
     PipelineLights                      pso;
     PipelineWire                        psoWire;

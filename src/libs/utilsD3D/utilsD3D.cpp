@@ -771,6 +771,67 @@ Texture& TextureRegistry::get(int idx) {
 
 
 
+bool MaterialRegistry::init(Device* device) {
+    this->device = device;
+    return true;
+}
+
+void MaterialRegistry::reset() {
+    materials.clear();
+}
+
+int MaterialRegistry::addMaterial(Material& material) {
+    materials.push_back(material);
+    return materials.size() - 1;
+}
+
+Material& MaterialRegistry::getMaterial(int idx) {
+    return materials[idx];
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 bool RootSig::initVoid(Device& device) {
     ComPtr<ID3DBlob>            sig;
@@ -820,7 +881,7 @@ bool RootSig::init3Cbv1TableNSamplers(Device& device) {
     ComPtr<ID3DBlob>            error;
 
     CD3DX12_DESCRIPTOR_RANGE descTable;
-    descTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+    descTable.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
 
     CD3DX12_ROOT_PARAMETER rootParam[4];
     rootParam[0].InitAsConstantBufferView(0);
@@ -1078,16 +1139,33 @@ bool PipelineLights::init(Device& device, RootSig& sig) {
         .ConservativeRaster     = D3D12_CONSERVATIVE_RASTERIZATION_MODE_OFF,
     };
     D3D12_DEPTH_STENCIL_DESC depthStateDesc = {
-        .DepthEnable        = TRUE,
-        .DepthWriteMask     = D3D12_DEPTH_WRITE_MASK_ALL,
-        .DepthFunc          = D3D12_COMPARISON_FUNC_LESS_EQUAL,
-        .StencilEnable      = FALSE,
+        .DepthEnable            = TRUE,
+        .DepthWriteMask         = D3D12_DEPTH_WRITE_MASK_ALL,
+        .DepthFunc              = D3D12_COMPARISON_FUNC_LESS_EQUAL,
+        .StencilEnable          = FALSE,
+    };
+    D3D12_BLEND_DESC blendDesc = {
+        .AlphaToCoverageEnable  = FALSE,
+        .IndependentBlendEnable = FALSE,
+        .RenderTarget = {
+            {
+                .BlendEnable            = TRUE,
+                .LogicOpEnable          = FALSE,
+                .SrcBlend               = D3D12_BLEND_SRC_ALPHA,
+                .DestBlend              = D3D12_BLEND_INV_SRC_ALPHA,
+                .BlendOp                = D3D12_BLEND_OP_ADD,
+                .SrcBlendAlpha          = D3D12_BLEND_ONE,
+                .DestBlendAlpha         = D3D12_BLEND_INV_SRC_ALPHA,
+                .BlendOpAlpha           = D3D12_BLEND_OP_ADD,
+                .RenderTargetWriteMask  = D3D12_COLOR_WRITE_ENABLE_ALL,
+            },
+        }
     };
     D3D12_GRAPHICS_PIPELINE_STATE_DESC psoWireDesc = {
         .pRootSignature         = sig.obj.Get(),
         .VS                     = vShader.bytecode,
         .PS                     = pShader.bytecode,
-        .BlendState             = CD3DX12_BLEND_DESC(D3D12_DEFAULT),
+        .BlendState             = blendDesc,
         .SampleMask             = UINT_MAX,
         .RasterizerState        = wireRasterDesc,
         .DepthStencilState      = depthStateDesc,
