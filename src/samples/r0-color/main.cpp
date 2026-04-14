@@ -55,8 +55,8 @@ public:
                 int objectIdx = scene->addObject("object.0", { 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1 }, meshId, 0);
                 return true;
             },
-            [&](){ return sceneLoader->load("cube.gltf"); },
-            [&](){ return sceneLoader->load("shapes.gltf"); },
+            [&](){ return sceneLoader->load("cube/cube.gltf"); },
+            [&](){ return sceneLoader->load("shapes/shapes.gltf"); },
         });
 
         sceneSelector->load(0);
