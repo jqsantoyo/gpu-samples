@@ -104,7 +104,7 @@
 					0.7300000190734863
 				],
 				"baseColorTexture":{
-					"index":9
+					"index":2
 				},
 				"metallicFactor":0,
 				"metallicRoughnessTexture":{
@@ -266,11 +266,6 @@
 			"mimeType":"image/png",
 			"name":"Windows_SG_normal",
 			"uri":"Windows_SG_normal.png"
-		},
-		{
-			"mimeType":"image/png",
-			"name":"Body_SG1_baseColor",
-			"uri":"Body_SG1_baseColor.png"
 		}
 	],
 	"accessors":[
