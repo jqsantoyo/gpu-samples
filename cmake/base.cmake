@@ -277,9 +277,15 @@ function(target_textures targetName)
         cmake_path(GET file     STEM        stem)
         set(outFile ${outputDir}/${assetName}/${stem}.dds)
         list(APPEND outFiles ${outFile})
+        if(file MATCHES "albedo|basecolor|baseColor|diffuse")
+            set(format BC3_UNORM_SRGB)
+        else()
+            set(format BC3_UNORM)
+        endif()
+        message(STATUS "Texture ${file} format: ${format}")
         add_custom_command(
             OUTPUT ${outFile}
-            COMMAND texconv -f BC3_UNORM ${file} -o ${outputDir}/${assetName}
+            COMMAND texconv -f ${format} ${file} -o ${outputDir}/${assetName}
             DEPENDS ${file}
             VERBATIM
         )

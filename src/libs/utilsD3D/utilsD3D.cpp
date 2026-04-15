@@ -305,6 +305,14 @@ bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, 
     for (UINT i = 0; i < frameCount; i++) {
         RenderTarget& renderTarget = renderTargets[i];
         GUARDHR(obj->GetBuffer(i, IID_PPV_ARGS(&renderTarget.resource)));
+        // D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
+        //     .Format         = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+        //     .ViewDimension  = D3D12_RTV_DIMENSION_TEXTURE2D,
+        //     .Texture2D = {
+        //         .MipSlice   = 0,
+        //         .PlaneSlice = 0,
+        //     }
+        // };
         device.obj->CreateRenderTargetView(renderTarget.resource.Get(), nullptr, rtvHandle);
         renderTarget.view = rtvHandle;
         rtvHandle.Offset(1, device.rtvDescSize);
