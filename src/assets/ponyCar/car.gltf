@@ -108,7 +108,7 @@
 				},
 				"metallicFactor":0,
 				"metallicRoughnessTexture":{
-					"index":10
+					"index":3
 				}
 			}
 		}
@@ -211,14 +211,6 @@
 		{
 			"sampler":0,
 			"source":8
-		},
-		{
-			"sampler":0,
-			"source":9
-		},
-		{
-			"sampler":0,
-			"source":3
 		}
 	],
 	"images":[

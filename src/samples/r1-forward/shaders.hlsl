@@ -150,18 +150,18 @@ float4 PSMain(PSInput input) : SV_TARGET
     float3 normal = normalize(input.normalW);
     MaterialValues material;
     material.bc = baseColor                   * textures[baseColorMap]        .Sample(samplerLinearWrap, input.uv);
-    material.mr = float2(metallic, roughness) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).gb;
+    material.mr = float2(roughness, metallic) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).gb;
     material.e  = emissive                    * textures[emissiveMap]         .Sample(samplerLinearWrap, input.uv).rgb;
     material.n  = 2                           * textures[normalMap]           .Sample(samplerLinearWrap, input.uv).rgb - 1;
     material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).r;
-// material.bc = pow(material.bc, 2.2);
+    // material.bc = pow(material.bc, 2.2);
 
     float3 ambient = float3(.05, .05, .05);
     float3 light = float3(0, 0, 0);
     light += ambient * material.bc.rgb + material.e;
     for (int i = 0; i < 3; i++) {
         // light += computeLight(input.positionW, normal, eye, lights[i], material);
-        light += computeLightPbr(input.positionW, normal, eye, lights[i], material);
+        light += 1.5 * computeLightPbr(input.positionW, normal, eye, lights[i], material);
     }
 
     return float4(light, material.bc.a);
