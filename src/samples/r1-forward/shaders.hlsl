@@ -66,6 +66,26 @@ struct PSInput
     float2 uv : UV;
 };
 
+
+
+float3 srgbToLinear(float3 x) {
+    return lerp(x / 12.92, pow((x + 0.055) / 1.055, 2.4), step(0.04045, x));
+}
+
+float3 linearToSrgb(float3 x) {
+    return lerp(x * 12.92, 1.055 * pow(x, 1.0/2.4) - 0.055, step(0.0031308, x));
+}
+
+// float3 srgbToLinear(float3 x) {
+//     return x;
+// }
+
+// float3 linearToSrgb(float3 x) {
+//     return x;
+// }
+
+
+
 float3 fresnel(float HdotV, float3 F0) {
     return F0 + (1.0 - F0) * pow(1.0 - HdotV, 5.0);
 }
@@ -97,7 +117,7 @@ float3 computeLightPbr(float3 position, float3 N, float3 eye, Light light, Mater
     float3 H = normalize(L + V);
 
     float  attenuation = (light.fallOff1 - d) / (light.fallOff1 - light.fallOff0);
-    float  spot = pow(max(dot(-L, light.direction), 0), light.spotPower);
+    float  spot = pow(max(dot(-L, light.direction), 0.0), light.spotPower);
     float3 lightValue = attenuation * spot * light.intensity;
 
     float  HdotV = saturate(dot(H, V));
@@ -110,7 +130,7 @@ float3 computeLightPbr(float3 position, float3 N, float3 eye, Light light, Mater
     float  k = pow(rou + 1.0, 2.0) / 8.0;
     float3 F0 = lerp(float3(0.04, 0.04, 0.04), material.bc.rgb, met);
     float3 ks = fresnel(HdotV, F0);
-    float3 kd = 1 - ks;
+    float3 kd = (1.0 - ks) * (1.0 - met);
     float3 f = kd * material.bc.rgb / pi + ks * NormalDistroGGX(NdotH, rou) * GeometrySmith(NdotV, NdotL, k) / max(4.0 * NdotV * NdotL, 0.001);
 
     float3 Lo = f * NdotL * lightValue;
@@ -148,21 +168,25 @@ PSInput VSMain(VSInput input)
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float3 normal = normalize(input.normalW);
+    float4 basecolorSample = textures[baseColorMap].Sample(samplerLinearWrap, input.uv);
+    float4 emissiveSample  = textures[emissiveMap] .Sample(samplerLinearWrap, input.uv);
+
     MaterialValues material;
-    material.bc = baseColor                   * textures[baseColorMap]        .Sample(samplerLinearWrap, input.uv);
+    material.bc = baseColor                   * float4(srgbToLinear(basecolorSample.rgb), basecolorSample.a);
     material.mr = float2(roughness, metallic) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).gb;
-    material.e  = emissive                    * textures[emissiveMap]         .Sample(samplerLinearWrap, input.uv).rgb;
+    material.e  = emissive                    * srgbToLinear(emissiveSample.rgb);
     material.n  = 2                           * textures[normalMap]           .Sample(samplerLinearWrap, input.uv).rgb - 1;
     material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).r;
-    // material.bc = pow(material.bc, 2.2);
+
 
     float3 ambient = float3(.05, .05, .05);
     float3 light = float3(0, 0, 0);
     light += ambient * material.bc.rgb + material.e;
     for (int i = 0; i < 3; i++) {
         // light += computeLight(input.positionW, normal, eye, lights[i], material);
-        light += 1.5 * computeLightPbr(input.positionW, normal, eye, lights[i], material);
+        light += 1.2 * computeLightPbr(input.positionW, normal, eye, lights[i], material);
     }
+    light = linearToSrgb(light);
 
     return float4(light, material.bc.a);
     // return diffuseMapValue;

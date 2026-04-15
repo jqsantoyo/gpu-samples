@@ -277,7 +277,9 @@ function(target_textures targetName)
         cmake_path(GET file     STEM        stem)
         set(outFile ${outputDir}/${assetName}/${stem}.dds)
         list(APPEND outFiles ${outFile})
-        if(file MATCHES "albedo|basecolor|baseColor|diffuse")
+        # Hack to convert sRGB appropriately.
+        # Although currently the sRGB format seems to have no effect on sampling in shaders.
+        if(file MATCHES "albedo|basecolor|baseColor|diffuse|emissive")
             set(format BC3_UNORM_SRGB)
         else()
             set(format BC3_UNORM)

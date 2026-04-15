@@ -313,6 +313,7 @@ bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, 
         //         .PlaneSlice = 0,
         //     }
         // };
+        // device.obj->CreateRenderTargetView(renderTarget.resource.Get(), &rtvDesc, rtvHandle);
         device.obj->CreateRenderTargetView(renderTarget.resource.Get(), nullptr, rtvHandle);
         renderTarget.view = rtvHandle;
         rtvHandle.Offset(1, device.rtvDescSize);
@@ -710,6 +711,7 @@ int TextureRegistry::addTexture(const uint8_t* data, uint32_t size) {
     GUARD(device->nextCbv(texture.descriptor));
     D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
 
+    // Currently the sRGB format seems to have no effect on samping in shaders.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
         .Format = texture.res->GetDesc().Format,
         .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
