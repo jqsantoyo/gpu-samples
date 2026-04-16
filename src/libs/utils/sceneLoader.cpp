@@ -234,11 +234,10 @@ bool SceneLoader::load(const std::string& filename) {
     for (int i = 0; i < model.materials.size(); i++) {
         const tinygltf::Material& m = model.materials[i];
         std::string name = std::string("") + "material_" + std::to_string(i);
-        int baseColorMap            = m.pbrMetallicRoughness.baseColorTexture.index;
-        int metallicRoughnessMap    = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
-        int normalMap               = m.normalTexture.index;
-        int emissiveMap             = m.emissiveTexture.index;
-        int occlusionMap            = m.occlusionTexture.index;
+        int baseColorMap    = m.pbrMetallicRoughness.baseColorTexture.index;
+        int ormMap          = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
+        int normalMap       = m.normalTexture.index;
+        int emissiveMap     = m.emissiveTexture.index;
         Material mat = {
             .baseColor = {
                 static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[0]),
@@ -253,11 +252,10 @@ bool SceneLoader::load(const std::string& filename) {
             },
             .metallic               = static_cast<float>(m.pbrMetallicRoughness.metallicFactor),
             .roughness              = static_cast<float>(m.pbrMetallicRoughness.roughnessFactor),
-            .baseColorMap           = baseColorMap          >= 0 ? baseColorMap         : 0,
-            .metallicRoughnessMap   = metallicRoughnessMap  >= 0 ? metallicRoughnessMap : 0,
-            .normalMap              = normalMap             >= 0 ? normalMap            : 0,
-            .emissiveMap            = emissiveMap           >= 0 ? emissiveMap          : 0,
-            .occlusionMap           = occlusionMap          >= 0 ? occlusionMap         : 0,
+            .baseColorMap           = baseColorMap  >= 0 ? baseColorMap : 0,
+            .ormMap                 = ormMap        >= 0 ? ormMap       : 0,
+            .normalMap              = normalMap     >= 0 ? normalMap    : 0,
+            .emissiveMap            = emissiveMap   >= 0 ? emissiveMap  : 0,
         };
         renderer->addMaterial(mat);
     }
@@ -295,7 +293,7 @@ bool SceneLoader::load(const std::string& filename) {
         }
     }
 
-    scene->addCamera("defaultCamera", 7, -2.1, .25, 3.14159 / 4.0f, 1, 0.1f, 200.0f);
+    scene->addCamera("defaultCamera", 6, -2.1, .25, 3.14159 / 4.0f, 1, 0.1f, 200.0f);
     return true;
 }
 

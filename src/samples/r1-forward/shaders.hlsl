@@ -10,11 +10,8 @@ struct Light {
 };
 
 struct MaterialValues {
-    float4 bc;
+    float3 bc;
     float2 mr;
-    float3 e;
-    float3 n;
-    float  o;
 };
 
 cbuffer ObjectData : register(b0)
@@ -29,10 +26,9 @@ cbuffer MaterialData : register(b1)
     float   metallic;
     float   roughness;
     int     baseColorMap;
-    int     metallicRoughnessMap;
+    int     ormMap;
     int     normalMap;
     int     emissiveMap;
-    int     occlusionMap;
 };
 
 cbuffer PassData : register(b2)
@@ -175,25 +171,27 @@ PSInput VSMain(VSInput input)
 float4 PSMain(PSInput input) : SV_TARGET
 {
     float4 basecolorSample = textures[baseColorMap].Sample(samplerLinearWrap, input.uv);
-    float4 emissiveSample  = textures[ emissiveMap].Sample(samplerLinearWrap, input.uv);
-    float4 normalSample    = textures[   normalMap].Sample(samplerLinearWrap, input.uv);
+    float4       ormSample = textures[      ormMap].Sample(samplerLinearWrap, input.uv);
+    float4  emissiveSample = textures[ emissiveMap].Sample(samplerLinearWrap, input.uv);
+    float4    normalSample = textures[   normalMap].Sample(samplerLinearWrap, input.uv);
 
     MaterialValues material;
-    material.bc = baseColor                   * float4(srgbToLinear(basecolorSample.rgb), basecolorSample.a);
-    material.mr = float2(roughness, metallic) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).gb;
-    material.e  = emissive                    * srgbToLinear(emissiveSample.rgb);
-    material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).r;
+    material.bc = baseColor.rgb * srgbToLinear(basecolorSample.rgb);
+    material.mr = float2(roughness, metallic) * ormSample.gb;
 
-    float3 normal = mul(input.TBN, 2 * normalSample.xyz - 1);
+    float  a  = baseColor.a * basecolorSample.a;
+    float3 e  = emissive * srgbToLinear(emissiveSample.rgb);
+    float  ao = ormSample.r;
+    float3 N  = mul(input.TBN, 2 * normalSample.xyz - 1);
 
     float3 ambient = float3(.05, .05, .05);
     float3 light = float3(0, 0, 0);
-    light += ambient * material.bc.rgb + material.e;
+    light += ambient * ao * material.bc + e;
     for (int i = 0; i < 3; i++) {
         // light += computeLight(input.positionW, normal, eye, lights[i], material);
-        light += 1.2 * computeLightPbr(input.positionW, normal, eye, lights[i], material);
+        light += 1.2 * computeLightPbr(input.positionW, N, eye, lights[i], material);
     }
     light = linearToSrgb(light);
 
-    return float4(light, material.bc.a);
+    return float4(light, a);
 }

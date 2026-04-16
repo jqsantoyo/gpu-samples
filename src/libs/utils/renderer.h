@@ -35,10 +35,9 @@ struct Material
     float metallic;
     float roughness;
     int baseColorMap;
-    int metallicRoughnessMap;
+    int ormMap;
     int normalMap;
     int emissiveMap;
-    int occlusionMap;
 };
 
 enum FillMode {
