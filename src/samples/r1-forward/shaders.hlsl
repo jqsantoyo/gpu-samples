@@ -63,9 +63,8 @@ struct PSInput
 {
     float4   position  : SV_POSITION;
     float3   positionW : POSITION;
-    float3   normal    : NORMAL;
     float2   uv        : UV;
-    float4   tangent   : TANGENT;
+    float3x3 TBN       : TBN;
 };
 
 
@@ -159,36 +158,33 @@ float3 computeLight(float3 position, float3 N, float3 eye, Light light, Material
 
 PSInput VSMain(VSInput input)
 {
+    float3 bitangent = cross(input.normal, input.tangent.xyz) * input.tangent.a;
+    float3 T = normalize(mul((float3x3)m, input.tangent.xyz));
+    float3 B = normalize(mul((float3x3)m, bitangent));
+    float3 N = normalize(mul((float3x3)m, input.normal));
+
     PSInput output;
     output.positionW = mul(m, float4(input.position, 1)).xyz;
-    output.normal    = input.normal;
     output.position  = mul(viewProj, float4(output.positionW, 1));
     output.uv        = input.uv;
-    output.tangent   = input.tangent;
+    output.TBN       = transpose(float3x3(T, B, N));
+
     return output;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float3 bitangent = cross(input.normal, input.tangent.xyz) * input.tangent.a;
-    float3 T = normalize(mul((float3x3)m, input.tangent.xyz));
-    float3 B = normalize(mul((float3x3)m, bitangent));
-    float3 N = normalize(mul((float3x3)m, input.normal));
-    float3x3 TBN = float3x3(T, B, N);
-    
-
     float4 basecolorSample = textures[baseColorMap].Sample(samplerLinearWrap, input.uv);
-    float4 emissiveSample  = textures[emissiveMap] .Sample(samplerLinearWrap, input.uv);
+    float4 emissiveSample  = textures[ emissiveMap].Sample(samplerLinearWrap, input.uv);
+    float4 normalSample    = textures[   normalMap].Sample(samplerLinearWrap, input.uv);
 
     MaterialValues material;
     material.bc = baseColor                   * float4(srgbToLinear(basecolorSample.rgb), basecolorSample.a);
     material.mr = float2(roughness, metallic) * textures[metallicRoughnessMap].Sample(samplerLinearWrap, input.uv).gb;
     material.e  = emissive                    * srgbToLinear(emissiveSample.rgb);
-    material.n  = 2                           * textures[normalMap]           .Sample(samplerLinearWrap, input.uv).rgb - 1;
     material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).r;
 
-    TBN = transpose(TBN);
-    float3 normal = mul(TBN, material.n);
+    float3 normal = mul(input.TBN, 2 * normalSample.xyz - 1);
 
     float3 ambient = float3(.05, .05, .05);
     float3 light = float3(0, 0, 0);
