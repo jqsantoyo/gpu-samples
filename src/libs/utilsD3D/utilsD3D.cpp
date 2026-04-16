@@ -883,7 +883,7 @@ bool RootSig::init1Cbv1TableNSamplers(Device& device) {
     rootParam[0].InitAsConstantBufferView(0);
     rootParam[1].InitAsDescriptorTable(1, &descTable);
     
-    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_ANISOTROPIC);
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(2, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
@@ -904,7 +904,7 @@ bool RootSig::init3Cbv1TableNSamplers(Device& device) {
     rootParam[2].InitAsConstantBufferView(2);
     rootParam[3].InitAsDescriptorTable(1, &descTable);
     
-    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_MIN_MAG_MIP_LINEAR);
+    CD3DX12_STATIC_SAMPLER_DESC samplerDesc(0, D3D12_FILTER_ANISOTROPIC);
     CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
     rootSignatureDesc.Init(4, rootParam, 1, &samplerDesc, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
     GUARDHR(D3D12SerializeRootSignature(&rootSignatureDesc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &error));
