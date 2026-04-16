@@ -189,5 +189,4 @@ float4 PSMain(PSInput input) : SV_TARGET
     light = linearToSrgb(light);
 
     return float4(light, material.bc.a);
-    // return diffuseMapValue;
 }

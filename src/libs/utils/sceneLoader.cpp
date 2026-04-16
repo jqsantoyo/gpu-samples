@@ -274,7 +274,7 @@ bool SceneLoader::load(const std::string& filename) {
         }
     }
 
-    scene->addCamera("defaultCamera", 20, 0, 0, 3.14159 / 4.0f, 1, 0.1f, 200.0f);
+    scene->addCamera("defaultCamera", 7, -2.1, .25, 3.14159 / 4.0f, 1, 0.1f, 200.0f);
     return true;
 }
 
