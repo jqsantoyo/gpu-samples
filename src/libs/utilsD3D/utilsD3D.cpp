@@ -653,6 +653,11 @@ int MeshRegistry::addMesh(const MeshDesc& desc) {
             .SizeInBytes = static_cast<uint32_t>(desc.uv.size),
             .StrideInBytes = sizeof(float) * 2,
         },
+        .tangentView = {
+            .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.tangent.offset,
+            .SizeInBytes = static_cast<uint32_t>(desc.tangent.size),
+            .StrideInBytes = sizeof(float) * 4,
+        },
         .colorView = {
             .BufferLocation = buffer.vbUp->GetGPUVirtualAddress() + desc.color.offset,
             .SizeInBytes = static_cast<uint32_t>(desc.color.size),
@@ -1131,9 +1136,10 @@ bool PipelineLights::init(Device& device, RootSig& sig) {
     DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
 
     D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-        { "UV",       0, DXGI_FORMAT_R32G32_FLOAT,    2,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "UV",       0, DXGI_FORMAT_R32G32_FLOAT,       2,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+        { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 3,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
     };
     D3D12_RASTERIZER_DESC wireRasterDesc = {
         .FillMode               = D3D12_FILL_MODE_SOLID,

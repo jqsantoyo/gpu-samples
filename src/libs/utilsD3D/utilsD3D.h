@@ -288,6 +288,7 @@ struct Mesh {
     D3D12_VERTEX_BUFFER_VIEW    positionView;
     D3D12_VERTEX_BUFFER_VIEW    normalView;
     D3D12_VERTEX_BUFFER_VIEW    uvView;
+    D3D12_VERTEX_BUFFER_VIEW    tangentView;
     D3D12_VERTEX_BUFFER_VIEW    colorView;
 };
 

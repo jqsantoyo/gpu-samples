@@ -153,6 +153,7 @@ public:
                 frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
                 frameControl.cmdList->IASetVertexBuffers(1, 1, &m.normalView);
                 frameControl.cmdList->IASetVertexBuffers(2, 1, &m.uvView);
+                frameControl.cmdList->IASetVertexBuffers(3, 1, &m.tangentView);
                 frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
             }
         }

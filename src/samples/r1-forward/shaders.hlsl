@@ -54,16 +54,17 @@ SamplerState samplerLinearWrap : register(s0);
 struct VSInput
 {
     float3 position : POSITION;
-    float3 normal : NORMAL;
-    float2 uv : UV;
+    float3 normal   : NORMAL;
+    float2 uv       : UV;
+    float4 tangent  : TANGENT;
 };
 
 struct PSInput
 {
-    float4 position : SV_POSITION;
+    float4 position  : SV_POSITION;
     float3 positionW : POSITION;
-    float3 normalW : NORMAL;
-    float2 uv : UV;
+    float3 normalW   : NORMAL;
+    float2 uv        : UV;
 };
 
 

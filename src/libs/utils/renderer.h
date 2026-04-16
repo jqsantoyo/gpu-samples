@@ -24,6 +24,7 @@ struct MeshDesc {
     BufferViewDesc position;
     BufferViewDesc normal;
     BufferViewDesc uv;
+    BufferViewDesc tangent;
     BufferViewDesc color;
 };
 

@@ -98,11 +98,13 @@ bool SceneLoader::load(const std::string& filename) {
         tinygltf::BufferView positionView;
         tinygltf::BufferView normalView;
         tinygltf::BufferView uvView;
+        tinygltf::BufferView tangentView;
         tinygltf::BufferView colorView;
-        auto positionAttr = prim.attributes.find("POSITION");
-        auto normalAttr = prim.attributes.find("NORMAL");
-        auto uvAttr = prim.attributes.find("TEXCOORD_0");
-        auto colorAttr = prim.attributes.find("COLOR_0");
+        auto positionAttr   = prim.attributes.find("POSITION");
+        auto normalAttr     = prim.attributes.find("NORMAL");
+        auto uvAttr         = prim.attributes.find("TEXCOORD_0");
+        auto tangentAttr    = prim.attributes.find("TANGENT");
+        auto colorAttr      = prim.attributes.find("COLOR_0");
         if (positionAttr != prim.attributes.end()) {
             tinygltf::Accessor& indicesAcc = model.accessors[prim.indices];
             tinygltf::Accessor& positionAcc = model.accessors[positionAttr->second];
@@ -122,11 +124,11 @@ bool SceneLoader::load(const std::string& filename) {
             indicesView = model.bufferViews[indicesAcc.bufferView];
             positionView = model.bufferViews[positionAcc.bufferView];
             if (indicesView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] indices has invalid stride", filename.c_str(), i);
+                printf("Assets:: model[%s]::mesh[%d] indices have invalid stride", filename.c_str(), i);
                 break;
             }
             if (positionView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] position has invalid stride", filename.c_str(), i);
+                printf("Assets:: model[%s]::mesh[%d] positions have invalid stride", filename.c_str(), i);
                 break;
             }
             vCount = indicesAcc.count;
@@ -144,7 +146,7 @@ bool SceneLoader::load(const std::string& filename) {
             }
             normalView = model.bufferViews[acc.bufferView];
             if (normalView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] normal has invalid stride", filename.c_str(), i);
+                printf("Assets:: model[%s]::mesh[%d] normals have invalid stride", filename.c_str(), i);
                 break;
             }
         }
@@ -159,7 +161,22 @@ bool SceneLoader::load(const std::string& filename) {
             }
             uvView = model.bufferViews[acc.bufferView];
             if (uvView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] uv has invalid stride", filename.c_str(), i);
+                printf("Assets:: model[%s]::mesh[%d] uvs have invalid stride", filename.c_str(), i);
+                break;
+            }
+        }
+
+        if (tangentAttr != prim.attributes.end()) {
+            tinygltf::Accessor& acc = model.accessors[tangentAttr->second];
+            if (acc.componentType != TINYGLTF_COMPONENT_TYPE_FLOAT ||
+                acc.type != TINYGLTF_TYPE_VEC4
+            ) {
+                printf("Assets:: model[%s]::mesh[%d] tangents are not vec3f", filename.c_str(), i);
+                break;
+            }
+            tangentView = model.bufferViews[acc.bufferView];
+            if (tangentView.byteStride != 0) {
+                printf("Assets:: model[%s]::mesh[%d] tangents have invalid stride", filename.c_str(), i);
                 break;
             }
         }
@@ -174,7 +191,7 @@ bool SceneLoader::load(const std::string& filename) {
             }
             colorView = model.bufferViews[acc.bufferView];
             if (colorView.byteStride != 0) {
-                printf("Assets:: model[%s]::mesh[%d] color has invalid stride", filename.c_str(), i);
+                printf("Assets:: model[%s]::mesh[%d] colors have invalid stride", filename.c_str(), i);
                 break;
             }
         }
@@ -200,6 +217,10 @@ bool SceneLoader::load(const std::string& filename) {
             .uv = {
                 .offset = uvView.byteOffset,
                 .size = uvView.byteLength,
+            },
+            .tangent = {
+                .offset = tangentView.byteOffset,
+                .size = tangentView.byteLength,
             },
             .color = {
                 .offset = colorView.byteOffset,
