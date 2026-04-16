@@ -53,18 +53,19 @@ SamplerState samplerLinearWrap : register(s0);
 
 struct VSInput
 {
-    float3 position : POSITION;
-    float3 normal   : NORMAL;
-    float2 uv       : UV;
-    float4 tangent  : TANGENT;
+    float3 position  : POSITION;
+    float3 normal    : NORMAL;
+    float2 uv        : UV;
+    float4 tangent   : TANGENT;
 };
 
 struct PSInput
 {
-    float4 position  : SV_POSITION;
-    float3 positionW : POSITION;
-    float3 normalW   : NORMAL;
-    float2 uv        : UV;
+    float4   position  : SV_POSITION;
+    float3   positionW : POSITION;
+    float3   normal    : NORMAL;
+    float2   uv        : UV;
+    float4   tangent   : TANGENT;
 };
 
 
@@ -160,15 +161,22 @@ PSInput VSMain(VSInput input)
 {
     PSInput output;
     output.positionW = mul(m, float4(input.position, 1)).xyz;
-    output.normalW = mul((float3x3)m, input.normal);
-    output.position = mul(viewProj, float4(output.positionW, 1));
-    output.uv = input.uv; 
+    output.normal    = input.normal;
+    output.position  = mul(viewProj, float4(output.positionW, 1));
+    output.uv        = input.uv;
+    output.tangent   = input.tangent;
     return output;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float3 normal = normalize(input.normalW);
+    float3 bitangent = cross(input.normal, input.tangent.xyz) * input.tangent.a;
+    float3 T = normalize(mul((float3x3)m, input.tangent.xyz));
+    float3 B = normalize(mul((float3x3)m, bitangent));
+    float3 N = normalize(mul((float3x3)m, input.normal));
+    float3x3 TBN = float3x3(T, B, N);
+    
+
     float4 basecolorSample = textures[baseColorMap].Sample(samplerLinearWrap, input.uv);
     float4 emissiveSample  = textures[emissiveMap] .Sample(samplerLinearWrap, input.uv);
 
@@ -179,6 +187,8 @@ float4 PSMain(PSInput input) : SV_TARGET
     material.n  = 2                           * textures[normalMap]           .Sample(samplerLinearWrap, input.uv).rgb - 1;
     material.o  =                               textures[occlusionMap]        .Sample(samplerLinearWrap, input.uv).r;
 
+    TBN = transpose(TBN);
+    float3 normal = mul(TBN, material.n);
 
     float3 ambient = float3(.05, .05, .05);
     float3 light = float3(0, 0, 0);
