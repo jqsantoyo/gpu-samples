@@ -28,10 +28,10 @@ public:
         renderer->init(window, width, height);
         sceneLoader->init(scene.get(), renderer.get());
         sceneSelector->init(scene.get(), renderer.get(), {
-            [&]() {
-                bool result = sceneLoader->load("crate/crate.gltf");
-                return result;
-            },
+            // [&]() {
+            //     bool result = sceneLoader->load("crate/crate.gltf");
+            //     return result;
+            // },
             [&]() {
                 bool result = sceneLoader->load("damagedHelmet/DamagedHelmet.gltf");
                 return result;
@@ -41,7 +41,7 @@ public:
                 return result;
             },
         });
-        sceneSelector->load(2);
+        sceneSelector->load(1);
         renderer->wait();
         return true;
     }
