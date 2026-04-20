@@ -740,6 +740,8 @@ int TextureRegistry::addTexture(const uint8_t* data, uint32_t size) {
         D3D12_RESOURCE_STATE_GENERIC_READ,
         nullptr,
         IID_PPV_ARGS(&texture.resUp)));
+        
+    queue->wait();
     GUARDHR(cmdAllocator->Reset());
     GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
     auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
@@ -778,7 +780,7 @@ int TextureRegistry::addDefault(vec4 color) {
         &heapProps,
         D3D12_HEAP_FLAG_NONE,
         &desc,
-        D3D12_RESOURCE_STATE_GENERIC_READ,
+        D3D12_RESOURCE_STATE_COMMON,
         nullptr,
         IID_PPV_ARGS(&texture.res)));
     texture.res->SetName(L"Default texture");
@@ -803,7 +805,7 @@ int TextureRegistry::addDefault(vec4 color) {
         nullptr,
         IID_PPV_ARGS(&texture.resUp)));
 
-        
+    queue->wait();
     GUARDHR(cmdAllocator->Reset());
     GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
     auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);

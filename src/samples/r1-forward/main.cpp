@@ -17,7 +17,7 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
-        title = useVulkan ? "03-forward-vk" : "03-forward";
+        title = useVulkan ? "01-forward-vk" : "01-forward";
 
         renderer    = createRenderer(useVulkan);
         scene       = std::make_unique<Scene>();
