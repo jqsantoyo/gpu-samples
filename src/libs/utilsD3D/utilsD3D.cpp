@@ -752,6 +752,91 @@ int TextureRegistry::addTexture(const uint8_t* data, uint32_t size) {
     return textures.size() - 1;
 }
 
+int TextureRegistry::addDefault(vec4 color) {
+    textures.push_back({});
+    Texture& texture = textures.back();
+    CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+    CD3DX12_HEAP_PROPERTIES upHeapProps(D3D12_HEAP_TYPE_UPLOAD);
+
+    
+    D3D12_RESOURCE_DESC desc = {
+        .Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
+        .Alignment = 0,
+        .Width = 1,
+        .Height = 1,
+        .DepthOrArraySize = 1,
+        .MipLevels = 1,
+        .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        .SampleDesc = {
+            .Count = 1,
+            .Quality = 0,
+        },
+        .Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN,
+        .Flags = D3D12_RESOURCE_FLAG_NONE,
+    };
+    GUARDHR(device->obj->CreateCommittedResource(
+        &heapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &desc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&texture.res)));
+    texture.res->SetName(L"Default texture");
+    
+    uint32_t pixel =
+        + (static_cast<uint32_t>(255.0f * color.x) << 24)
+        + (static_cast<uint32_t>(255.0f * color.y) << 16)
+        + (static_cast<uint32_t>(255.0f * color.z) <<  8)
+        +  static_cast<uint32_t>(255.0f * color.w);
+
+    std::vector<D3D12_SUBRESOURCE_DATA> subresources = {
+        { .pData = reinterpret_cast<void*>(&pixel), .RowPitch = 0, .SlicePitch = 0, },
+    };
+
+    const UINT64 uploadBufferSize = GetRequiredIntermediateSize(texture.res.Get(), 0, subresources.size());
+    auto upDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
+    GUARDHR(device->obj->CreateCommittedResource(
+        &upHeapProps,
+        D3D12_HEAP_FLAG_NONE,
+        &upDesc,
+        D3D12_RESOURCE_STATE_GENERIC_READ,
+        nullptr,
+        IID_PPV_ARGS(&texture.resUp)));
+
+        
+    GUARDHR(cmdAllocator->Reset());
+    GUARDHR(cmdList->Reset(cmdAllocator.Get(), nullptr));
+    auto barr0 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COMMON, D3D12_RESOURCE_STATE_COPY_DEST);
+    auto barr1 = CD3DX12_RESOURCE_BARRIER::Transition(texture.res.Get(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+    cmdList->ResourceBarrier(1, &barr0);
+    UpdateSubresources(cmdList.Get(), texture.res.Get(), texture.resUp.Get(), 0, 0, subresources.size(), subresources.data());
+    cmdList->ResourceBarrier(1, &barr1);
+    HRESULT res2 = cmdList->Close();
+    queue->execute({ cmdList.Get() });
+
+    
+    GUARD(device->nextCbv(texture.descriptor));
+    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
+    D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
+        .Format = texture.res->GetDesc().Format,
+        .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
+        .Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+        .Texture2D = {
+            .MostDetailedMip = 0,
+            .MipLevels = texture.res->GetDesc().MipLevels,
+            .PlaneSlice = 0,
+            .ResourceMinLODClamp = 0.0f,
+        }
+    };
+    device->obj->CreateShaderResourceView(texture.res.Get(), &srvDesc, texDesc);
+
+    return textures.size() - 1;
+}
+
+int TextureRegistry::getCount() {
+    return textures.size();
+}
+
 Texture& TextureRegistry::get(int idx) {
     return textures[idx];
 }

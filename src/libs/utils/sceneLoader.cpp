@@ -27,7 +27,7 @@ bool loadImage(
 ) {
     IRenderer* renderer = reinterpret_cast<IRenderer*>(userData);
     printf("Load image[%d][%s]\n", imageIdx, image->name.c_str());
-    renderer->addTexture(bytes, size);
+    int texIdx = renderer->addTexture(bytes, size);
     return true;
 }
 
@@ -42,7 +42,8 @@ bool SceneLoader::load(const std::string& filename) {
     tinygltf::TinyGLTF loader;
     std::string err;
     std::string warn;
-        
+
+    int baseTexIdx = renderer->getTextureCount();
     loader.SetImageLoader(loadImage, renderer); 
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path);
                            
@@ -252,10 +253,10 @@ bool SceneLoader::load(const std::string& filename) {
             },
             .metallic               = static_cast<float>(m.pbrMetallicRoughness.metallicFactor),
             .roughness              = static_cast<float>(m.pbrMetallicRoughness.roughnessFactor),
-            .baseColorMap           = baseColorMap  >= 0 ? baseColorMap : 0,
-            .ormMap                 = ormMap        >= 0 ? ormMap       : 0,
-            .normalMap              = normalMap     >= 0 ? normalMap    : 0,
-            .emissiveMap            = emissiveMap   >= 0 ? emissiveMap  : 0,
+            .baseColorMap           = baseColorMap  >= 0 ? baseTexIdx + baseColorMap : 0,
+            .ormMap                 = ormMap        >= 0 ? baseTexIdx + ormMap       : 1,
+            .normalMap              = normalMap     >= 0 ? baseTexIdx + normalMap    : 2,
+            .emissiveMap            = emissiveMap   >= 0 ? baseTexIdx + emissiveMap  : 3,
         };
         renderer->addMaterial(mat);
     }

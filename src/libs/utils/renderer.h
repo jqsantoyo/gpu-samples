@@ -98,6 +98,7 @@ public:
     virtual int addMesh(const MeshDesc& desc) { return -1; };
     virtual int addTexture(const char* filename) { return -1; };
     virtual int addTexture(const uint8_t* data, uint32_t size) { return -1; };
+    virtual int getTextureCount() { return 0; }
     virtual int addMaterial(Material& material) { return -1; };
 };
 

@@ -60,7 +60,9 @@ public:
         GUARD(depthBuffer.init(device, width, height));
         GUARD(textureRegistry.init(&device, &queue));
         GUARD(materialRegistry.init(&device));
-        queue.wait();
+
+        
+        reset();
         return true;
     }
 
@@ -74,6 +76,11 @@ public:
         meshRegistry.reset();
         textureRegistry.reset();
         materialRegistry.reset();
+        textureRegistry.addDefault({1, 1, 1, 1});   // default base color
+        // textureRegistry.addDefault({1, 1, 0, 1});   // default base color (magenta)
+        textureRegistry.addDefault({1, 1, 0, 1});   // default ORM
+        textureRegistry.addDefault({1, .5, .5, 1}); // default normals
+        textureRegistry.addDefault({1, 0, 0, 0});   // default emissive
     }
 
     void wait() {
@@ -217,6 +224,10 @@ public:
     int addTexture(const uint8_t* data, uint32_t size) {
         wait();
         return textureRegistry.addTexture(data, size);
+    }
+    
+    int getTextureCount() {
+        return textureRegistry.getCount();
     }
     
     virtual int addMaterial(Material& material) {

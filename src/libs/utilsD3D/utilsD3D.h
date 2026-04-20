@@ -318,6 +318,8 @@ public:
     void reset();
     int addTexture(const char* filename);
     int addTexture(const uint8_t* data, uint32_t size);
+    int getCount();
+    int addDefault(vec4 color);
     Texture& get(int idx);
 private:
     Device* device;
