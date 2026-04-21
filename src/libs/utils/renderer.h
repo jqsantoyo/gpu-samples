@@ -74,6 +74,7 @@ struct Model {
 struct RenderView {
     vec4 clearColor;
     FillMode fillMode;
+    bool enableShadows;
     int lightCount;
     int modelCount;
     const Camera* camera;
@@ -98,8 +99,16 @@ public:
     virtual int addMesh(const MeshDesc& desc) { return -1; };
     virtual int addTexture(const char* filename) { return -1; };
     virtual int addTexture(const uint8_t* data, uint32_t size) { return -1; };
-    virtual int getTextureCount() { return 0; }
+    virtual int getTextureDesc(int idx) { return -1; };
     virtual int addMaterial(Material& material) { return -1; };
+    virtual int getBufferCount() { return 0; }
+    virtual int getMeshCount() { return 0; }
+    virtual int getTextureCount() { return 0; }
+    virtual int getMaterialCount() { return 0; }
+    int defaultBaseColorMap = -1;
+    int defaultORMMap       = -1;
+    int defaultEmissiveMap  = -1;
+    int defaultNormalMap    = -1;
 };
 
 std::unique_ptr<IRenderer> createRenderer(bool vulkan);

@@ -43,7 +43,10 @@ bool SceneLoader::load(const std::string& filename) {
     std::string err;
     std::string warn;
 
-    int baseTexIdx = renderer->getTextureCount();
+    int baseTexIdx      = renderer->getTextureCount();
+    int baseBufferIdx   = renderer->getBufferCount();
+    int baseMeshIdx     = renderer->getMeshCount();
+    int baseMaterialIdx = renderer->getMaterialCount();
     loader.SetImageLoader(loadImage, renderer); 
     bool ret = loader.LoadASCIIFromFile(&model, &err, &warn, path);
                            
@@ -200,7 +203,7 @@ bool SceneLoader::load(const std::string& filename) {
 
         std::string key = filename + m.name;
         MeshDesc meshDesc = {
-            .bufferId = bufferId,
+            .bufferId = baseBufferIdx + bufferId,
             .indexFormatU16 = indexFormatU16,
             .vCount = vCount,
             .indices = {
@@ -235,10 +238,14 @@ bool SceneLoader::load(const std::string& filename) {
     for (int i = 0; i < model.materials.size(); i++) {
         const tinygltf::Material& m = model.materials[i];
         std::string name = std::string("") + "material_" + std::to_string(i);
-        int baseColorMap    = m.pbrMetallicRoughness.baseColorTexture.index;
-        int ormMap          = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
-        int normalMap       = m.normalTexture.index;
-        int emissiveMap     = m.emissiveTexture.index;
+        int baseColorIdx    = m.pbrMetallicRoughness.baseColorTexture.index;
+        int ormIdx          = m.pbrMetallicRoughness.metallicRoughnessTexture.index;
+        int normalIdx       = m.normalTexture.index;
+        int emissiveIdx     = m.emissiveTexture.index;
+        baseColorIdx           = baseColorIdx  >= 0 ? baseTexIdx + baseColorIdx : renderer->defaultBaseColorMap;
+        ormIdx                 = ormIdx        >= 0 ? baseTexIdx + ormIdx       : renderer->defaultORMMap;
+        normalIdx              = normalIdx     >= 0 ? baseTexIdx + normalIdx    : renderer->defaultNormalMap;
+        emissiveIdx            = emissiveIdx   >= 0 ? baseTexIdx + emissiveIdx  : renderer->defaultEmissiveMap;
         Material mat = {
             .baseColor = {
                 static_cast<float>(m.pbrMetallicRoughness.baseColorFactor[0]),
@@ -253,10 +260,10 @@ bool SceneLoader::load(const std::string& filename) {
             },
             .metallic               = static_cast<float>(m.pbrMetallicRoughness.metallicFactor),
             .roughness              = static_cast<float>(m.pbrMetallicRoughness.roughnessFactor),
-            .baseColorMap           = baseColorMap  >= 0 ? baseTexIdx + baseColorMap : 0,
-            .ormMap                 = ormMap        >= 0 ? baseTexIdx + ormMap       : 1,
-            .normalMap              = normalMap     >= 0 ? baseTexIdx + normalMap    : 2,
-            .emissiveMap            = emissiveMap   >= 0 ? baseTexIdx + emissiveMap  : 3,
+            .baseColorMap           = renderer->getTextureDesc(baseColorIdx),
+            .ormMap                 = renderer->getTextureDesc(ormIdx),
+            .normalMap              = renderer->getTextureDesc(normalIdx),
+            .emissiveMap            = renderer->getTextureDesc(emissiveIdx),
         };
         renderer->addMaterial(mat);
     }
@@ -290,7 +297,7 @@ bool SceneLoader::load(const std::string& filename) {
         if (n.mesh >= 0) {
             const tinygltf::Mesh mesh = model.meshes[n.mesh];
             const tinygltf::Primitive prim = mesh.primitives[0];
-            int objectIdx = scene->addObject(n.name, { x, y, z }, { rx, ry, rz, rw }, { sx, sy, sz }, n.mesh, prim.material);
+            int objectIdx = scene->addObject(n.name, { x, y, z }, { rx, ry, rz, rw }, { sx, sy, sz }, n.mesh + baseMeshIdx, prim.material + baseMaterialIdx);
         }
     }
 

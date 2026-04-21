@@ -73,7 +73,13 @@ public:
     void terminate();
     void reset();
     void printErrors();
+    bool nextRtv(int& idx);
+    bool nextDsv(int& idx);
     bool nextCbv(int& idx);
+    D3D12_CPU_DESCRIPTOR_HANDLE getRtv(UINT idx);
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpuRtv(UINT idx);
+    D3D12_CPU_DESCRIPTOR_HANDLE getDsv(UINT idx);
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpuDsv(UINT idx);
     D3D12_CPU_DESCRIPTOR_HANDLE getCbv(UINT idx);
     D3D12_GPU_DESCRIPTOR_HANDLE getGpuCbv(UINT idx);
 
@@ -300,6 +306,8 @@ public:
     void reset();
     int addBuffer(Device& device, const BufferDesc& desc);
     int addMesh(const MeshDesc& desc);
+    int getBufferCount();
+    int getMeshCount();
     Mesh& getMesh(int idx);
 private:
     std::vector<Buffer> buffers;
@@ -338,6 +346,7 @@ public:
     void reset();
     int addMaterial(Material& material);
     Material& getMaterial(int idx);
+    int getCount();
 private:
     Device* device;
     std::vector<Material> materials;
@@ -391,11 +400,30 @@ public:
 
 class DepthBuffer {
 public:
-    bool init(Device& device, uint64_t width, uint32_t height);
+    bool init(Device* device, uint64_t width, uint32_t height);
+    void reset();
+    int dsvIdx;
 private:
+    Device* device;
     Microsoft::WRL::ComPtr<ID3D12Resource> obj;
 };
 
 
+class Shadow {
+public:
+    bool init(Device* device, ID3D12RootSignature* root, uint32_t width, uint32_t height);
+    bool reset();
+    bool render(const RenderView& view);
+    // int getSrv();
+    // int getDsv();
+// private:
+    Device* device;
+    int srvIdx;
+    int dsvIdx;
+    Microsoft::WRL::ComPtr<ID3D12Resource> target;
+    Microsoft::WRL::ComPtr<ID3D12PipelineState> pso;
+    uint32_t width;
+    uint32_t height;
+};
 
 }

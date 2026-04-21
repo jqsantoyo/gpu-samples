@@ -33,19 +33,22 @@ cbuffer MaterialData : register(b1)
 
 cbuffer PassData : register(b2)
 {
-    float4x4 view;
-    float4x4 proj;
-    float4x4 viewProj;
-    float3 eye;
-    float pad0;
-    Light lights[12];
-    float2 screenSize;
-    float deltaTime;
-    float absoluteTime;
+    float4x4    view;
+    float4x4    proj;
+    float4x4    viewProj;
+    float3      eye;
+    float       pad0;
+    float4x4    lightViewProj;
+    Light       lights[12];
+    float2      screenSize;
+    float       deltaTime;
+    float       absoluteTime;
+    int         shadowMap;
 };
 
 Texture2D    textures[]        : register(t0);
-SamplerState samplerLinearWrap : register(s0);
+SamplerState samplerAniso : register(s0);
+SamplerState samplerShadow : register(s1);
 
 struct VSInput
 {
@@ -59,6 +62,7 @@ struct PSInput
 {
     float4   position  : SV_POSITION;
     float3   positionW : POSITION;
+    float4   positionL : POSITION_LIGHT;
     float2   uv        : UV;
     float3x3 TBN       : TBN;
 };
@@ -165,15 +169,21 @@ PSInput VSMain(VSInput input)
     output.uv        = input.uv;
     output.TBN       = transpose(float3x3(T, B, N));
 
+    output.positionL = mul(lightViewProj, float4(output.positionW, 1));
     return output;
 }
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-    float4 basecolorSample = textures[baseColorMap].Sample(samplerLinearWrap, input.uv);
-    float4       ormSample = textures[      ormMap].Sample(samplerLinearWrap, input.uv);
-    float4  emissiveSample = textures[ emissiveMap].Sample(samplerLinearWrap, input.uv);
-    float4    normalSample = textures[   normalMap].Sample(samplerLinearWrap, input.uv);
+    float4 basecolorSample = textures[baseColorMap].Sample(samplerAniso, input.uv);
+    float4       ormSample = textures[      ormMap].Sample(samplerAniso, input.uv);
+    float4  emissiveSample = textures[ emissiveMap].Sample(samplerAniso, input.uv);
+    float4    normalSample = textures[   normalMap].Sample(samplerAniso, input.uv);
+
+    float3 shadowPos = input.positionL.xyz / input.positionL.w;
+    float2 shadowUV = float2(shadowPos.x * .5 + .5, - shadowPos.y * .5 + .5);
+    float4 shadowSample = textures[shadowMap].Sample(samplerShadow, shadowUV.xy);
+    float shadowFactor = shadowPos.z <= (shadowSample.r + .0001) ? 1 : .4f;
 
     MaterialValues material;
     material.bc = baseColor.rgb * srgbToLinear(basecolorSample.rgb);
@@ -189,7 +199,7 @@ float4 PSMain(PSInput input) : SV_TARGET
     light += ambient * ao * material.bc + e;
     for (int i = 0; i < 3; i++) {
         // light += computeLight(input.positionW, normal, eye, lights[i], material);
-        light += 1.2 * computeLightPbr(input.positionW, N, eye, lights[i], material);
+        light += 1.2 * shadowFactor * computeLightPbr(input.positionW, N, eye, lights[i], material);
     }
     light = linearToSrgb(light);
 

@@ -14,6 +14,7 @@ public:
     std::unique_ptr<SceneLoader>    sceneLoader;
     std::unique_ptr<SceneSelector>  sceneSelector;
     std::unique_ptr<CameraCtrl>     cameraCtrl;
+    bool                            enableShadows = true;
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
@@ -33,12 +34,15 @@ public:
             //     return result;
             // },
             [&]() {
-                bool result = sceneLoader->load("damagedHelmet/DamagedHelmet.gltf");
-                return result;
+                GUARD(sceneLoader->load("damagedHelmet/DamagedHelmet.gltf"));
+                enableShadows = false;
+                return true;
             },
             [&]() {
-                bool result = sceneLoader->load("ponyCar/car.gltf");
-                return result;
+                GUARD(sceneLoader->load("ponyCar/car.gltf"));
+                GUARD(sceneLoader->load("ground/ground.gltf"));
+                enableShadows = true;
+                return true;
             },
         });
         sceneSelector->load(1);
@@ -51,14 +55,15 @@ public:
         setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
         renderer->trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
         RenderView view = {
-            .clearColor = { 0.1f, 0.1f, 0.1f, 1.0f },
-            .fillMode   = Fill,
-            .lightCount = 0,
-            .modelCount = scene->objects.size(),
-            .camera     = scene->cameras.getCamera(),
-            .lights     = nullptr,
-            .transforms = scene->objects.getTransform(),
-            .models     = scene->objects.getModel(),
+            .clearColor     = { 0.1f, 0.1f, 0.1f, 1.0f },
+            .fillMode       = Fill,
+            .enableShadows  = enableShadows,
+            .lightCount     = 0,
+            .modelCount     = scene->objects.size(),
+            .camera         = scene->cameras.getCamera(),
+            .lights         = nullptr,
+            .transforms     = scene->objects.getTransform(),
+            .models         = scene->objects.getModel(),
         };
         return renderer->render(view);
     }

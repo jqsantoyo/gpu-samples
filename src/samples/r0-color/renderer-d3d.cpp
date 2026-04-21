@@ -42,7 +42,8 @@ public:
         GUARD(rootSignature.init1Cbv(device));
         GUARD(psoFill.init(device, rootSignature));
         GUARD(psoWire.init(device, rootSignature));
-        GUARD(depthBuffer.init(device, width, height));
+        GUARD(depthBuffer.init(&device, width, height));
+        reset();
         return true;
     }
 
@@ -52,6 +53,8 @@ public:
 
     void reset() {
         wait();
+        device.reset();
+        depthBuffer.reset();
         meshRegistry.reset();
     }
 
@@ -67,7 +70,7 @@ public:
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
-        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.getDsv(depthBuffer.dsvIdx);
 
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
