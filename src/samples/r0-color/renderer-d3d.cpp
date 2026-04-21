@@ -70,7 +70,7 @@ public:
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
-        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.getDsv(depthBuffer.dsvIdx);
+        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap.getCpu(depthBuffer.dsvIdx);
 
         frameControl.begin(nullptr);
         frameControl.cmdList->RSSetViewports(1, &viewport);
@@ -79,7 +79,7 @@ public:
         frameControl.cmdList->OMSetRenderTargets(1, &target.view, 1, &depthView);
         frameControl.cmdList->ClearRenderTargetView(target.view, &view.clearColor.x, 0, nullptr);
         frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-        frameControl.heaps(device.cbvHeap.Get());
+        frameControl.heaps(device.cbvHeap.get());
         
         XMVECTOR posVec      = XMVectorSet(view.camera->pos.x,    view.camera->pos.y,    view.camera->pos.z,    1.0f);
         XMVECTOR targetVec   = XMVectorSet(view.camera->target.x, view.camera->target.y, view.camera->target.z, 1.0f);

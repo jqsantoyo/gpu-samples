@@ -63,8 +63,21 @@ public:
 
 
 
-
-
+class Heap {
+public:
+    bool init(ID3D12Device* device, const char* name, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, UINT capacity);
+    void reset();
+    bool next(int& idx);
+    D3D12_CPU_DESCRIPTOR_HANDLE getCpu(UINT idx);
+    D3D12_GPU_DESCRIPTOR_HANDLE getGpu(UINT idx);
+    ID3D12DescriptorHeap* get();
+private:
+    const char*                                  name;
+    UINT                                         size       = 0;
+    UINT                                         capacity   = 0;
+    int                                          currentIdx = 0;
+    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> obj;
+};
 
 
 class Device {
@@ -73,31 +86,13 @@ public:
     void terminate();
     void reset();
     void printErrors();
-    bool nextRtv(int& idx);
-    bool nextDsv(int& idx);
-    bool nextCbv(int& idx);
-    D3D12_CPU_DESCRIPTOR_HANDLE getRtv(UINT idx);
-    D3D12_GPU_DESCRIPTOR_HANDLE getGpuRtv(UINT idx);
-    D3D12_CPU_DESCRIPTOR_HANDLE getDsv(UINT idx);
-    D3D12_GPU_DESCRIPTOR_HANDLE getGpuDsv(UINT idx);
-    D3D12_CPU_DESCRIPTOR_HANDLE getCbv(UINT idx);
-    D3D12_GPU_DESCRIPTOR_HANDLE getGpuCbv(UINT idx);
 
 
-    Microsoft::WRL::ComPtr<ID3D12Device>            obj;
-    Microsoft::WRL::ComPtr<ID3D12InfoQueue>         iq;
-    UINT                                            rtvDescSize = 0;
-    UINT                                            dsvDescSize = 0;
-    UINT                                            cbvDescSize = 0;
-    int                                             rtvCount;
-    int                                             dsvCount;
-    int                                             cbvCount;
-    int                                             rtvIdx = 0;
-    int                                             dsvIdx = 0;
-    int                                             cbvIdx = 0;
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    rtvHeap;
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    dsvHeap;
-    Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>    cbvHeap;
+    Microsoft::WRL::ComPtr<ID3D12Device>    obj;
+    Microsoft::WRL::ComPtr<ID3D12InfoQueue> iq;
+    Heap                                    rtvHeap;
+    Heap                                    dsvHeap;
+    Heap                                    cbvHeap;
 };
 
 

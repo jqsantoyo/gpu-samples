@@ -100,7 +100,7 @@ public:
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
         RenderTarget target = swapchain.next();
-        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap->GetCPUDescriptorHandleForHeapStart();
+        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap.getCpu(depthBuffer.dsvIdx);
 
 
         Light light0 = { { -5, 2, 5 },  2, {  1, -1, -1 }, 10, { 3.0f, 3.0f, 3.0f }, 1 };
@@ -142,12 +142,12 @@ public:
         XMStoreFloat4x4(&passData.viewProj,     viewProjMat);
         
         frameControl.begin(nullptr);
-        frameControl.heaps(device.cbvHeap.Get());
+        frameControl.heaps(device.cbvHeap.get());
 
         if (view.enableShadows) {
             D3D12_VIEWPORT shadowViewport = { 0.0f, 0.0f, static_cast<float>(1024), static_cast<float>(1024), 0, 1 };
             D3D12_RECT shadowScissor = { 0, 0, long(1024), long(1024) };
-            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.getDsv(shadow.dsvIdx);
+            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.dsvHeap.getCpu(shadow.dsvIdx);
             frameControl.cmdList->RSSetViewports(1, &shadowViewport);
             frameControl.cmdList->RSSetScissorRects(1, &shadowScissor);
             frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
@@ -157,7 +157,7 @@ public:
             frameControl.cmdList->SetPipelineState(shadow.pso.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
             frameControl.setConstantBuffer(2, passData);
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.getGpuCbv(0));
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.cbvHeap.getGpu(0));
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
@@ -180,7 +180,7 @@ public:
             }
             frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
         } else {
-            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.getDsv(shadow.dsvIdx);
+            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.dsvHeap.getCpu(shadow.dsvIdx);
             frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
             frameControl.cmdList->ClearDepthStencilView(shadowDsv, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
             frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -200,7 +200,7 @@ public:
             frameControl.cmdList->SetPipelineState(pso.obj.Get());
             frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
             frameControl.setConstantBuffer(2, passData);
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.getGpuCbv(0));
+            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.cbvHeap.getGpu(0));
             frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];

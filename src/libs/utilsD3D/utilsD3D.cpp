@@ -90,6 +90,47 @@ Adapter* Factory::getSelected() {
 
 
 
+bool Heap::init(ID3D12Device* device, const char* name, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, UINT capacity) {
+    this->name = name;
+    this->capacity = capacity;
+    size = device->GetDescriptorHandleIncrementSize(type);
+    D3D12_DESCRIPTOR_HEAP_DESC desc = {
+        .Type           = type,
+        .NumDescriptors = capacity,
+        .Flags          = flags,
+        .NodeMask       = 0,
+    };
+    GUARDHR(device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+void Heap::reset() {
+    currentIdx = 0;
+}
+
+bool Heap::next(int& idx) {
+    if (currentIdx < capacity) {
+        idx = currentIdx;
+        currentIdx++;
+        return true;
+    } else {
+        idx = -1;
+        printf("Reached heap[\"%s\"] limit of %d\n", name, capacity);
+        return false;
+    }
+}
+
+D3D12_CPU_DESCRIPTOR_HANDLE Heap::getCpu(UINT idx) {
+    return CD3DX12_CPU_DESCRIPTOR_HANDLE(obj->GetCPUDescriptorHandleForHeapStart(), idx, size);
+}
+
+
+D3D12_GPU_DESCRIPTOR_HANDLE Heap::getGpu(UINT idx) {
+    return CD3DX12_GPU_DESCRIPTOR_HANDLE(obj->GetGPUDescriptorHandleForHeapStart(), idx, size);
+}
+ID3D12DescriptorHeap* Heap::get() {
+    return obj.Get();
+}
 
 
 
@@ -103,9 +144,6 @@ Adapter* Factory::getSelected() {
 
 
 bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount) {
-    this->rtvCount = rtvCount;
-    this->dsvCount = dsvCount;
-    this->cbvCount = cbvCount;
     ComPtr<ID3D12Debug> debugController;
     if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
         printf("Debug layer enabled\n");
@@ -121,45 +159,23 @@ bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount)
         iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, TRUE);
         iq->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, TRUE);
     }
-    
-    rtvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-    dsvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_DSV);
-    cbvDescSize = obj->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-    D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {
-        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-        .NumDescriptors = rtvCount,
-        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        .NodeMask       = 0,
-    };
-    D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {
-        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
-        .NumDescriptors = dsvCount,
-        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_NONE,
-        .NodeMask       = 0,
-    };
-    D3D12_DESCRIPTOR_HEAP_DESC cbvHeapDesc = {
-        .Type           = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
-        .NumDescriptors = cbvCount,
-        .Flags          = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE,
-        .NodeMask       = 0,
-    };
     if (rtvCount > 0) {
-        GUARDHR(obj->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(&rtvHeap)));
+        GUARD(rtvHeap.init(obj.Get(), "RTV", D3D12_DESCRIPTOR_HEAP_TYPE_RTV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, rtvCount));
     }
     if (dsvCount > 0) {
-        GUARDHR(obj->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(&dsvHeap)));
+        GUARD(dsvHeap.init(obj.Get(), "DSV", D3D12_DESCRIPTOR_HEAP_TYPE_DSV, D3D12_DESCRIPTOR_HEAP_FLAG_NONE, dsvCount));
     }
     if (cbvCount > 0) {
-        GUARDHR(obj->CreateDescriptorHeap(&cbvHeapDesc, IID_PPV_ARGS(&cbvHeap)));
+        GUARD(cbvHeap.init(obj.Get(), "CBV-SRV-UAV", D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE, cbvCount));
     }
     return true;
 }
 
 void Device::reset() {
-    rtvIdx = 0;
-    dsvIdx = 0;
-    cbvIdx = 0;
+    // rtvHeap.reset(); // TODO: cleanup reset procedure
+    dsvHeap.reset();
+    cbvHeap.reset();
 }
 
 void Device::printErrors() {
@@ -175,68 +191,6 @@ void Device::printErrors() {
     }
     __debugbreak();
 }
-
-bool Device::nextRtv(int& idx) {
-    if (rtvIdx < rtvCount) {
-        idx = rtvIdx;
-        rtvIdx++;
-        return true;
-    } else {
-        idx = -1;
-        printf("Reached RTV heap limit of %d\n", rtvCount);
-        return false;
-    }
-}
-
-bool Device::nextDsv(int& idx) {
-    if (dsvIdx < dsvCount) {
-        idx = dsvIdx;
-        dsvIdx++;
-        return true;
-    } else {
-        idx = -1;
-        printf("Reached DSV heap limit of %d\n", dsvCount);
-        return false;
-    }
-}
-
-bool Device::nextCbv(int& idx) {
-    if (cbvIdx < cbvCount) {
-        idx = cbvIdx;
-        cbvIdx++;
-        return true;
-    } else {
-        idx = -1;
-        printf("Reached CBV SRV UAV heap limit of %d\n", cbvCount);
-        return false;
-    }
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Device::getRtv(UINT idx) {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(rtvHeap->GetCPUDescriptorHandleForHeapStart(), idx, rtvDescSize);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Device::getGpuRtv(UINT idx) {
-    return CD3DX12_GPU_DESCRIPTOR_HANDLE(rtvHeap->GetGPUDescriptorHandleForHeapStart(), idx, rtvDescSize);
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Device::getDsv(UINT idx) {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(dsvHeap->GetCPUDescriptorHandleForHeapStart(), idx, dsvDescSize);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Device::getGpuDsv(UINT idx) {
-    return CD3DX12_GPU_DESCRIPTOR_HANDLE(dsvHeap->GetGPUDescriptorHandleForHeapStart(), idx, dsvDescSize);
-}
-
-D3D12_CPU_DESCRIPTOR_HANDLE Device::getCbv(UINT idx) {
-    return CD3DX12_CPU_DESCRIPTOR_HANDLE(cbvHeap->GetCPUDescriptorHandleForHeapStart(), idx, cbvDescSize);
-}
-
-D3D12_GPU_DESCRIPTOR_HANDLE Device::getGpuCbv(UINT idx) {
-    return CD3DX12_GPU_DESCRIPTOR_HANDLE(cbvHeap->GetGPUDescriptorHandleForHeapStart(), idx, cbvDescSize);
-}
-
-
 
 
 
@@ -343,9 +297,13 @@ bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, 
     frameIdx = obj->GetCurrentBackBufferIndex();
 
     renderTargets.resize(frameCount);
-    CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(device.rtvHeap->GetCPUDescriptorHandleForHeapStart());
+
     for (UINT i = 0; i < frameCount; i++) {
         RenderTarget& renderTarget = renderTargets[i];
+        
+        int rtvIdx;
+        GUARD(device.rtvHeap.next(rtvIdx));
+        D3D12_CPU_DESCRIPTOR_HANDLE rtvHandle = device.rtvHeap.getCpu(rtvIdx);
         GUARDHR(obj->GetBuffer(i, IID_PPV_ARGS(&renderTarget.resource)));
         // D3D12_RENDER_TARGET_VIEW_DESC rtvDesc = {
         //     .Format         = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
@@ -358,7 +316,6 @@ bool Swapchain::init(Factory& factory, Device& device, Queue& queue, HWND hwnd, 
         // device.obj->CreateRenderTargetView(renderTarget.resource.Get(), &rtvDesc, rtvHandle);
         device.obj->CreateRenderTargetView(renderTarget.resource.Get(), nullptr, rtvHandle);
         renderTarget.view = rtvHandle;
-        rtvHandle.Offset(1, device.rtvDescSize);
     }
     return true;
 }
@@ -762,8 +719,8 @@ int TextureRegistry::addTexture(const uint8_t* data, uint32_t size) {
     std::vector<D3D12_SUBRESOURCE_DATA> subresources;
     GUARDHR(LoadDDSTextureFromMemory(device->obj.Get(), data, size, texture.res.GetAddressOf(), subresources));
 
-    GUARD(device->nextCbv(texture.descriptor));
-    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
+    GUARD(device->cbvHeap.next(texture.descriptor));
+    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->cbvHeap.getCpu(texture.descriptor);
 
     // Currently the sRGB format seems to have no effect on samping in shaders.
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
@@ -866,8 +823,8 @@ int TextureRegistry::addDefault(vec4 color) {
     queue->execute({ cmdList.Get() });
 
     
-    GUARD(device->nextCbv(texture.descriptor));
-    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->getCbv(texture.descriptor);
+    GUARD(device->cbvHeap.next(texture.descriptor));
+    D3D12_CPU_DESCRIPTOR_HANDLE texDesc = device->cbvHeap.getCpu(texture.descriptor);
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
         .Format = texture.res->GetDesc().Format,
         .ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D,
@@ -1390,8 +1347,8 @@ bool DepthBuffer::init(Device* device, uint64_t width, uint32_t height) {
 // A bit awkward to regenerate these.
 // TODO: Rethink resource reset for scene management.
 void DepthBuffer::reset() {
-    device->nextDsv(dsvIdx);
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescriptor = device->getDsv(dsvIdx);
+    device->dsvHeap.next(dsvIdx);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescriptor = device->dsvHeap.getCpu(dsvIdx);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
         .Format         = DXGI_FORMAT_D32_FLOAT,
@@ -1505,10 +1462,10 @@ bool Shadow::reset() {
 
 
 
-    GUARD(device->nextCbv(srvIdx));
-    GUARD(device->nextDsv(dsvIdx));
-    D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptor = device->getCbv(srvIdx);
-    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescriptor = device->getDsv(dsvIdx);
+    GUARD(device->cbvHeap.next(srvIdx));
+    GUARD(device->dsvHeap.next(dsvIdx));
+    D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptor = device->cbvHeap.getCpu(srvIdx);
+    D3D12_CPU_DESCRIPTOR_HANDLE dsvDescriptor = device->dsvHeap.getCpu(dsvIdx);
     
     
     D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {
