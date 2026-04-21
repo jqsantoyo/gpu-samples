@@ -6,10 +6,10 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 
 
 
-| Render sample         | Camera | Shading      | Lights | D3D12 status | Vulkan status |
-|-----------------------|--------|--------------|--------|--------------|---------------|
-| **r0-color**          | ✓      | vertex color |        | ✓            | WIP           |
-| **r1-forward**        | ✓      | pbr          | ✓      | WIP          | ...           |
+| Render sample         | Shading      | Camera | Lights | Shadows | D3D12 status | Vulkan status |
+|-----------------------|--------------|--------|------- |---------|--------------|---------------|
+| **r0-color**          | vertex color | ✓      |        |         | ✓            | WIP           |
+| **r1-forward**        | PBR          | ✓      | ✓      | ✓       | ✓            | ...           |
 
 
 
@@ -60,7 +60,7 @@ In the command line enter:
 cmake --preset=debug
 cmake --build --preset=debug
 .build/debug/r0-triangle/r0-triangle.exe            // D3D12
-.build/debug/r0-triangle/r0-triangle.exe -vk       // Vulkan
+.build/debug/r0-triangle/r0-triangle.exe -vk        // Vulkan
 
 cmake --preset=release
 cmake --build --preset=release
