@@ -64,6 +64,19 @@ public:
         GUARD(materialRegistry.init(&device));
         GUARD(shadow.init(&device, rootSignature.obj.Get(), 1024, 1024));
 
+        defaultBaseColorMap = textureRegistry.addDefault({1, 1, 1, 1});   // default base color
+        // textureRegistry.addDefault({1, 1, 0, 1});   // default base color (magenta)
+        defaultORMMap = textureRegistry.addDefault({1, 1, 0, 1});   // default ORM
+        defaultNormalMap = textureRegistry.addDefault({1, .5, .5, 1}); // default normals
+        defaultEmissiveMap = textureRegistry.addDefault({1, 0, 0, 0});   // default emissive
+
+        rtvBaseIdx       = device.rtvHeap.getCount();
+        dsvBaseIdx       = device.dsvHeap.getCount();
+        cbvBaseIdx       = device.cbvHeap.getCount();
+        buffersBaseIdx   = meshRegistry.getBufferCount();
+        meshesBaseIdx    = meshRegistry.getMeshCount();
+        texturesBaseIdx  = textureRegistry.getCount();
+        materialsBaseIdx = materialRegistry.getCount();
         
         reset();
         return true;
@@ -75,17 +88,10 @@ public:
 
     void reset() {
         wait();
-        device.reset();
-        depthBuffer.reset();
-        meshRegistry.reset();
-        textureRegistry.reset();
-        materialRegistry.reset();
-        defaultBaseColorMap = textureRegistry.addDefault({1, 1, 1, 1});   // default base color
-        // textureRegistry.addDefault({1, 1, 0, 1});   // default base color (magenta)
-        defaultORMMap = textureRegistry.addDefault({1, 1, 0, 1});   // default ORM
-        defaultNormalMap = textureRegistry.addDefault({1, .5, .5, 1}); // default normals
-        defaultEmissiveMap = textureRegistry.addDefault({1, 0, 0, 0});   // default emissive
-        shadow.reset();
+        device.reset(rtvBaseIdx, dsvBaseIdx, cbvBaseIdx);
+        meshRegistry.reset(buffersBaseIdx, meshesBaseIdx);
+        textureRegistry.reset(texturesBaseIdx);
+        materialRegistry.reset(materialsBaseIdx);
     }
 
     void wait() {
@@ -332,6 +338,13 @@ private:
     PipelineWire        psoWire;
     D3D12_VIEWPORT      viewport;
     D3D12_RECT          scissorRect;
+    int                 rtvBaseIdx;       // Tracks beginning of user-level rtv descriptors
+    int                 dsvBaseIdx;       // Tracks beginning of user-level dsv descriptors
+    int                 cbvBaseIdx;       // Tracks beginning of user-level cbv descriptors
+    int                 buffersBaseIdx;   // Tracks beginning of user-level buffers
+    int                 meshesBaseIdx;    // Tracks beginning of user-level meshes
+    int                 texturesBaseIdx;  // Tracks beginning of user-level textures
+    int                 materialsBaseIdx; // Tracks beginning of user-level materials
 };
 
 std::unique_ptr<IRenderer> createRendererD3D() {

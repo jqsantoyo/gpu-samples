@@ -56,11 +56,12 @@ public:
 class Heap {
 public:
     bool init(ID3D12Device* device, const char* name, D3D12_DESCRIPTOR_HEAP_TYPE type, D3D12_DESCRIPTOR_HEAP_FLAGS flags, UINT capacity);
-    void reset();
+    void reset(int idx);
     bool next(int& idx);
     D3D12_CPU_DESCRIPTOR_HANDLE getCpu(UINT idx);
     D3D12_GPU_DESCRIPTOR_HANDLE getGpu(UINT idx);
     ID3D12DescriptorHeap* get();
+    int getCount();
 private:
     const char*                                  name;
     UINT                                         size       = 0;
@@ -74,7 +75,7 @@ class Device {
 public:
     bool init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount);
     void terminate();
-    void reset();
+    void reset(int rtvIdx, int dsvIdx, int cbvIdx);
     void printErrors();
 
 

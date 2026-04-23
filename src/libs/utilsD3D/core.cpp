@@ -104,8 +104,8 @@ bool Heap::init(ID3D12Device* device, const char* name, D3D12_DESCRIPTOR_HEAP_TY
     return true;
 }
 
-void Heap::reset() {
-    currentIdx = 0;
+void Heap::reset(int idx) {
+    currentIdx = idx;
 }
 
 bool Heap::next(int& idx) {
@@ -132,7 +132,9 @@ ID3D12DescriptorHeap* Heap::get() {
     return obj.Get();
 }
 
-
+int Heap::getCount() {
+    return currentIdx;
+}
 
 
 
@@ -172,10 +174,10 @@ bool Device::init(Adapter* adapter, UINT rtvCount, UINT dsvCount, UINT cbvCount)
     return true;
 }
 
-void Device::reset() {
-    // rtvHeap.reset(); // TODO: cleanup reset procedure
-    dsvHeap.reset();
-    cbvHeap.reset();
+void Device::reset(int rtvIdx, int dsvIdx, int cbvIdx) {
+    rtvHeap.reset(rtvIdx);
+    dsvHeap.reset(dsvIdx);
+    cbvHeap.reset(cbvIdx);
 }
 
 void Device::printErrors() {

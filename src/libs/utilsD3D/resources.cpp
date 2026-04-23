@@ -12,9 +12,9 @@ bool MeshRegistry::init() {
     return true;
 }
 
-void MeshRegistry::reset() {
-    buffers.clear();
-    meshes.clear();
+void MeshRegistry::reset(int buffersIdx, int meshesIdx) {
+    buffers.resize(buffersIdx);
+    meshes.resize(meshesIdx);
 }
 
 int MeshRegistry::addBuffer(Device& device, const BufferDesc& desc) {
@@ -117,8 +117,8 @@ bool TextureRegistry::init(Device* device, Queue* queue) {
     return true;
 }
 
-void TextureRegistry::reset() {
-    textures.clear();
+void TextureRegistry::reset(int idx) {
+    textures.resize(idx);
 }
 
 int TextureRegistry::addTexture(const char* filename) {
@@ -280,8 +280,8 @@ bool MaterialRegistry::init(Device* device) {
     return true;
 }
 
-void MaterialRegistry::reset() {
-    materials.clear();
+void MaterialRegistry::reset(int idx) {
+    materials.resize(idx);
 }
 
 int MaterialRegistry::addMaterial(Material& material) {

@@ -407,13 +407,8 @@ bool DepthBuffer::init(Device* device, uint64_t width, uint32_t height) {
         &optClear,
         IID_PPV_ARGS(obj.GetAddressOf())
     ));
-    return true;
-}
 
-// A bit awkward to regenerate these.
-// TODO: Rethink resource reset for scene management.
-void DepthBuffer::reset() {
-    device->dsvHeap.next(dsvIdx);
+    GUARD(device->dsvHeap.next(dsvIdx));
     D3D12_CPU_DESCRIPTOR_HANDLE dsvDescriptor = device->dsvHeap.getCpu(dsvIdx);
 
     D3D12_DEPTH_STENCIL_VIEW_DESC depthViewDesc = {
@@ -423,6 +418,7 @@ void DepthBuffer::reset() {
         .Texture2D      = { .MipSlice = 0 },
     };
     device->obj->CreateDepthStencilView(obj.Get(), &depthViewDesc, dsvDescriptor);
+    return true;
 }
 
 
@@ -493,13 +489,7 @@ bool Shadow::init(Device* device, ID3D12RootSignature* root, uint32_t width, uin
         .SampleDesc             = sampleDesc,
     };
     GUARDHR(device->obj->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&pso)));
-    return true;
-}
 
-// A bit awkward to regenerate these.
-// TODO: Rethink resource reset for scene management.
-bool Shadow::reset() {
-    DXGI_SAMPLE_DESC sampleDesc = { .Count = 1, .Quality = 0 };
     D3D12_RESOURCE_DESC desc = {
         .Dimension          = D3D12_RESOURCE_DIMENSION_TEXTURE2D,
         .Alignment          = 0,
@@ -525,8 +515,6 @@ bool Shadow::reset() {
         &optClear,
         IID_PPV_ARGS(target.GetAddressOf())
     ));
-
-
 
     GUARD(device->cbvHeap.next(srvIdx));
     GUARD(device->dsvHeap.next(dsvIdx));

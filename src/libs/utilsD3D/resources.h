@@ -29,7 +29,7 @@ struct Texture {
 class MeshRegistry {
 public:
     bool init();
-    void reset();
+    void reset(int buffersIdx, int meshesIdx);
     int addBuffer(Device& device, const BufferDesc& desc);
     int addMesh(const MeshDesc& desc);
     int getBufferCount();
@@ -45,7 +45,7 @@ private:
 class TextureRegistry {
 public:
     bool init(Device* device, Queue* queue);
-    void reset();
+    void reset(int idx);
     int addTexture(const char* filename);
     int addTexture(const uint8_t* data, uint32_t size);
     int getCount();
@@ -64,7 +64,7 @@ private:
 class MaterialRegistry {
 public:
     bool init(Device* device);
-    void reset();
+    void reset(int idx);
     int addMaterial(Material& material);
     Material& getMaterial(int idx);
     int getCount();

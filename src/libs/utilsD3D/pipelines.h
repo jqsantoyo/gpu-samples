@@ -53,7 +53,6 @@ public:
 class DepthBuffer {
 public:
     bool init(Device* device, uint64_t width, uint32_t height);
-    void reset();
     int dsvIdx;
 private:
     Device* device;
@@ -64,7 +63,6 @@ private:
 class Shadow {
 public:
     bool init(Device* device, ID3D12RootSignature* root, uint32_t width, uint32_t height);
-    bool reset();
     bool render(const RenderView& view);
     // int getSrv();
     // int getDsv();

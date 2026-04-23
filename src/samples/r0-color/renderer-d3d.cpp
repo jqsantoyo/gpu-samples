@@ -43,6 +43,13 @@ public:
         GUARD(psoFill.init(device, rootSignature));
         GUARD(psoWire.init(device, rootSignature));
         GUARD(depthBuffer.init(&device, width, height));
+        
+        rtvBaseIdx     = device.rtvHeap.getCount();
+        dsvBaseIdx     = device.dsvHeap.getCount();
+        cbvBaseIdx     = device.cbvHeap.getCount();
+        buffersBaseIdx = meshRegistry.getBufferCount();
+        meshesBaseIdx  = meshRegistry.getMeshCount();
+
         reset();
         return true;
     }
@@ -53,9 +60,8 @@ public:
 
     void reset() {
         wait();
-        device.reset();
-        depthBuffer.reset();
-        meshRegistry.reset();
+        device.reset(rtvBaseIdx, dsvBaseIdx, cbvBaseIdx);
+        meshRegistry.reset(buffersBaseIdx, meshesBaseIdx);
     }
 
     void wait() {
@@ -169,18 +175,25 @@ public:
     }
 
 private:
-    Factory                             factory;
-    Device                              device;
-    Swapchain                           swapchain;
-    DepthBuffer                         depthBuffer;
-    Queue                               queue;
-    FrameControl                        frameControl;
-    MeshRegistry                        meshRegistry;
-    RootSig                             rootSignature;
-    PipelineFill                        psoFill;
-    PipelineWire                        psoWire;
-    D3D12_VIEWPORT                      viewport;
-    D3D12_RECT                          scissorRect;
+    Factory             factory;
+    Device              device;
+    Swapchain           swapchain;
+    DepthBuffer         depthBuffer;
+    Queue               queue;
+    FrameControl        frameControl;
+    MeshRegistry        meshRegistry;
+    RootSig             rootSignature;
+    PipelineFill        psoFill;
+    PipelineWire        psoWire;
+    D3D12_VIEWPORT      viewport;
+    D3D12_RECT          scissorRect;
+    int                 rtvBaseIdx;       // Tracks beginning of user-level rtv descriptors
+    int                 dsvBaseIdx;       // Tracks beginning of user-level dsv descriptors
+    int                 cbvBaseIdx;       // Tracks beginning of user-level cbv descriptors
+    int                 buffersBaseIdx;   // Tracks beginning of user-level buffers
+    int                 meshesBaseIdx;    // Tracks beginning of user-level meshes
+    int                 texturesBaseIdx;  // Tracks beginning of user-level textures
+    int                 materialsBaseIdx; // Tracks beginning of user-level materials
 };
 
 std::unique_ptr<IRenderer> createRendererD3D() {
