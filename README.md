@@ -35,6 +35,7 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 | ------------- |---------------- | -------------- | ------- | ----- |
 | damagedHelmet | [theblueturtle_](https://sketchfab.com/leonardo-carrion) | [Battle Damaged Sci-fi Helmet - PBR](https://sketchfab.com/models/b81008d513954189a063ff901f7abfe4) | [CC Attribution-NonCommercial](https://creativecommons.org/licenses/)  | Reimported in Blender and modified. |
 | ponyCar       | [Slava Z.](https://sketchfab.com/slava)                  | [Pony Cartoon](https://sketchfab.com/3d-models/pony-cartoon-885d9f60b3a9429bb4077cfac5653cf9)       | [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/).              | Reimported in Blender and modified. |
+| ground        | Textures from [AmbientCG](https://ambientcg.com/)          | [Road 009 C](https://ambientcg.com/view?id=Road009C)                                                | [CC0](https://docs.ambientcg.com/license/)                             | Authored model in Blender           |
 
 
 ### Previews

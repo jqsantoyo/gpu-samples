@@ -1,0 +1,5 @@
+
+Textures from: https://ambientcg.com/.
+Textures name: https://ambientcg.com/view?id=Road009C
+Original texture license is CC0 https://docs.ambientcg.com/license/
+The model was authored model in Blender.
