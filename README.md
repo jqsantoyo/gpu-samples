@@ -16,7 +16,7 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 | **c0-compute**       | WIP          | ...           |
 
 
-| Libraries         | Internal |
+| Library           | Internal |
 |-------------------|----------|
 | utils             | ✓        |
 | utilsVk           | ✓        |
@@ -30,11 +30,21 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 | pixEvents         |          |
 | tinygltf          |          |
 
+
+| Asset         | Original Author | Original asset | License | Notes |
+| ------------- |---------------- | -------------- | ------- | ----- |
+| damagedHelmet | [theblueturtle_](https://sketchfab.com/leonardo-carrion) | [Battle Damaged Sci-fi Helmet - PBR](https://sketchfab.com/models/b81008d513954189a063ff901f7abfe4) | [CC Attribution-NonCommercial](https://creativecommons.org/licenses/)  | Reimported in Blender and modified. |
+| ponyCar       | [Slava Z.](https://sketchfab.com/slava)                  | [Pony Cartoon](https://sketchfab.com/3d-models/pony-cartoon-885d9f60b3a9429bb4077cfac5653cf9)       | [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/).              | Reimported in Blender and modified. |
+
+
+### Previews
 ![r0-color](docs/r0-color.jpg)
 
 ![r1-forward-0](docs/r1-forward-0.jpg)
 
 ![r1-forward-1](docs/r1-forward-1.jpg)
+
+
 
 ## Build and Run
 
