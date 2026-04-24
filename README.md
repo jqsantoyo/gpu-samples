@@ -5,18 +5,15 @@ Ongoing exploration of rendering and compute topics using D3D12 and Vulkan.
 Each sample supports both backends, using D3D12 by default, or using Vulkan when passing `-vk`.
 
 
-
 | Render sample         | Shading      | Camera | Lights | Shadows | D3D12 status | Vulkan status |
 |-----------------------|--------------|--------|------- |---------|--------------|---------------|
 | **r0-color**          | vertex color | ✓      |        |         | ✓            | WIP           |
 | **r1-forward**        | PBR          | ✓      | ✓      | ✓       | ✓            | ...           |
 
 
-
 | Compute sample       | D3D12 status | Vulkan status |
 |----------------------|--------------|---------------|
 | **c0-compute**       | WIP          | ...           |
-
 
 
 | Libraries         | Internal |
@@ -33,6 +30,11 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 | pixEvents         |          |
 | tinygltf          |          |
 
+![r0-color](docs/r0-color.jpg)
+
+![r1-forward-0](docs/r1-forward-0.jpg)
+
+![r1-forward-1](docs/r1-forward-1.jpg)
 
 ## Build and Run
 
