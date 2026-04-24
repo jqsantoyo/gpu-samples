@@ -7,9 +7,8 @@ namespace gpu {
 
 class Compute : public ICompute {
 public:
-    bool init(int argc, char** argv) {
-
-        GUARD(instance.init("02-Compute-Vk", VK_MAKE_VERSION(1, 0, 0), false, {}));
+    bool init() {
+        GUARD(instance.init("c0-compute-vk", VK_MAKE_VERSION(1, 0, 0), false, {}));
         
         std::vector<const char*> deviceExtensions = {};
         GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
@@ -31,6 +30,10 @@ public:
         };
         // vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
 
+        return true;
+    }
+
+    bool compute(int count, vec3* a, vec3* b, vec3* c) {
         return true;
     }
 

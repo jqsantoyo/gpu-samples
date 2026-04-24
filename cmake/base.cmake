@@ -154,6 +154,7 @@ function(addSample targetName)
     file(GLOB HEADERS    CONFIGURE_DEPENDS ${dir}/*.h)
     file(GLOB SOURCES    CONFIGURE_DEPENDS ${dir}/*.cpp)
     file(GLOB SHADERS    CONFIGURE_DEPENDS ${dir}/*.hlsl)
+    file(GLOB CSHADERS   CONFIGURE_DEPENDS ${dir}/*.hlslc)
     file(GLOB SHADERS_VK CONFIGURE_DEPENDS ${dir}/*.vert ${dir}/*.frag ${dir}/*.comp)
     file(GLOB_RECURSE TEXTURES CONFIGURE_DEPENDS ${assetsDir}/*.png ${assetsDir}/*.jpeg ${assetsDir}/*.jpg)
     file(GLOB_RECURSE ASSETS   CONFIGURE_DEPENDS ${assetsDir}/*.gltf ${assetsDir}/*.bin ${assetsDir}/*.glb)
@@ -166,6 +167,7 @@ function(addSample targetName)
     target_include_directories  (${targetName} PRIVATE ${CMAKE_SOURCE_DIR}/src/libs ${dir})
     target_sources              (${targetName} PRIVATE ${HEADERS} ${SOURCES})
     target_shaders_d3d          (${targetName} ${SHADERS})
+    target_shaders_compute_d3d  (${targetName} ${CSHADERS})
     target_shaders_vk           (${targetName} ${SHADERS_VK})
     target_assets               (${targetName} ${ASSETS})
     target_textures             (${targetName} ${TEXTURES})
@@ -213,6 +215,25 @@ function(target_shaders_d3d targetName)
     set_source_files_properties(${inShaders} PROPERTIES HEADER_FILE_ONLY ON) # avoids VS compilation of hlsl
 endfunction()
 
+function(target_shaders_compute_d3d targetName)
+    set(inShaders ${ARGN})
+    set(compiler  $ENV{WINDOWS_SDK}/bin/$ENV{WINDOWS_SDK_VERSION}/x64/dxc.exe)
+    get_target_output_dir(${targetName} outputDir)
+    foreach(inShader IN LISTS inShaders)
+        cmake_path(GET inShader STEM shaderStem)
+        set(shader ${outputDir}/${shaderStem}.dxil)
+        list(APPEND outShaders ${shader})
+        add_custom_command(
+            OUTPUT ${shader}
+            COMMAND ${compiler} -T cs_6_0 -E CSMain -Zi -Qembed_debug -Od -Fo ${shader} ${inShader}
+            DEPENDS ${inShader}
+            MAIN_DEPENDENCY ${inShader}
+            VERBATIM
+        )
+    endforeach()
+    target_sources(${targetName} PRIVATE ${inShaders} ${outShaders})
+    set_source_files_properties(${inShaders} PROPERTIES HEADER_FILE_ONLY ON) # avoids VS compilation of hlsl
+endfunction()
 
 # Specify the Vulkan shaders of the target.
 # - Adds input files (.vert/.frag/.comp) and compiled .spv files as sources.

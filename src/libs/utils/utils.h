@@ -5,6 +5,7 @@
 
 namespace gpu {
 
+#define GMAIN(x)              if (!(x)) {  printf("Error: "#x"\n"); return 0; }
 #define GUARD(x)              if (!(x)) {  printf("Error: "#x"\n"); return false; }
 #define GUARDM(x, fmt, ...)   if (!(x)) {  printf("Error: " fmt "\n", ##__VA_ARGS__);  return false; }
 

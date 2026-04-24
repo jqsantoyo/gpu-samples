@@ -9,7 +9,7 @@
 #include <d3dcommon.h>
 #include <directxmath.h>
 #include <dxgi1_6.h>
-#include <windows.h>
+#include <wrl/client.h>
 
 #define GUARDHR(x) if (FAILED(x)) {  printf("Error: "#x"\n"); return false; }
 

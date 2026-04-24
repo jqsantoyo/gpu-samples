@@ -13,9 +13,9 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 
 
 
-| Compute sample        |                 |                          | D3D12 status | Vulkan status |
-|-----------------------|-----------------|--------------------------|--------------|---------------|
-| **c0-compute**        |                 |                          | ...          | ...           |
+| Compute sample       | D3D12 status | Vulkan status |
+|----------------------|--------------|---------------|
+| **c0-compute**       | WIP          | ...           |
 
 
 

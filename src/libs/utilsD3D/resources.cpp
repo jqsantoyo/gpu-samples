@@ -8,6 +8,73 @@ using namespace Microsoft::WRL;
 namespace gpu {
 
 
+ID3D12Resource* Buffer2::get() {
+    return obj.Get();
+}
+
+
+
+WriteBuffer::~WriteBuffer() {
+    obj->Unmap(0, nullptr);
+}
+
+bool WriteBuffer::init(ID3D12Device* device, uint32_t size) {
+    this->size = size;
+    type = D3D12_HEAP_TYPE_UPLOAD;
+    state = D3D12_RESOURCE_STATE_GENERIC_READ;
+    CD3DX12_HEAP_PROPERTIES props(type);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    GUARDHR(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &resDesc, state, nullptr, IID_PPV_ARGS(&obj)));
+
+    CD3DX12_RANGE readRange(0, 0); // We do not intend to read from this resource on the CPU.
+    GUARDHR(obj->Map(0, &readRange, reinterpret_cast<void**>(&data)));
+    return true;
+}
+
+bool WriteBuffer::write(uint32_t offset, uint32_t size, uint8_t* data) {
+    GUARD(offset + size <= this->size);
+    memcpy(this->data + offset, data, size);
+    return true;
+}
+
+
+
+bool UAVBuffer::init(ID3D12Device* device, uint32_t size) {
+    this->size = size;
+    type = D3D12_HEAP_TYPE_DEFAULT;
+    state = D3D12_RESOURCE_STATE_COMMON;
+    CD3DX12_HEAP_PROPERTIES props(type);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(size, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+    GUARDHR(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &resDesc, state, nullptr, IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+
+bool ReadBuffer::init(ID3D12Device* device, uint32_t size) {
+    this->size = size;
+    type = D3D12_HEAP_TYPE_READBACK;
+    state = D3D12_RESOURCE_STATE_COMMON;
+    CD3DX12_HEAP_PROPERTIES props(type);
+    auto resDesc = CD3DX12_RESOURCE_DESC::Buffer(size);
+    GUARDHR(device->CreateCommittedResource(&props, D3D12_HEAP_FLAG_NONE, &resDesc, state, nullptr, IID_PPV_ARGS(&obj)));
+    return true;
+}
+
+uint8_t* ReadBuffer::start() {
+    uint8_t* data = nullptr;
+    obj->Map(0, nullptr, reinterpret_cast<void**>(&data));
+    return data;
+}
+
+void ReadBuffer::stop() {
+    obj->Unmap(0, nullptr);
+}
+
+
+
+
+
+
 bool MeshRegistry::init() {
     return true;
 }

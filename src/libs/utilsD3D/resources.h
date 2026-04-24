@@ -3,6 +3,40 @@
 
 namespace gpu {
 
+
+
+
+struct Buffer2 {
+    uint32_t                                size;
+    D3D12_HEAP_TYPE                         type;
+    D3D12_RESOURCE_STATES                   state;
+    Microsoft::WRL::ComPtr<ID3D12Resource>  obj;
+
+    ID3D12Resource* get();
+};
+
+class WriteBuffer : public Buffer2 {
+public:
+    ~WriteBuffer();
+    bool init(ID3D12Device* device, uint32_t size);
+    bool write(uint32_t offset, uint32_t size, uint8_t* data);
+private:
+    uint8_t* data;
+};
+
+class UAVBuffer : public Buffer2 {
+public:
+    bool init(ID3D12Device* device, uint32_t size);
+};
+
+class ReadBuffer : public Buffer2 {
+public:
+    bool init(ID3D12Device* device, uint32_t size);
+    uint8_t* start();
+    void stop();
+};
+
+
 struct Buffer {
     Microsoft::WRL::ComPtr<ID3D12Resource>      vbUp;
 };
