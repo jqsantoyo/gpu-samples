@@ -17,13 +17,13 @@ namespace gpu::vk {
 bool enumerateInstanceLayerProperties(std::vector<VkLayerProperties>& v);
 bool enumerateInstanceExtensionProperties(std::vector<VkExtensionProperties>& v);
 bool enumeratePhysicalDevices(VkInstance instance, std::vector<VkPhysicalDevice>& v);
-bool enumerateDeviceExtensionProperties(VkPhysicalDevice device, const char* layerName, std::vector<VkExtensionProperties>& v);
-void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, std::vector<VkQueueFamilyProperties>& v);
-bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v);
-bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v);
-bool getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, std::vector<VkImage>& v);
-VkResult createSemaphore(VkDevice device, VkSemaphore& semaphore);
-VkResult createFence(VkDevice device, VkFence& fence, bool signaled);
+bool enumerateDeviceExtensionProperties(VkPhysicalDevice gpu, const char* layerName, std::vector<VkExtensionProperties>& v);
+void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice gpu, std::vector<VkQueueFamilyProperties>& v);
+bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice gpu, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v);
+bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice gpu, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v);
+bool getSwapchainImagesKHR(VkDevice gpu, VkSwapchainKHR swapchain, std::vector<VkImage>& v);
+VkResult createSemaphore(VkDevice gpu, VkSemaphore& semaphore);
+VkResult createFence(VkDevice gpu, VkFence& fence, bool signaled);
 
 
 
@@ -108,9 +108,9 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEVICE
-class Device {
+class Gpu {
 public:
-    VkDevice device;
+    VkDevice gpu;
     uint32_t gIdx;
     uint32_t pIdx;
     uint32_t cIdx;
@@ -132,7 +132,7 @@ public:
 
 class Swapchain {
 public:
-    bool init(VkDevice device, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
+    bool init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
     void terminate();
     bool recreate();
     void resize();
@@ -149,7 +149,7 @@ public:
     uint32_t                    idx;
     VkSemaphore                 renderReady;
 private:
-    VkDevice                    device;
+    VkDevice                    gpu;
     Surface*                    surface;
     VkPhysicalDevice            physicalDevice;
     uint32_t                    gIdx;
@@ -171,10 +171,10 @@ private:
 class Shader {
 public:
     ~Shader();
-    bool load(VkDevice device, const char* name, VkShaderStageFlagBits stage);
+    bool load(VkDevice gpu, const char* name, VkShaderStageFlagBits stage);
     VkPipelineShaderStageCreateInfo getInfo();
 private:
-    VkDevice device;
+    VkDevice gpu;
     const char* name;
     VkShaderModule module;
     std::vector<uint8_t> data;
@@ -198,13 +198,13 @@ struct Frame {
 
 class FrameControl {
 public:
-    bool init(VkDevice device, uint32_t queueIdx, VkQueue queue, int frameCount);
+    bool init(VkDevice gpu, uint32_t queueIdx, VkQueue queue, int frameCount);
     void terminate();
     Frame next();
     bool begin();
     bool end(VkSemaphore renderReady);
 private:
-    VkDevice                      device;
+    VkDevice                      gpu;
     VkQueue                       queue;
     int                           frameCount;
     int                           frameIdx;
@@ -231,12 +231,12 @@ struct Mesh {
 
 class MeshRegistry {
 public:
-    bool init(Device* device);
+    bool init(Gpu* gpu);
     void terminate();
     bool addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx);
     Mesh& getMesh(int i);
 private:
-    Device*           device;
+    Gpu*           gpu;
     VkBuffer          uploadBuffer;
     VkDeviceMemory    uploadMemory;
     VkCommandPool     cmdPool;

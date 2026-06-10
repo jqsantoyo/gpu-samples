@@ -1,7 +1,8 @@
-#include <utils/app.h>
-#include <utils/renderer.h>
-#include <utils/sceneLoader.h>
-#include <utils/camera.h>
+#include "renderer.h"
+#include <app/app.h>
+#include <rendererInterface/renderer.h>
+#include <scene/sceneLoader.h>
+#include <scene/camera.h>
 #include <string>
 
 namespace gpu {
@@ -17,9 +18,9 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
-        title = useVulkan ? "01-objects-vk" : "01-objects";
+        title = useVulkan ? "r0-color-vk" : "r0-color";
         
-        renderer        = createRenderer(useVulkan);
+        renderer        = createRendererBasic(useVulkan);
         scene           = std::make_unique<Scene>();
         cameraCtrl      = std::make_unique<CameraCtrl>();
         sceneLoader     = std::make_unique<SceneLoader>();
@@ -79,6 +80,7 @@ public:
             .models     = scene->objects.getModel(),
         };
         return renderer->render(view);
+        return true;
     }
 
     bool resize(int width, int height) {
@@ -93,6 +95,7 @@ public:
     
     bool keyboardEvent(KeyboardEvent event) {
         return sceneSelector->loadOnKeyboard(event);
+        return true;
     }
 
     void terminate() {

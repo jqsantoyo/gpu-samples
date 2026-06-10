@@ -10,6 +10,13 @@
 
 namespace gpu {
 
+uint32_t toUint(vec4 v) {
+    return (static_cast<uint32_t>(255.0f * v.x) << 24)
+         + (static_cast<uint32_t>(255.0f * v.y) << 16)
+         + (static_cast<uint32_t>(255.0f * v.z) <<  8)
+         +  static_cast<uint32_t>(255.0f * v.w);
+}
+
 std::wstring getAssetsPathW() {
     wchar_t exePath[MAX_PATH];
     GetModuleFileNameW(nullptr, exePath, MAX_PATH);

@@ -19,7 +19,7 @@
 #define GUARD(x) if (!x) { return 1; }
 
 namespace gpu {
-    
+
 
 bool IApp::argBool(const char* arg) {
     for (int i = 1; i < argc; i++) {

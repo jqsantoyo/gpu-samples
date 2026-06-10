@@ -1,7 +1,7 @@
+#include <rendererInterface/renderer.h>
+#include <gpuD3D/gpu.h>
 #include <utils/utils.h>
-#include <utils/app.h>
-#include <utils/renderer.h>
-#include <utilsD3D/utilsD3D.h>
+#include <app/app.h>
 #include <pix3.h>
 #include <wrl.h>
 #include <shellapi.h>
@@ -33,21 +33,65 @@ public:
         uint32_t alignedObjectMemory = align256(objectMemory);
         uint32_t maxFrameMemory = 100 * alignedObjectMemory;
 
-        GUARD(factory.init());
-        GUARD(factory.select());
-        GUARD(device.init(factory.getSelected(), frameCount, 1, 100));
-        GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
-        GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
-        GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
-        GUARD(rootSignature.init1Cbv(device));
-        GUARD(psoFill.init(device, rootSignature));
-        GUARD(psoWire.init(device, rootSignature));
-        GUARD(depthBuffer.init(&device, width, height));
         
-        rtvBaseIdx     = device.rtvHeap.getCount();
-        dsvBaseIdx     = device.dsvHeap.getCount();
-        cbvBaseIdx     = device.cbvHeap.getCount();
-        buffersBaseIdx = meshRegistry.getBufferCount();
+        gpu.init(frameCount, 1, 100);
+        queue     = gpu.createQueue();
+        swapchain = gpu.createSwapchain(queue, hwnd, width, height, frameCount);
+        frameControl.init(gpu, 2, maxFrameMemory);
+
+
+        // D3D12_FEATURE_DATA_MULTISAMPLE_QUALITY_LEVELS qualityLevels = {
+        //     .Format = DXGI_FORMAT_R8G8B8A8_UNORM,
+        //     .SampleCount = 4,
+        //     .Flags = D3D12_MULTISAMPLE_QUALITY_LEVELS_FLAG_NONE,
+        //     .NumQualityLevels = 0,
+        // };
+        // GUARDHR(gpu->CheckFeatureSupport(D3D12_FEATURE_MULTISAMPLE_QUALITY_LEVELS, &qualityLevels, sizeof(qualityLevels)));
+        // GUARD((qualityLevels.NumQualityLevels > 0));
+        // DXGI_SAMPLE_DESC sampleDesc = { .Count = 4, .Quality = qualityLevels.NumQualityLevels - 1 }; 
+        gpu::PsoGraphicsDesc psoFillDesc = {
+            .vs                         = "shaders_v",
+            .ps                         = "shaders_p",
+            .blendState                 = gpu::noBlend(),
+            .sampleMask                 = UINT_MAX,
+            .rasterizerState            = gpu::defaultFill(),
+            .depthStencilState          = gpu::defaultDepth(),
+            .inputLayout                = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "COLOR",    0, DXGI_FORMAT_R32G32B32_FLOAT, 1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+            },
+            .topology      = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .numRenderTargets           = 1,
+            .rtvFormats                 = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .dsvFormat                  = DXGI_FORMAT_D32_FLOAT,
+            .sampleDesc                 = { .Count = 1, .Quality = 0 },
+        };
+
+        gpu::PsoGraphicsDesc psoWireDesc = {
+            .vs                 = "shadersWire_v",
+            .ps                 = "shadersWire_p",
+            .blendState         = gpu::noBlend(),
+            .sampleMask         = UINT_MAX,
+            .rasterizerState    = gpu::defaultWire(),
+            .depthStencilState  = gpu::defaultDepth(),
+            .inputLayout        = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            },
+            .topology           = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .numRenderTargets   = 1,
+            .rtvFormats         = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .dsvFormat          = DXGI_FORMAT_D32_FLOAT,
+            .sampleDesc         = { .Count = 1, .Quality = 0 },
+        };
+
+
+        root    = gpu.createRoot({ gpu::rootCbv(0) }, {});
+        psoFill = gpu.createPipeline(root, psoFillDesc);
+        psoWire = gpu.createPipeline(root, psoWireDesc);
+        depthBuffer.init(&gpu, width, height);
+        meshRegistry.init(&gpu);
+        
+        buffersBaseIdx = gpu.buffers.size();
         meshesBaseIdx  = meshRegistry.getMeshCount();
 
         reset();
@@ -55,17 +99,18 @@ public:
     }
 
     void terminate() {
-        queue.wait();
+        gpu.wait(queue);
     }
 
     void reset() {
         wait();
-        device.reset(rtvBaseIdx, dsvBaseIdx, cbvBaseIdx);
-        meshRegistry.reset(buffersBaseIdx, meshesBaseIdx);
+        // gpu.resetMain(1);
+        gpu.buffers.resize(buffersBaseIdx);
+        meshRegistry.reset(meshesBaseIdx);
     }
 
     void wait() {
-        queue.wait();
+        gpu.wait(queue);
     }
 
     bool resize(int width, int height) {
@@ -75,17 +120,7 @@ public:
     bool render(const RenderView& view) {
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
-        RenderTarget target = swapchain.next();
-        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap.getCpu(depthBuffer.dsvIdx);
-
-        frameControl.begin(nullptr);
-        frameControl.cmdList->RSSetViewports(1, &viewport);
-        frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
-        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        frameControl.cmdList->OMSetRenderTargets(1, &target.view, 1, &depthView);
-        frameControl.cmdList->ClearRenderTargetView(target.view, &view.clearColor.x, 0, nullptr);
-        frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-        frameControl.heaps(device.cbvHeap.get());
+        
         
         XMVECTOR posVec      = XMVectorSet(view.camera->pos.x,    view.camera->pos.y,    view.camera->pos.z,    1.0f);
         XMVECTOR targetVec   = XMVectorSet(view.camera->target.x, view.camera->target.y, view.camera->target.z, 1.0f);
@@ -94,60 +129,87 @@ public:
         XMMATRIX projMat     = XMMatrixPerspectiveFovLH(view.camera->fovY, view.camera->aspect, view.camera->nearZ, view.camera->farZ);
         XMMATRIX viewProjMat = viewMat * projMat;
 
+
+        gpu::SwapTarget target = gpu.next(swapchain);
+
+        gpu::Command cmd = frameControl.next();
+        gpu.wait(queue, cmd);
+        gpu.begin(cmd);
+
+        ID3D12GraphicsCommandList* cmdList = gpu.get(cmd);
+        gpu.viewport (cmd, viewport);
+        gpu.scissor  (cmd, scissorRect);
+        gpu.barrier  (cmd, target.texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        gpu.targets  (cmd, target.rtv, depthBuffer.dsv);
+        gpu.clear    (cmd, target.rtv, view.clearColor);
+        gpu.clear    (cmd, depthBuffer.dsv,  1, 0);
+        gpu.heaps    (cmd, gpu.mainHeap.get());
+        
         if (view.fillMode == Fill || view.fillMode == FillWire) {
             // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Fill %llu", frameIdx);
-            frameControl.cmdList->SetPipelineState(psoFill.obj.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            gpu.pipeline          (cmd, psoFill);
+            gpu.graphicsRoot (cmd, root);
+            gpu.topology     (cmd, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
-                int meshId = model.meshId;
-                Mesh& m = meshRegistry.getMesh(meshId);
+                Mesh& m = meshRegistry.getMesh(model.meshId);
     
+                ObjectData objectData = {};
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(&transform));
                 XMMATRIX mvpMat = modelMat * viewMat * projMat;
-
-                ObjectData objectData = {};
                 XMStoreFloat4x4(&objectData.mvp, mvpMat);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
-                
-                frameControl.setConstantBuffer(0, objectData);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
+                gpu.graphicsCbv  (cmd, 0, objectData);
+                gpu.vertexBuffer (cmd, 0, m.positionView);
+                gpu.vertexBuffer (cmd, 1, m.colorView);
                 if (m.indicesView.SizeInBytes != 0) {
-                    frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                    frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
+                    gpu.indexBuffer(cmd, m.indicesView);
+                    gpu.drawIndexed(cmd, m.vCount, 1, 0, 0, 0);
                 } else {
-                    frameControl.cmdList->DrawInstanced(m.vCount, 1, 0, 0);
+                    gpu.draw(cmd, m.vCount, 1, 0, 0);
                 }
             }
             // PIXEndEvent(queue.obj.Get());
         }
 
-        // if (fillMode == Wire || fillMode == FillWire) {
-        //     // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
-        //     frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
-        //     frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-        //     frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        //     for (int i = 0; i < items.size(); i++) {
-        //         int meshId = items[i].meshId;
-        //         Mesh& m = meshRegistry.getMesh(meshId);
-        //         D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
-        //         frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
-        //         frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-        //         frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-        //         frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
-        //     }
-        //     // PIXEndEvent(queue.obj.Get());
-        // }
+        if (view.fillMode == Wire || view.fillMode == FillWire) {
+            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
+            gpu.pipeline          (cmd, psoWire);
+            gpu.graphicsRoot (cmd, root);
+            gpu.topology     (cmd, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            for (int i = 0; i < view.modelCount; i++) {
+                const Model& model = view.models[i];
+                const mat4& transform = view.transforms[i];
+                Mesh& m = meshRegistry.getMesh(model.meshId);
+
+                
+                ObjectData objectData = {};
+                XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(&transform));
+                XMMATRIX mvpMat = modelMat * viewMat * projMat;
+                XMStoreFloat4x4(&objectData.mvp, mvpMat);
+                // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
+                
+                gpu.graphicsCbv  (cmd, 0, objectData);
+                gpu.vertexBuffer (cmd, 0, m.positionView);
+                gpu.vertexBuffer (cmd, 1, m.colorView);
+                if (m.indicesView.SizeInBytes != 0) {
+                    gpu.indexBuffer(cmd, m.indicesView);
+                    gpu.drawIndexed(cmd, m.vCount, 1, 0, 0, 0);
+                } else {
+                    gpu.draw(cmd, m.vCount, 1, 0, 0);
+                }
+            }
+            // PIXEndEvent(queue.obj.Get());
+        }
 
 
-        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        GUARD(frameControl.execute());
-        GUARD(swapchain.present(true));
-        GUARD(frameControl.end());
+        gpu.barrier(cmd, target.texture, D3D12_RESOURCE_STATE_PRESENT);
+        gpu.end(cmd);
+        gpu.execute(queue, cmd);
+        gpu.present(swapchain, true);
+        gpu.signal(queue, cmd);
         PIXEndEvent();
         frameIdx++;
         return 1;
@@ -167,24 +229,33 @@ public:
     
 
     int addBuffer(const BufferDesc& desc) {
-        return meshRegistry.addBuffer(device, desc);
+        gpu::Buffer buffer = gpu.createBuffer(desc.size, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+        gpu.write(buffer, desc.offset, desc.size, desc.data);
+        return buffer.idx;
     }
     
     int addMesh(const MeshDesc& desc) {
         return meshRegistry.addMesh(desc);
     }
 
+    int getBufferCount() {
+        return gpu.buffers.size();
+    }
+
+    int getMeshCount() {
+        return meshRegistry.getMeshCount();
+    }
+
 private:
-    Factory             factory;
-    Device              device;
-    Swapchain           swapchain;
-    DepthBuffer         depthBuffer;
-    Queue               queue;
-    FrameControl        frameControl;
-    MeshRegistry        meshRegistry;
-    RootSig             rootSignature;
-    PipelineFill        psoFill;
-    PipelineWire        psoWire;
+    gpu::Gpu                 gpu;
+    gpu::Queue               queue;
+    gpu::Swapchain           swapchain;
+    gpu::Root                root;
+    gpu::Pipeline            psoFill;
+    gpu::Pipeline            psoWire;
+    FrameControl   frameControl;
+    MeshRegistry   meshRegistry;
+    DepthBuffer    depthBuffer;
     D3D12_VIEWPORT      viewport;
     D3D12_RECT          scissorRect;
     int                 rtvBaseIdx;       // Tracks beginning of user-level rtv descriptors

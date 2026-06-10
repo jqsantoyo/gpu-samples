@@ -18,9 +18,11 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 
 | Library           | Internal |
 |-------------------|----------|
+| app               | ✓        |
 | utils             | ✓        |
-| utilsVk           | ✓        |
-| utilsD3D          | ✓        |
+| gpuVk             | ✓        |
+| gpuD3D            | ✓        |
+| rendererInterface | ✓        |
 | vulkan            |          |
 | d3d12             |          |
 | dxgi              |          |
@@ -168,14 +170,7 @@ It also lets us opaquely implement both a D3D12 and a Vulkan backend, selectable
 The most important method is  `IRenderer::render`, which takes a `RenderView` argument that describes the contents and settings of the scene to be rendered.
 The caller extracts and passes a `RenderView` to the renderer from the above mentioned `Scene` object, but it could come from anywhere, so the renderer is not coupled with `Scene`.
 
-The repo started with bare API code in a hello world sample but evolved into utilities which greatly simplify the definition of each renderer, described below:
-
-* Factory-Device-Swapchain / Instance-PhysicalDevice-Device-Surface-Swapchain: General API setup.
-* FrameControl: Frames in flight management, with a frame memory allocator.
-* Shader: Shader loading from file.
-* MeshRegistry: Manages the creation of vertex/index buffer data.
-* TextureRegistry: Manages the creation of texture data.
-* Pipelines: Some reusable pipeline/root definitions (might take them back to each sample)
+The repo started with bare API code in a hello world sample but evolved into a `Gpu` class that abstracts the graphics API, see `gpuD3D` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and descriptors). Each resource is associated with a handle for persistent reference. `gpuVk` is not yet updated to this design, instead it consists of a more fragmented set of classes. The goal now is to update `Gpu` into being API agnostic (making it a proper `RHI`) and implement it's vulkan backend. After that, we don't need 2 renderer implementations, just 1 renderer + 2 `Gpu` backends.
 
 ... *more documentation soon* ...
 

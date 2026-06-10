@@ -1,4 +1,4 @@
-#include "utilsVk.h"
+#include "gpu.h"
 #include <utils/utils.h>
 #include <cstdio>
 #include <vector>
@@ -54,58 +54,58 @@ bool enumeratePhysicalDevices(VkInstance instance, std::vector<VkPhysicalDevice>
     return true;
 }
 
-bool enumerateDeviceExtensionProperties(VkPhysicalDevice device, const char* layerName, std::vector<VkExtensionProperties>& v) {
+bool enumerateDeviceExtensionProperties(VkPhysicalDevice gpu, const char* layerName, std::vector<VkExtensionProperties>& v) {
     uint32_t n = 0;
-    GUARDV(vkEnumerateDeviceExtensionProperties(device, layerName, &n, nullptr));
+    GUARDV(vkEnumerateDeviceExtensionProperties(gpu, layerName, &n, nullptr));
     v.resize(n);
-    GUARDV(vkEnumerateDeviceExtensionProperties(device, layerName, &n, v.data()));
+    GUARDV(vkEnumerateDeviceExtensionProperties(gpu, layerName, &n, v.data()));
     return true;
 }
 
-void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice device, std::vector<VkQueueFamilyProperties>& v) {
+void getPhysicalDeviceQueueFamilyProperties(VkPhysicalDevice gpu, std::vector<VkQueueFamilyProperties>& v) {
     uint32_t n = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &n, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &n, nullptr);
     v.resize(n);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &n, v.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(gpu, &n, v.data());
 }
 
-bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v) {
+bool getPhysicalDeviceSurfaceFormatsKHR(VkPhysicalDevice gpu, VkSurfaceKHR surface, std::vector<VkSurfaceFormatKHR>& v) {
     uint32_t n = 0;
-    GUARDV(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &n, nullptr));
+    GUARDV(vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &n, nullptr));
     v.resize(n);
-    GUARDV(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &n, v.data()));
+    GUARDV(vkGetPhysicalDeviceSurfaceFormatsKHR(gpu, surface, &n, v.data()));
     return true;
 }
 
-bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice device, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v) {
+bool getPhysicalDeviceSurfacePresentModesKHR(VkPhysicalDevice gpu, VkSurfaceKHR surface, std::vector<VkPresentModeKHR>& v) {
     uint32_t n = 0;
-    GUARDV(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &n, nullptr));
+    GUARDV(vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &n, nullptr));
     v.resize(n);
-    GUARDV(vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &n, v.data()));
+    GUARDV(vkGetPhysicalDeviceSurfacePresentModesKHR(gpu, surface, &n, v.data()));
     return true;
 }
 
-bool getSwapchainImagesKHR(VkDevice device, VkSwapchainKHR swapchain, std::vector<VkImage>& v) {
+bool getSwapchainImagesKHR(VkDevice gpu, VkSwapchainKHR swapchain, std::vector<VkImage>& v) {
     uint32_t n = 0;
-    GUARDV(vkGetSwapchainImagesKHR(device, swapchain, &n, nullptr));
+    GUARDV(vkGetSwapchainImagesKHR(gpu, swapchain, &n, nullptr));
     v.resize(n);
-    GUARDV(vkGetSwapchainImagesKHR(device, swapchain, &n, v.data()));
+    GUARDV(vkGetSwapchainImagesKHR(gpu, swapchain, &n, v.data()));
     return true;
 }
 
-VkResult createSemaphore(VkDevice device, VkSemaphore& semaphore) {
+VkResult createSemaphore(VkDevice gpu, VkSemaphore& semaphore) {
     VkSemaphoreCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
     };
-    return vkCreateSemaphore(device, &info, nullptr, &semaphore);
+    return vkCreateSemaphore(gpu, &info, nullptr, &semaphore);
 }
 
-VkResult createFence(VkDevice device, VkFence& fence, bool signaled) {
+VkResult createFence(VkDevice gpu, VkFence& fence, bool signaled) {
     VkFenceCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
         .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
-    return vkCreateFence(device, &info, nullptr, &fence);
+    return vkCreateFence(gpu, &info, nullptr, &fence);
 }
 
 
@@ -352,9 +352,9 @@ void PhysicalDeviceData::print() {
     printf("     api version         : %d\n", props.apiVersion);
     printf("     driver version      : %d\n", props.driverVersion);
     printf("     vendor id           : %d\n", props.vendorID);
-    printf("     device id           : %d\n", props.deviceID);
-    printf("     device type         : %s\n", deviceTypeStr);
-    printf("     device name         : %s\n", props.deviceName);
+    printf("     gpu id           : %d\n", props.deviceID);
+    printf("     gpu type         : %s\n", deviceTypeStr);
+    printf("     gpu name         : %s\n", props.deviceName);
     printf("     pipeline cache uuid : ");
     for (int i = 0; i < VK_UUID_SIZE; i++) {
         printf(":%d", props.pipelineCacheUUID[i]);
@@ -422,7 +422,7 @@ void PhysicalDeviceData::print() {
 
     printf("  \nMemory types:\n");
     printf("               | Flags                                                                                                                              |\n");
-    printf("    idx | heap | device local | host visible | host coherent | host cached | lazy | protected | device coherent AMD | device uncached AMD | RDMA NV |\n");
+    printf("    idx | heap | gpu local | host visible | host coherent | host cached | lazy | protected | gpu coherent AMD | gpu uncached AMD | RDMA NV |\n");
     printf("    -------------------------------------------------------------------------------------------------------------------------------------------------\n");
     for (int i = 0; i < memProps.memoryTypeCount; i++) {
         VkMemoryType& type = memProps.memoryTypes[i];
@@ -442,7 +442,7 @@ void PhysicalDeviceData::print() {
     }
     printf("  \nMemory heaps: %d\n", memProps.memoryHeapCount);
     printf("                       | Flags                                                                 |\n");
-    printf("    idx |         size | device local | multi instance | tile memory qcom | multi instance khr |\n");
+    printf("    idx |         size | gpu local | multi instance | tile memory qcom | multi instance khr |\n");
     printf("    --------------------------------------------------------------------------------------------\n");
     for (int i = 0; i < memProps.memoryHeapCount; i++) {
         VkMemoryHeap& heap = memProps.memoryHeaps[i];
@@ -601,7 +601,7 @@ bool PhysicalDevice::init(VkInstance instance, const std::vector<const char*>& e
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // DEVICE
 
-bool Device::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) {
+bool Gpu::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) {
     std::vector<const char*> layers;
     std::vector<const char*> extensions;
     float queuePriority = 1.0f;
@@ -634,25 +634,25 @@ bool Device::init(PhysicalDevice& physicalDevice, bool graphical, bool compute) 
         .ppEnabledExtensionNames    = extensions.data(),
         .pEnabledFeatures           = &deviceFeatures,
     };
-    GUARDV(vkCreateDevice(physicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &device));
+    GUARDV(vkCreateDevice(physicalDevice.physicalDevice, &deviceCreateInfo, nullptr, &gpu));
     
     this->gIdx = physicalDevice.gIdx;
     this->pIdx = physicalDevice.pIdx;
     this->cIdx = physicalDevice.cIdx;
     if (graphical) {
-        vkGetDeviceQueue(device, physicalDevice.gIdx, 0, &gQ);
-        vkGetDeviceQueue(device, physicalDevice.pIdx, 0, &pQ);
+        vkGetDeviceQueue(gpu, physicalDevice.gIdx, 0, &gQ);
+        vkGetDeviceQueue(gpu, physicalDevice.pIdx, 0, &pQ);
     }
     if (compute) {
-        vkGetDeviceQueue(device, physicalDevice.cIdx, 0, &cQ);
+        vkGetDeviceQueue(gpu, physicalDevice.cIdx, 0, &cQ);
     }
     uploadMem = physicalDevice.uploadMem;
     deviceMem = physicalDevice.deviceMem;
     return true;
 }
 
-void Device::terminate() {
-    vkDestroyDevice(device, nullptr);
+void Gpu::terminate() {
+    vkDestroyDevice(gpu, nullptr);
 }
 
 
@@ -672,8 +672,8 @@ void Device::terminate() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SWAPCHAIN
 
-bool Swapchain::init(VkDevice device, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
-    this->device = device;
+bool Swapchain::init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
+    this->gpu = gpu;
     this->surface = surface;
     this->physicalDevice = physicalDevice;
     this->gIdx = gIdx;
@@ -685,13 +685,13 @@ bool Swapchain::init(VkDevice device, Surface* surface, VkPhysicalDevice physica
 
 void Swapchain::terminate() {
     for (auto v : renderReadyVec) {
-        vkDestroySemaphore(device, v, nullptr);
+        vkDestroySemaphore(gpu, v, nullptr);
     }
     for (auto imageView : imageViews) {
-        vkDestroyImageView(device, imageView, nullptr);
+        vkDestroyImageView(gpu, imageView, nullptr);
     }
     if (swapchain != VK_NULL_HANDLE) {
-        vkDestroySwapchainKHR(device, swapchain, nullptr);
+        vkDestroySwapchainKHR(gpu, swapchain, nullptr);
     }
 }
 
@@ -747,8 +747,8 @@ bool Swapchain::recreate() {
         .clipped                = VK_TRUE,
         .oldSwapchain           = VK_NULL_HANDLE,
     };
-    GUARDV(vkCreateSwapchainKHR(device, &swapchainCreateInfo, nullptr, &swapchain));
-    GUARD(getSwapchainImagesKHR(device, swapchain, images));
+    GUARDV(vkCreateSwapchainKHR(gpu, &swapchainCreateInfo, nullptr, &swapchain));
+    GUARD(getSwapchainImagesKHR(gpu, swapchain, images));
     renderReadyVec.resize(images.size());
     imageViews.resize(images.size());
     for (size_t i = 0; i < images.size(); i++) {
@@ -767,8 +767,8 @@ bool Swapchain::recreate() {
                 .layerCount      = 1,
             },
         };
-        GUARDV(vkCreateImageView(device, &createInfo, nullptr, &imageViews[i]));
-        GUARDV(createSemaphore(device, renderReadyVec[i]));
+        GUARDV(vkCreateImageView(gpu, &createInfo, nullptr, &imageViews[i]));
+        GUARDV(createSemaphore(gpu, renderReadyVec[i]));
     }
     return true;
 }
@@ -778,14 +778,14 @@ void Swapchain::resize() {
 }
 
 bool Swapchain::next(VkSemaphore signal) {
-    VkResult res = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &idx);
+    VkResult res = vkAcquireNextImageKHR(gpu, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &idx);
     // printf("Swapchain index %d\n", idx);
     renderReady = renderReadyVec[idx];
     if (res == VK_ERROR_OUT_OF_DATE_KHR || resizedFlag) {
         resizedFlag = false;
         recreatedFlag = true;
         recreate();
-        // createSwapchainFramebuffers(device, swapchainCtx, renderPass);
+        // createSwapchainFramebuffers(gpu, swapchainCtx, renderPass);
     } else if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR) {
         printf("Acquire image error\n");
         return false;
@@ -827,8 +827,8 @@ bool Swapchain::present() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FRAME CONTROL
 
-bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue, int frameCount) {
-    this->device = device;
+bool FrameControl::init(VkDevice gpu, uint32_t queueFamilyIdx, VkQueue queue, int frameCount) {
+    this->gpu = gpu;
     this->queue = queue;
     this->frameCount = frameCount;
     frameIdx = -1;
@@ -842,7 +842,7 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
         .queueFamilyIndex = queueFamilyIdx,
     };
     for (int i = 0; i < frameCount; i++) {
-        GUARDV(vkCreateCommandPool(device, &poolInfo, nullptr, &cmdPool[i]));
+        GUARDV(vkCreateCommandPool(gpu, &poolInfo, nullptr, &cmdPool[i]));
 
         VkCommandBufferAllocateInfo allocInfo = {
             .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -850,9 +850,9 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
             .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = 1,
         };
-        GUARDV(vkAllocateCommandBuffers(device, &allocInfo, &cmdBuffer[i]));
-        GUARDV(createSemaphore(device, imageReady[i]));
-        GUARDV(createFence(device, execution[i], true));
+        GUARDV(vkAllocateCommandBuffers(gpu, &allocInfo, &cmdBuffer[i]));
+        GUARDV(createSemaphore(gpu, imageReady[i]));
+        GUARDV(createFence(gpu, execution[i], true));
 
 
     }
@@ -861,21 +861,21 @@ bool FrameControl::init(VkDevice device, uint32_t queueFamilyIdx, VkQueue queue,
 
 void FrameControl::terminate() {
     for (int i = 0; i < frameCount; i++) {
-        vkDestroySemaphore       (device, imageReady[i], nullptr);
-        vkDestroyFence           (device, execution[i], nullptr);
-        vkDestroyCommandPool     (device, cmdPool[i], nullptr);
+        vkDestroySemaphore       (gpu, imageReady[i], nullptr);
+        vkDestroyFence           (gpu, execution[i], nullptr);
+        vkDestroyCommandPool     (gpu, cmdPool[i], nullptr);
     }
 }
 
 Frame FrameControl::next() {
     frameIdx = (frameIdx + 1) % frameCount;
-    vkWaitForFences(device, 1, &execution[frameIdx], VK_TRUE, UINT64_MAX);
+    vkWaitForFences(gpu, 1, &execution[frameIdx], VK_TRUE, UINT64_MAX);
     // printf("Active frame: %d\n", frameIdx);
     return { cmdBuffer[frameIdx], imageReady[frameIdx] };
 }
 
 bool FrameControl::begin() {
-    vkResetFences(device, 1, &execution[frameIdx]);
+    vkResetFences(gpu, 1, &execution[frameIdx]);
     vkResetCommandBuffer(cmdBuffer[frameIdx], 0);
     VkCommandBufferBeginInfo beginInfo = {
         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -917,11 +917,11 @@ bool FrameControl::end(VkSemaphore renderReady) {
 // SHADER
 
 Shader::~Shader() {
-    vkDestroyShaderModule(device, module, nullptr);
+    vkDestroyShaderModule(gpu, module, nullptr);
 }
 
-bool Shader::load(VkDevice device, const char* name, VkShaderStageFlagBits stage) {
-    this->device = device;
+bool Shader::load(VkDevice gpu, const char* name, VkShaderStageFlagBits stage) {
+    this->gpu = gpu;
     std::string path = getAssetsPath() + name + ".spv";
     FILE* file = fopen(path.c_str(), "rb");
     if (file == nullptr) {
@@ -941,7 +941,7 @@ bool Shader::load(VkDevice device, const char* name, VkShaderStageFlagBits stage
         .codeSize = data.size(),
         .pCode = reinterpret_cast<uint32_t*>(data.data()),
     };
-    GUARDV(vkCreateShaderModule(device, &createInfo, nullptr, &module));
+    GUARDV(vkCreateShaderModule(gpu, &createInfo, nullptr, &module));
     stageInfo = {
         .sType               = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .pNext               = nullptr,
@@ -977,7 +977,7 @@ VkPipelineShaderStageCreateInfo Shader::getInfo() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // MESH CONTROL
 
-bool createBuffer(VkDevice device, uint32_t memoryType, VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer& buffer, VkDeviceMemory& memory) {
+bool createBuffer(VkDevice gpu, uint32_t memoryType, VkDeviceSize size, VkBufferUsageFlags usage, VkBuffer& buffer, VkDeviceMemory& memory) {
     VkBufferCreateInfo info = {
         .sType                 = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
         .pNext                 = nullptr,
@@ -988,9 +988,9 @@ bool createBuffer(VkDevice device, uint32_t memoryType, VkDeviceSize size, VkBuf
         .queueFamilyIndexCount = 0,
         .pQueueFamilyIndices   = nullptr,
     };
-    GUARDV(vkCreateBuffer(device, &info, nullptr, &buffer));
+    GUARDV(vkCreateBuffer(gpu, &info, nullptr, &buffer));
     VkMemoryRequirements memReq;
-    vkGetBufferMemoryRequirements(device, buffer, &memReq);
+    vkGetBufferMemoryRequirements(gpu, buffer, &memReq);
     GUARD(memReq.memoryTypeBits & (1 << memoryType));
     VkMemoryAllocateInfo allocInfo = {
         .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -998,8 +998,8 @@ bool createBuffer(VkDevice device, uint32_t memoryType, VkDeviceSize size, VkBuf
         .allocationSize = memReq.size,
         .memoryTypeIndex = memoryType,
     };
-    GUARDV(vkAllocateMemory(device, &allocInfo, nullptr, &memory));
-    GUARDV(vkBindBufferMemory(device, buffer, memory, 0));
+    GUARDV(vkAllocateMemory(gpu, &allocInfo, nullptr, &memory));
+    GUARDV(vkBindBufferMemory(gpu, buffer, memory, 0));
     return true;
 }
 
@@ -1022,30 +1022,30 @@ bool copyBuffer(VkQueue q, VkCommandBuffer cmdBuffer, VkBuffer src, VkBuffer dst
     return true;
 }
 
-bool MeshRegistry::init(Device* device) {
-    this->device =  device;
+bool MeshRegistry::init(Gpu* gpu) {
+    this->gpu =  gpu;
     VkCommandPoolCreateInfo poolInfo = {
         .sType            = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
         .flags            = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT,
-        .queueFamilyIndex = device->gIdx,
+        .queueFamilyIndex = gpu->gIdx,
     };
-    GUARDV(vkCreateCommandPool(device->device, &poolInfo, nullptr, &cmdPool));
+    GUARDV(vkCreateCommandPool(gpu->gpu, &poolInfo, nullptr, &cmdPool));
     VkCommandBufferAllocateInfo allocInfo = {
         .sType              = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
         .commandPool        = cmdPool,
         .level              = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
         .commandBufferCount = 1,
     };
-    GUARDV(vkAllocateCommandBuffers(device->device, &allocInfo, &cmdBuffer));
+    GUARDV(vkAllocateCommandBuffers(gpu->gpu, &allocInfo, &cmdBuffer));
     return true;
 }
 
 void MeshRegistry::terminate() {
     for (int i = 0; i < meshes.size(); i++) {
-        vkDestroyBuffer(device->device, meshes[i].buffer, nullptr);
-        vkFreeMemory(device->device, meshes[i].memory, nullptr);
+        vkDestroyBuffer(gpu->gpu, meshes[i].buffer, nullptr);
+        vkFreeMemory(gpu->gpu, meshes[i].memory, nullptr);
     }
-    vkDestroyCommandPool(device->device, cmdPool, nullptr);
+    vkDestroyCommandPool(gpu->gpu, cmdPool, nullptr);
 }
 
 bool MeshRegistry::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32_t idxSize, int& meshIdx) {
@@ -1053,35 +1053,35 @@ bool MeshRegistry::addMesh(float* data, uint32_t size, uint16_t* idxData, uint32
     meshes.push_back({});
     Mesh& mesh = meshes.back();
 
-    createBuffer(device->device, device->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
-    createBuffer(device->device, device->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, mesh.buffer, mesh.memory);
+    createBuffer(gpu->gpu, gpu->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
+    createBuffer(gpu->gpu, gpu->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, mesh.buffer, mesh.memory);
 
     void* v;
-    vkMapMemory(device->device, uploadMemory, 0, size, 0, &v);
+    vkMapMemory(gpu->gpu, uploadMemory, 0, size, 0, &v);
     memcpy(v, data, size);
-    vkUnmapMemory(device->device, uploadMemory);
+    vkUnmapMemory(gpu->gpu, uploadMemory);
 
-    GUARDV(vkResetCommandPool(device->device, cmdPool, 0));
-    GUARD(copyBuffer(device->gQ, cmdBuffer, uploadBuffer, mesh.buffer, size));
+    GUARDV(vkResetCommandPool(gpu->gpu, cmdPool, 0));
+    GUARD(copyBuffer(gpu->gQ, cmdBuffer, uploadBuffer, mesh.buffer, size));
 
-    vkDestroyBuffer(device->device, uploadBuffer, nullptr);
-    vkFreeMemory(device->device, uploadMemory, nullptr);
+    vkDestroyBuffer(gpu->gpu, uploadBuffer, nullptr);
+    vkFreeMemory(gpu->gpu, uploadMemory, nullptr);
 
     
     if (idxData != nullptr) {
-        createBuffer(device->device, device->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
-        createBuffer(device->device, device->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, mesh.idxBuffer, mesh.idxMemory);
+        createBuffer(gpu->gpu, gpu->uploadMem, size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, uploadBuffer, uploadMemory);
+        createBuffer(gpu->gpu, gpu->deviceMem, size, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, mesh.idxBuffer, mesh.idxMemory);
 
         void* v;
-        vkMapMemory(device->device, uploadMemory, 0, idxSize, 0, &v);
+        vkMapMemory(gpu->gpu, uploadMemory, 0, idxSize, 0, &v);
         memcpy(v, idxData, idxSize);
-        vkUnmapMemory(device->device, uploadMemory);
+        vkUnmapMemory(gpu->gpu, uploadMemory);
 
-        GUARDV(vkResetCommandPool(device->device, cmdPool, 0));
-        GUARD(copyBuffer(device->gQ, cmdBuffer, uploadBuffer, mesh.idxBuffer, idxSize));
+        GUARDV(vkResetCommandPool(gpu->gpu, cmdPool, 0));
+        GUARD(copyBuffer(gpu->gQ, cmdBuffer, uploadBuffer, mesh.idxBuffer, idxSize));
         
-        vkDestroyBuffer(device->device, uploadBuffer, nullptr);
-        vkFreeMemory(device->device, uploadMemory, nullptr);
+        vkDestroyBuffer(gpu->gpu, uploadBuffer, nullptr);
+        vkFreeMemory(gpu->gpu, uploadMemory, nullptr);
     }
     return true;
 }

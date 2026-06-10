@@ -1,7 +1,8 @@
+#include <rendererInterface/renderer.h>
 #include <utils/utils.h>
-#include <utils/app.h>
-#include <utils/renderer.h>
-#include <utilsD3D/utilsD3D.h>
+#include <app/app.h>
+#include <gpuD3D/gpu.h>
+#include <d3dx12.h>
 #include <pix3.h>
 #include <wrl.h>
 #include <shellapi.h>
@@ -10,7 +11,7 @@
 #include <iostream>
 
 using namespace DirectX;
-using namespace Microsoft::WRL;
+
 namespace gpu {
 
 
@@ -35,7 +36,6 @@ struct PassData {
 
 
 
-
 class RendererD3D : public IRenderer {
 public:
 
@@ -50,32 +50,79 @@ public:
         uint32_t alignedObjectMemory = align256(objectMemory);
         uint32_t maxFrameMemory = passData + 10 * materialData + 100 * alignedObjectMemory;
 
-        GUARD(factory.init());
-        GUARD(factory.select());
-        GUARD(device.init(factory.getSelected(), frameCount, 2, 100));
-        GUARD(queue.init(device, D3D12_COMMAND_LIST_TYPE_DIRECT));
-        GUARD(swapchain.init(factory, device, queue, hwnd, width, height, frameCount));
-        GUARD(frameControl.init(device, &queue, 2, maxFrameMemory));
-        GUARD(rootSignature.init3Cbv1TableNSamplers(device));
-        GUARD(pso.init(device, rootSignature));
-        GUARD(psoWire.init(device, rootSignature));
-        GUARD(depthBuffer.init(&device, width, height));
-        GUARD(textureRegistry.init(&device, &queue));
-        GUARD(materialRegistry.init(&device));
-        GUARD(shadow.init(&device, rootSignature.obj.Get(), 1024, 1024));
+        gpu.init(frameCount, 2, 100);
+        queue     = gpu.createQueue();
+        swapchain = gpu.createSwapchain(queue, hwnd, width, height, frameCount);
 
-        defaultBaseColorMap = textureRegistry.addDefault({1, 1, 1, 1});   // default base color
+        gpu::PsoGraphicsDesc pipelineDesc = {
+            .vs                     = "shaders_v",
+            .ps                     = "shaders_p",
+            .blendState             = gpu::defaultBlend(),
+            .sampleMask             = UINT_MAX,
+            .rasterizerState        = gpu::defaultFill(),
+            .depthStencilState      = gpu::defaultDepth(),
+            .inputLayout            = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT,    0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "NORMAL",   0, DXGI_FORMAT_R32G32B32_FLOAT,    1,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "UV",       0, DXGI_FORMAT_R32G32_FLOAT,       2,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+                { "TANGENT",  0, DXGI_FORMAT_R32G32B32A32_FLOAT, 3,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            },
+            .topology           = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .numRenderTargets   = 1,
+            .rtvFormats         = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .dsvFormat          = DXGI_FORMAT_D32_FLOAT,
+            .sampleDesc         = { .Count = 1, .Quality = 0 },
+        };
+
+        gpu::PsoGraphicsDesc pipelineWireDesc = {
+            .vs                 = "shadersWire_v",
+            .ps                 = "shadersWire_p",
+            .blendState         = gpu::noBlend(),
+            .sampleMask         = UINT_MAX,
+            .rasterizerState    = gpu::defaultWire(),
+            .depthStencilState  = gpu::defaultDepth(),
+            .inputLayout        = {
+                { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0,  0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+            },
+            .topology           = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+            .numRenderTargets   = 1,
+            .rtvFormats         = { DXGI_FORMAT_R8G8B8A8_UNORM },
+            .dsvFormat          = DXGI_FORMAT_D32_FLOAT,
+            .sampleDesc         = { .Count = 1, .Quality = 0 },
+        };
+        root = gpu.createRoot(
+            {
+                gpu::rootCbv(0),
+                gpu::rootCbv(1),
+                gpu::rootCbv(2),
+                gpu::rootTable({ gpu::rangeSrv(5, 0), }),
+            },
+            {
+                CD3DX12_STATIC_SAMPLER_DESC(0, D3D12_FILTER_ANISOTROPIC), // aniso sampler
+                gpu::shadowSampler(),
+            }
+        );
+        pipeline     = gpu.createPipeline(root, pipelineDesc);
+        pipelineWire = gpu.createPipeline(root, pipelineWireDesc);
+        mainCommand  = gpu.createCommand();
+        uploadBuffer = gpu.createBuffer(2048 * 2048 * 4, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_COMMON);
+
+        frameControl.init(gpu, 2, maxFrameMemory);
+        depthBuffer.init(&gpu, width, height);
+        meshRegistry.init(&gpu);
+        textureRegistry.init(&gpu, queue, mainCommand, uploadBuffer, 0);
+        materialRegistry.init(&gpu);
+        shadow.init(&gpu, root, 1024, 1024);
+
+        defaultBaseColorMap = textureRegistry.add({ 1, 1, 1, 1 });   // default base color
         // textureRegistry.addDefault({1, 1, 0, 1});   // default base color (magenta)
-        defaultORMMap = textureRegistry.addDefault({1, 1, 0, 1});   // default ORM
-        defaultNormalMap = textureRegistry.addDefault({1, .5, .5, 1}); // default normals
-        defaultEmissiveMap = textureRegistry.addDefault({1, 0, 0, 0});   // default emissive
+        defaultORMMap       = textureRegistry.add({ 1, 1, 0, 1 });   // default ORM
+        defaultNormalMap    = textureRegistry.add({ 1, .5, .5, 1 }); // default normals
+        defaultEmissiveMap  = textureRegistry.add({ 1, 0, 0, 0 });   // default emissive
 
-        rtvBaseIdx       = device.rtvHeap.getCount();
-        dsvBaseIdx       = device.dsvHeap.getCount();
-        cbvBaseIdx       = device.cbvHeap.getCount();
-        buffersBaseIdx   = meshRegistry.getBufferCount();
-        meshesBaseIdx    = meshRegistry.getMeshCount();
+        buffersBaseIdx   = gpu.buffers.size();
         texturesBaseIdx  = textureRegistry.getCount();
+        meshesBaseIdx    = meshRegistry.getMeshCount();
         materialsBaseIdx = materialRegistry.getCount();
         
         reset();
@@ -83,19 +130,20 @@ public:
     }
 
     void terminate() {
-        queue.wait();
+        gpu.wait(queue);
     }
 
     void reset() {
         wait();
-        device.reset(rtvBaseIdx, dsvBaseIdx, cbvBaseIdx);
-        meshRegistry.reset(buffersBaseIdx, meshesBaseIdx);
-        textureRegistry.reset(texturesBaseIdx);
+        // gpu.resetMain(1);
+        gpu.buffers.resize(buffersBaseIdx);
+        // gpu.textures.resize(texturesBaseIdx);
+        meshRegistry.reset(meshesBaseIdx);
         materialRegistry.reset(materialsBaseIdx);
     }
 
     void wait() {
-        queue.wait();
+        gpu.wait(queue);
     }
 
     bool resize(int width, int height) {
@@ -105,8 +153,7 @@ public:
     bool render(const RenderView& view) {
         static uint64_t frameIdx = 0;
         PIXBeginEvent(PIX_COLOR_DEFAULT, "Render %llu", frameIdx);
-        RenderTarget target = swapchain.next();
-        D3D12_CPU_DESCRIPTOR_HANDLE depthView = device.dsvHeap.getCpu(depthBuffer.dsvIdx);
+        gpu::SwapTarget target = gpu.next(swapchain);
 
 
         Light light0 = { { -5, 2, 5 },  2, {  1, -1, -1 }, 10, { 3.0f, 3.0f, 3.0f }, 1 };
@@ -124,7 +171,7 @@ public:
             },
             .deltaTime = 0,
             .absoluteTime = t,
-            .shadowMap = shadow.srvIdx,
+            .shadowMap = shadow.srv.idx,
         };
 
         {
@@ -147,24 +194,25 @@ public:
         XMStoreFloat4x4(&passData.proj,         projMat);
         XMStoreFloat4x4(&passData.viewProj,     viewProjMat);
         
-        frameControl.begin(nullptr);
-        frameControl.heaps(device.cbvHeap.get());
+        gpu::Command cmd = frameControl.next();
+        gpu.wait(queue, cmd);
+        gpu.begin(cmd);
+        gpu.heaps(cmd, gpu.mainHeap.get());
 
         if (view.enableShadows) {
             D3D12_VIEWPORT shadowViewport = { 0.0f, 0.0f, static_cast<float>(1024), static_cast<float>(1024), 0, 1 };
             D3D12_RECT shadowScissor = { 0, 0, long(1024), long(1024) };
-            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.dsvHeap.getCpu(shadow.dsvIdx);
-            frameControl.cmdList->RSSetViewports(1, &shadowViewport);
-            frameControl.cmdList->RSSetScissorRects(1, &shadowScissor);
-            frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-            frameControl.cmdList->OMSetRenderTargets(0, nullptr, false, &shadowDsv);
-            frameControl.cmdList->ClearDepthStencilView(shadowDsv, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
+            gpu.viewport     (cmd, shadowViewport);
+            gpu.scissor      (cmd, shadowScissor);
+            gpu.barrier      (cmd, shadow.target, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            gpu.target       (cmd, shadow.dsv);
+            gpu.clear        (cmd, shadow.dsv, 1, 0);
 
-            frameControl.cmdList->SetPipelineState(shadow.pso.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.setConstantBuffer(2, passData);
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.cbvHeap.getGpu(0));
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            gpu.pipeline          (cmd, shadow.pipeline);
+            gpu.graphicsRoot (cmd, root);
+            gpu.graphicsCbv  (cmd, 2, passData);
+            gpu.graphicsTable(cmd, 3, gpu.mainHeap.gpu(0));
+            gpu.topology(cmd, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
@@ -179,35 +227,32 @@ public:
                 ObjectData objectData = {};
                 XMStoreFloat4x4(&objectData.m, modelMat);
                 
-                frameControl.setConstantBuffer(0, objectData);
-                frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
+                gpu.graphicsCbv  (cmd, 0, objectData);
+                gpu.indexBuffer  (cmd, m.indicesView);
+                gpu.vertexBuffer (cmd, 0, m.positionView);
+                gpu.drawIndexed  (cmd, m.vCount, 1, 0, 0, 0);
             }
-            frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+            gpu.barrier(cmd, shadow.target, D3D12_RESOURCE_STATE_GENERIC_READ);
         } else {
-            D3D12_CPU_DESCRIPTOR_HANDLE shadowDsv = device.dsvHeap.getCpu(shadow.dsvIdx);
-            frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_GENERIC_READ, D3D12_RESOURCE_STATE_DEPTH_WRITE);
-            frameControl.cmdList->ClearDepthStencilView(shadowDsv, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-            frameControl.barrier(shadow.target.Get(), D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_GENERIC_READ);
+            gpu.barrier(cmd, shadow.target, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+            gpu.clear  (cmd, shadow.dsv, 1, 0);
+            gpu.barrier(cmd, shadow.target, D3D12_RESOURCE_STATE_GENERIC_READ);
         }
 
 
-        
-        frameControl.cmdList->RSSetViewports(1, &viewport);
-        frameControl.cmdList->RSSetScissorRects(1, &scissorRect);
-        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_PRESENT, D3D12_RESOURCE_STATE_RENDER_TARGET);
-        frameControl.cmdList->OMSetRenderTargets(1, &target.view, true, &depthView);
-        frameControl.cmdList->ClearRenderTargetView(target.view, &view.clearColor.x, 0, nullptr);
-        frameControl.cmdList->ClearDepthStencilView(depthView, D3D12_CLEAR_FLAG_DEPTH, 1, 0, 0, nullptr);
-
+        gpu.viewport (cmd, viewport);
+        gpu.scissor  (cmd, scissorRect);
+        gpu.barrier  (cmd, target.texture, D3D12_RESOURCE_STATE_RENDER_TARGET);
+        gpu.targets  (cmd, target.rtv, depthBuffer.dsv);
+        gpu.clear    (cmd, target.rtv, view.clearColor);
+        gpu.clear    (cmd, depthBuffer.dsv, 1, 0);
 
         if (view.fillMode == Fill || view.fillMode == FillWire) {
-            frameControl.cmdList->SetPipelineState(pso.obj.Get());
-            frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-            frameControl.setConstantBuffer(2, passData);
-            frameControl.cmdList->SetGraphicsRootDescriptorTable(3, device.cbvHeap.getGpu(0));
-            frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+            gpu.pipeline(cmd, pipeline);
+            gpu.graphicsRoot(cmd, root);
+            gpu.graphicsCbv(cmd, 2, passData);
+            gpu.graphicsTable(cmd, 3, gpu.mainHeap.gpu(0));
+            gpu.topology(cmd, D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
@@ -226,42 +271,24 @@ public:
                 XMStoreFloat4x4(&objectData.m, modelMat);
                 // XMStoreFloat4x4(&objectData.mvp, XMMatrixTranspose(mvp)));
                 
-                frameControl.setConstantBuffer(0, objectData);
-                frameControl.setConstantBuffer(1, mat);
-                frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-                frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-                frameControl.cmdList->IASetVertexBuffers(1, 1, &m.normalView);
-                frameControl.cmdList->IASetVertexBuffers(2, 1, &m.uvView);
-                frameControl.cmdList->IASetVertexBuffers(3, 1, &m.tangentView);
-                frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
+                gpu.graphicsCbv  (cmd, 0, objectData);
+                gpu.graphicsCbv  (cmd, 1, mat);
+                gpu.indexBuffer  (cmd, m.indicesView);
+                gpu.vertexBuffer (cmd, 0, m.positionView);
+                gpu.vertexBuffer (cmd, 1, m.normalView);
+                gpu.vertexBuffer (cmd, 2, m.uvView);
+                gpu.vertexBuffer (cmd, 3, m.tangentView);
+                gpu.drawIndexed  (cmd, m.vCount, 1, 0, 0, 0);
             }
         }
 
-        // if (fillMode == Wire || fillMode == FillWire) {
-        //     // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Wire %llu", frameIdx);
-        //     frameControl.cmdList->SetPipelineState(psoWire.obj.Get());
-        //     frameControl.cmdList->SetGraphicsRootSignature(rootSignature.obj.Get());
-        //     frameControl.cmdList->SetGraphicsRootDescriptorTable(1, device.cbvHeap->GetGPUDescriptorHandleForHeapStart());
-        //     frameControl.cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-        //     for (int i = 0; i < items.size(); i++) {
-        //         int meshId = items[i].meshId;
-        //         Mesh& m = meshRegistry.getMesh(meshId);
-        //         D3D12_GPU_VIRTUAL_ADDRESS cbvAddress = objectConstants.getAddress(i);
-        //         frameControl.cmdList->SetGraphicsRootConstantBufferView(0, cbvAddress);
-        //         frameControl.cmdList->IASetIndexBuffer(&m.indicesView);
-        //         frameControl.cmdList->IASetVertexBuffers(0, 1, &m.positionView);
-        //         // frameControl.cmdList->IASetVertexBuffers(1, 1, &m.colorView);
-        //         frameControl.cmdList->DrawIndexedInstanced(m.vCount, 1, 0, 0, 0);
-        //         // device.printErrors();
-        //     }
-        //     // PIXEndEvent(queue.obj.Get());
-        // }
 
-
-        frameControl.barrier(target.resource.Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
-        GUARD(frameControl.execute());
-        GUARD(swapchain.present(false));
-        GUARD(frameControl.end());
+        gpu.barrier(cmd, target.texture, D3D12_RESOURCE_STATE_PRESENT);
+        gpu.end(cmd);
+        gpu.execute(queue, cmd);
+        gpu.present(swapchain, false);
+        gpu.signal(queue, cmd);
+        gpu.printErrors();
         PIXEndEvent();
         frameIdx++;
         return 1;
@@ -281,7 +308,9 @@ public:
 
     int addBuffer(const BufferDesc& desc) {
         wait();
-        return meshRegistry.addBuffer(device, desc);
+        gpu::Buffer buffer = gpu.createBuffer(desc.size, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
+        gpu.write(buffer, desc.offset, desc.size, desc.data);
+        return buffer.idx;
     }
     
     int addMesh(const MeshDesc& desc) {
@@ -289,13 +318,11 @@ public:
     }
 
     int addTexture(const char* filename) {
-        wait();
-        return textureRegistry.addTexture(filename);
+        return textureRegistry.add(filename);
     }
 
-    int addTexture(const uint8_t* data, uint32_t size) {
-        wait();
-        return textureRegistry.addTexture(data, size);
+    int addTexture(const char* name, const uint8_t* data, uint32_t size) {
+        return textureRegistry.add(name, data, size);
     }
     
     virtual int addMaterial(Material& material) {
@@ -303,11 +330,11 @@ public:
     }
 
     int getTextureDesc(int idx) {
-        return textureRegistry.get(idx).descriptor;
+        return textureRegistry.getSrv(idx);
     }
 
     int getBufferCount() {
-        return meshRegistry.getBufferCount();
+        return gpu.buffers.size();
     }
 
     int getMeshCount() {
@@ -323,24 +350,22 @@ public:
     }
 
 private:
-    Factory             factory;
-    Device              device;
-    Swapchain           swapchain;
+    gpu::Gpu            gpu;
+    gpu::Swapchain      swapchain;
+    gpu::Queue          queue;
+    gpu::Buffer         uploadBuffer;
+    gpu::Command        mainCommand;
+    gpu::Root           root;
+    gpu::Pipeline       pipeline;
+    gpu::Pipeline       pipelineWire;
     DepthBuffer         depthBuffer;
-    Queue               queue;
     FrameControl        frameControl;
     MeshRegistry        meshRegistry;
     TextureRegistry     textureRegistry;
     MaterialRegistry    materialRegistry;
     Shadow              shadow;
-    RootSig             rootSignature;
-    PipelineLights      pso;
-    PipelineWire        psoWire;
     D3D12_VIEWPORT      viewport;
     D3D12_RECT          scissorRect;
-    int                 rtvBaseIdx;       // Tracks beginning of user-level rtv descriptors
-    int                 dsvBaseIdx;       // Tracks beginning of user-level dsv descriptors
-    int                 cbvBaseIdx;       // Tracks beginning of user-level cbv descriptors
     int                 buffersBaseIdx;   // Tracks beginning of user-level buffers
     int                 meshesBaseIdx;    // Tracks beginning of user-level meshes
     int                 texturesBaseIdx;  // Tracks beginning of user-level textures

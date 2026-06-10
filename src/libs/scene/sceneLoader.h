@@ -1,9 +1,9 @@
 #pragma once
 #include <memory>
 #include <string>
-#include <utils/app.h>
-#include <utils/scene.h>
-#include <utils/renderer.h>
+#include <app/app.h>
+#include <scene/scene.h>
+#include <rendererInterface/renderer.h>
 #include <functional>
 
 

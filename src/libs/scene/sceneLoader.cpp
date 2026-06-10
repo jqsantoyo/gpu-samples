@@ -26,8 +26,7 @@ bool loadImage(
     void* userData
 ) {
     IRenderer* renderer = reinterpret_cast<IRenderer*>(userData);
-    printf("Load image[%d][%s]\n", imageIdx, image->name.c_str());
-    int texIdx = renderer->addTexture(bytes, size);
+    int texIdx = renderer->addTexture(image->name.c_str(), bytes, size);
     return true;
 }
 

@@ -1,8 +1,8 @@
 #pragma once
 #include <utils/utils.h>
-#include <utils/app.h>
-#include <utils/scene.h>
-#include <utils/renderer.h>
+#include <app/app.h>
+#include <scene/scene.h>
+#include <rendererInterface/renderer.h>
 #include <memory>
 
 namespace gpu {

@@ -25,6 +25,35 @@ struct Trs {
     vec3 scale;
 };
 
+uint32_t toUint(vec4 v);
+
+
+
+template<typename Id, typename Data>
+class Vec : public std::vector<Data> {
+public:
+
+    void init(int size) {
+        this->resize(size);
+    }
+
+    Id add() {
+        int idx = this->size();
+        this->push_back(Data{});
+        return { idx };
+    }
+
+    Data& operator[](Id id){
+        return this->data()[id.idx];
+    }
+
+    Data& operator[](int idx){
+        return this->data()[idx];
+    }
+};
+
+
+
 std::wstring getAssetsPathW();
 std::string getAssetsPath();
 uint32_t align256(uint32_t x);

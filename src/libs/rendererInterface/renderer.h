@@ -1,44 +1,11 @@
 #pragma once
+#include "renderUtils.h"
 #include <utils/utils.h>
 #include <memory>
 #include <vector>
 
 namespace gpu {
 
-struct BufferDesc {
-    size_t offset;
-    size_t size;
-    const uint8_t* data;
-};
-
-struct BufferViewDesc {
-    size_t offset;
-    size_t size;
-};
-
-struct MeshDesc {
-    int      bufferId;
-    bool     indexFormatU16;
-    size_t   vCount;
-    BufferViewDesc indices;
-    BufferViewDesc position;
-    BufferViewDesc normal;
-    BufferViewDesc uv;
-    BufferViewDesc tangent;
-    BufferViewDesc color;
-};
-
-struct Material
-{
-    vec4 baseColor;
-    vec3 emissive;
-    float metallic;
-    float roughness;
-    int baseColorMap;
-    int ormMap;
-    int normalMap;
-    int emissiveMap;
-};
 
 enum FillMode {
     Fill,
@@ -98,7 +65,7 @@ public:
     virtual int addBuffer(const BufferDesc& desc) { return -1; };
     virtual int addMesh(const MeshDesc& desc) { return -1; };
     virtual int addTexture(const char* filename) { return -1; };
-    virtual int addTexture(const uint8_t* data, uint32_t size) { return -1; };
+    virtual int addTexture(const char* name, const uint8_t* data, uint32_t size) { return -1; };
     virtual int getTextureDesc(int idx) { return -1; };
     virtual int addMaterial(Material& material) { return -1; };
     virtual int getBufferCount() { return 0; }
@@ -110,10 +77,6 @@ public:
     int defaultEmissiveMap  = -1;
     int defaultNormalMap    = -1;
 };
-
-std::unique_ptr<IRenderer> createRenderer(bool vulkan);
-std::unique_ptr<IRenderer> createRendererD3D();
-std::unique_ptr<IRenderer> createRendererVk();
 
 
 

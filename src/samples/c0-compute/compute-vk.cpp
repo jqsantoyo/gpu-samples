@@ -1,5 +1,5 @@
 #include "compute.h"
-#include <utilsVk/utilsVk.h>
+#include <gpuVk/gpu.h>
 #include <vector>
 
 using namespace gpu::vk;
@@ -13,11 +13,11 @@ public:
         std::vector<const char*> deviceExtensions = {};
         GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
 
-        // GUARD(device.init(computeWrap.physicalDevice, computeWrap.cIdx, device, computeQueue));
+        // GUARD(gpu.init(computeWrap.physicalDevice, computeWrap.cIdx, gpu, computeQueue));
 
         const char* shaderDir = "02-compute-shaders-vk";
         Shader shader;
-        // GUARD(shader.load(device, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
+        // GUARD(shader.load(gpu, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
 
         VkComputePipelineCreateInfo computePipelineCreateInfo = {
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
@@ -28,7 +28,7 @@ public:
             // .baePipelineHandle = 0,
             .basePipelineIndex = 0,
         };
-        // vkCreateComputePipelines(device, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
+        // vkCreateComputePipelines(gpu, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
 
         return true;
     }
@@ -44,7 +44,7 @@ public:
 private:
     Instance        instance;
     PhysicalDevice  physicalDevice;
-    Device          device;
+    Gpu          gpu;
     VkQueue         computeQueue;
     VkPipeline      computePipeline;
 

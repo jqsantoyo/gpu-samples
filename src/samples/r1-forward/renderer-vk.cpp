@@ -1,7 +1,7 @@
 #include <utils/utils.h>
-#include <utils/app.h>
-#include <utils/renderer.h>
-#include <utilsVk/utilsVk.h>
+#include <app/app.h>
+#include <rendererInterface/renderer.h>
+#include <gpuVk/gpu.h>
 #include <iostream>
 #include <fstream>
 #include <stdexcept>

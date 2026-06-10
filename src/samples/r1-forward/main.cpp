@@ -1,7 +1,8 @@
-#include <utils/app.h>
-#include <utils/renderer.h>
-#include <utils/sceneLoader.h>
-#include <utils/camera.h>
+#include "renderer.h"
+#include <app/app.h>
+#include <rendererInterface/renderer.h>
+#include <scene/sceneLoader.h>
+#include <scene/camera.h>
 #include <string>
 
 namespace gpu {
@@ -20,10 +21,10 @@ public:
         bool useVulkan = argBool("-vk");
         title = useVulkan ? "01-forward-vk" : "01-forward";
 
-        renderer    = createRenderer(useVulkan);
-        scene       = std::make_unique<Scene>();
-        cameraCtrl  = std::make_unique<CameraCtrl>();
-        sceneLoader = std::make_unique<SceneLoader>();
+        renderer        = createRendererPbr(useVulkan);
+        scene           = std::make_unique<Scene>();
+        cameraCtrl      = std::make_unique<CameraCtrl>();
+        sceneLoader     = std::make_unique<SceneLoader>();
         sceneSelector   = std::make_unique<SceneSelector>();
 
         renderer->init(window, width, height);

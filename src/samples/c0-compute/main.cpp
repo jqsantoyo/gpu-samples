@@ -1,5 +1,5 @@
 #include "compute.h"
-#include "app.h"
+#include <chrono>
 
 using Clock = std::chrono::steady_clock;
 using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
