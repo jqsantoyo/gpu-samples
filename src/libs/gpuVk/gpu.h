@@ -130,7 +130,7 @@ public:
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SWAPCHAIN
 
-class Swapchain {
+class SwapchainVk {
 public:
     bool init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue);
     void terminate();

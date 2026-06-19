@@ -7,7 +7,7 @@
 namespace gpu {
 
 
-enum FillMode {
+enum ViewMode {
     Fill,
     FillWire,
     Wire,
@@ -39,15 +39,15 @@ struct Model {
 
 
 struct RenderView {
-    vec4 clearColor;
-    FillMode fillMode;
-    bool enableShadows;
-    int lightCount;
-    int modelCount;
-    const Camera* camera;
-    const Light* lights;
-    const mat4* transforms;
-    const Model* models;
+    vec4            clearColor;
+    ViewMode        fillMode;
+    bool            enableShadows;
+    int             lightCount;
+    int             modelCount;
+    const Camera*   camera;
+    const Light*    lights;
+    const mat4*     transforms;
+    const Model*    models;
 };
 
 
@@ -60,22 +60,14 @@ public:
     virtual void wait() = 0;
     virtual bool resize(int width, int height) = 0;
     virtual bool render(const RenderView& view) = 0;
-    virtual void trs2Transform(int count, const Trs* trs, mat4* transforms) = 0; // temporarily inside IRenderer
 
-    virtual int addBuffer(const BufferDesc& desc) { return -1; };
-    virtual int addMesh(const MeshDesc& desc) { return -1; };
-    virtual int addTexture(const char* filename) { return -1; };
-    virtual int addTexture(const char* name, const uint8_t* data, uint32_t size) { return -1; };
-    virtual int getTextureDesc(int idx) { return -1; };
-    virtual int addMaterial(Material& material) { return -1; };
-    virtual int getBufferCount() { return 0; }
-    virtual int getMeshCount() { return 0; }
-    virtual int getTextureCount() { return 0; }
-    virtual int getMaterialCount() { return 0; }
-    int defaultBaseColorMap = -1;
-    int defaultORMMap       = -1;
-    int defaultEmissiveMap  = -1;
-    int defaultNormalMap    = -1;
+    virtual Buffer          create(const char* name, uint32_t size, const uint8_t* data) = 0;
+    virtual Mesh            create(const MeshData& desc) = 0;
+    virtual MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) = 0;
+    virtual Material        create(const char* name, MaterialDesc& desc) = 0;
+    virtual void            destroy(Buffer buffer) = 0;
+    virtual void            destroy(MaterialTexture materialTexture) = 0;
+    virtual void            destroy(Material material) = 0;
 };
 
 

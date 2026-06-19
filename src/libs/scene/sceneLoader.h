@@ -9,26 +9,35 @@
 
 namespace gpu {
 
+
 class SceneLoader {
 public:
-    void init(Scene* scene, IRenderer* renderer);
-    bool load(const std::string& filename);
+    void init    (Scene* scene, IRenderer* renderer);
+    void reset   ();
+    void record  (Buffer buffer);
+    void record  (Mesh mesh);
+    void record  (MaterialTexture materialTexture);
+    void record  (Material material);
+    bool load    (const std::string& filename);
 private:
     Scene* scene;
     IRenderer* renderer;
+    std::vector<Buffer>             buffers;
+    std::vector<Mesh>               meshes;
+    std::vector<MaterialTexture>    materialTextures;
+    std::vector<Material>           materials;
 };
 
 
 class SceneSelector {
 public:
-    void init(Scene* scene, IRenderer* renderer, std::initializer_list<std::function<bool()>> loaders);
+    void init(SceneLoader* sceneLoader, std::initializer_list<std::function<bool()>> loaders);
     bool load(int idx);
     bool loadOnKeyboard(KeyboardEvent event);
 private:
-    Scene* scene;
-    IRenderer* renderer;
-    std::vector<std::function<bool()>> loaders;
-    int sceneIdx = 0;
+    SceneLoader*                             sceneLoader;
+    std::vector<std::function<bool()>>       loaders;
+    int                                      sceneIdx = 0;
 };
 
 

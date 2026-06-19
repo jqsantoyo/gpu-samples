@@ -672,7 +672,7 @@ void Gpu::terminate() {
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // SWAPCHAIN
 
-bool Swapchain::init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
+bool SwapchainVk::init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDevice, uint32_t gIdx, uint32_t pIdx, VkQueue pQueue) {
     this->gpu = gpu;
     this->surface = surface;
     this->physicalDevice = physicalDevice;
@@ -683,7 +683,7 @@ bool Swapchain::init(VkDevice gpu, Surface* surface, VkPhysicalDevice physicalDe
     return true;
 }
 
-void Swapchain::terminate() {
+void SwapchainVk::terminate() {
     for (auto v : renderReadyVec) {
         vkDestroySemaphore(gpu, v, nullptr);
     }
@@ -695,7 +695,7 @@ void Swapchain::terminate() {
     }
 }
 
-bool Swapchain::recreate() {
+bool SwapchainVk::recreate() {
     terminate();
 
     SurfaceInfo surfaceInfo;
@@ -773,11 +773,11 @@ bool Swapchain::recreate() {
     return true;
 }
 
-void Swapchain::resize() {
+void SwapchainVk::resize() {
     resizedFlag = true;
 }
 
-bool Swapchain::next(VkSemaphore signal) {
+bool SwapchainVk::next(VkSemaphore signal) {
     VkResult res = vkAcquireNextImageKHR(gpu, swapchain, UINT64_MAX, signal, VK_NULL_HANDLE, &idx);
     // printf("Swapchain index %d\n", idx);
     renderReady = renderReadyVec[idx];
@@ -793,13 +793,13 @@ bool Swapchain::next(VkSemaphore signal) {
     return true;
 }
 
-bool Swapchain::recreated() {
+bool SwapchainVk::recreated() {
     bool temp = recreatedFlag;
     recreatedFlag = false;
     return temp;
 }
 
-bool Swapchain::present() {
+bool SwapchainVk::present() {
     VkPresentInfoKHR presentInfo = {
         .sType               = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
         .waitSemaphoreCount  = 1,

@@ -165,12 +165,13 @@ The current design is scalable in 2 ways:
 
 ### Renderer
 
+The repo started with bare API code in a hello world sample, but such code is highly unmantainable, verbose and not portable.
+Later on, utilities for D3D12 and Vulkan were gradually created, ultimately evolving into an `RHI`, implemented by the `Gpu` class in the `gpu` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and bufferViews/textureViews). Each of this objects is associated with a handle for persistent reference. `Gpu` is API agnostic, and so far has a D3D12 backend, with a Vulkan backend coming next (Vulkan code in `gpuVk` library is out of date).
+
 The `IRenderer` interface is the contract all renderer samples in this repo comply with, for uniformity.
-It also lets us opaquely implement both a D3D12 and a Vulkan backend, selectable at runtime.
 The most important method is  `IRenderer::render`, which takes a `RenderView` argument that describes the contents and settings of the scene to be rendered.
 The caller extracts and passes a `RenderView` to the renderer from the above mentioned `Scene` object, but it could come from anywhere, so the renderer is not coupled with `Scene`.
-
-The repo started with bare API code in a hello world sample but evolved into a `Gpu` class that abstracts the graphics API, see `gpuD3D` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and descriptors). Each resource is associated with a handle for persistent reference. `gpuVk` is not yet updated to this design, instead it consists of a more fragmented set of classes. The goal now is to update `Gpu` into being API agnostic (making it a proper `RHI`) and implement it's vulkan backend. After that, we don't need 2 renderer implementations, just 1 renderer + 2 `Gpu` backends.
+A renderer object owns a `Gpu` object to communicate with the GPU.
 
 ... *more documentation soon* ...
 

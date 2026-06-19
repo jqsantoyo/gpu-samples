@@ -1,6 +1,5 @@
 #include "renderer.h"
 #include <app/app.h>
-#include <rendererInterface/renderer.h>
 #include <scene/sceneLoader.h>
 #include <scene/camera.h>
 #include <string>
@@ -29,7 +28,7 @@ public:
 
         renderer->init(window, width, height);
         sceneLoader->init(scene.get(), renderer.get());
-        sceneSelector->init(scene.get(), renderer.get(), {
+        sceneSelector->init(sceneLoader.get(), {
             // [&]() {
             //     bool result = sceneLoader->load("crate/crate.gltf");
             //     return result;
@@ -54,7 +53,7 @@ public:
     bool update() {
         FrameData frame = getFrameData();
         setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
-        renderer->trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
+        trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
         RenderView view = {
             .clearColor     = { 0.1f, 0.1f, 0.1f, 1.0f },
             .fillMode       = Fill,

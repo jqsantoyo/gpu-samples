@@ -1,35 +1,68 @@
 #pragma once
-#include <gpuD3D/gpu.h>
+#include <gpu/gpu.h>
 
 
 namespace gpu {
 
 
-struct BufferDesc {
-    size_t offset;
-    size_t size;
-    const uint8_t* data;
+
+
+class Shadow {
+public:
+    bool init(IGpu* gpu, Root root, uint32_t width, uint32_t height);
+    Pipeline    pipeline;
+    Texture     target;
+    TextureView depthView;
+    TextureView readView;
+    uint32_t    width;
+    uint32_t    height;
 };
 
-struct BufferViewDesc {
-    size_t offset;
-    size_t size;
+
+
+
+class FrameControl {
+public:
+    bool init(IGpu* gpu, int frameCount, uint32_t maxMemory = 0);
+    Command next();
+private:
+    std::vector<Command>   cmds;
+    int                         frameIdx;
 };
 
-struct MeshDesc {
-    int             bufferId;
-    bool            indexFormatU16;
-    size_t          vCount;
-    BufferViewDesc  indices;
-    BufferViewDesc  position;
-    BufferViewDesc  normal;
-    BufferViewDesc  uv;
-    BufferViewDesc  tangent;
-    BufferViewDesc  color;
+
+struct Mesh { int idx; };
+struct MeshData {
+    size_t           vCount;
+    IndexBufferView  indices;
+    VertexBufferView position;
+    VertexBufferView normal;
+    VertexBufferView uv;
+    VertexBufferView tangent;
+    VertexBufferView color;
 };
 
-struct Material
-{
+class MeshRegistry {
+public:
+    bool        init(IGpu* gpu, int meshCount);
+    void        reset();
+    Mesh        create(const MeshData& desc);
+    MeshData&   get(Mesh mesh);
+private:
+    IGpu*               gpu;
+    Vec<Mesh, MeshData> meshes;
+};
+
+
+struct MaterialTexture { int idx; };
+
+struct MaterialTextureData {
+    Texture     texture;
+    TextureView textureView;
+};
+
+struct Material { int idx; };
+struct MaterialData {
     vec4 baseColor;
     vec3 emissive;
     float metallic;
@@ -40,102 +73,39 @@ struct Material
     int emissiveMap;
 };
 
-struct DepthBuffer {
-    gpu::Texture texture;
-    gpu::Dsv dsv;
-    bool init(gpu::Gpu* gpu, uint32_t width, uint32_t height);
+struct MaterialDesc {
+    vec4 baseColor;
+    vec3 emissive;
+    float metallic;
+    float roughness;
+    MaterialTexture baseColorMap;
+    MaterialTexture ormMap;
+    MaterialTexture normalMap;
+    MaterialTexture emissiveMap;
 };
-
-
-class Shadow {
-public:
-    bool init(gpu::Gpu* gpu, gpu::Root root, uint32_t width, uint32_t height);
-    gpu::Pipeline   pipeline;
-    gpu::Texture    target;
-    gpu::Srv        srv;
-    gpu::Dsv        dsv;
-    uint32_t        width;
-    uint32_t        height;
-};
-
-
-
-
-class FrameControl {
-public:
-    bool init(gpu::Gpu& gpu, int frameCount, uint32_t maxMemory = 0);
-    gpu::Command next();
-private:
-    std::vector<gpu::Command>   cmds;
-    int                         frameIdx;
-};
-
-
-
-
-struct Mesh {
-    int                         bufferId;
-    size_t                      vCount;
-    D3D12_INDEX_BUFFER_VIEW     indicesView;
-    D3D12_VERTEX_BUFFER_VIEW    positionView;
-    D3D12_VERTEX_BUFFER_VIEW    normalView;
-    D3D12_VERTEX_BUFFER_VIEW    uvView;
-    D3D12_VERTEX_BUFFER_VIEW    tangentView;
-    D3D12_VERTEX_BUFFER_VIEW    colorView;
-};
-
-
-
-
-class MeshRegistry {
-public:
-    bool init(gpu::Gpu* gpu);
-    void reset(int meshesIdx);
-    int addMesh(const MeshDesc& desc);
-    int getMeshCount();
-    Mesh& getMesh(int idx);
-private:
-    gpu::Gpu*           gpu;
-    std::vector<Mesh>   meshes;
-};
-
-
-struct Texture {
-    gpu::Texture    id;
-    gpu::Srv        srv;
-};
-
-class TextureRegistry {
-public:
-    bool init(gpu::Gpu* gpu, gpu::Queue queue, gpu::Command cmd, gpu::Buffer uploadBuffer, int page);
-    int  getCount();
-    int  getSrv(int idx);
-    int  add(vec4 color);
-    int  add(const char* filename);
-    int  add(const char* name, const uint8_t* data, uint32_t size);
-
-private:
-    gpu::Gpu*               gpu;
-    gpu::Queue              queue;
-    gpu::Command            cmd;
-    gpu::Buffer             uploadBuffer;
-    int                     page;
-    std::vector<Texture>    textures;
-    bool upload(gpu::Texture texture, std::vector<D3D12_SUBRESOURCE_DATA>& subresources);
-    bool createSrv(Texture& texture, ID3D12Resource* res);
-};
-
 
 class MaterialRegistry {
 public:
-    bool init(gpu::Gpu* gpu);
-    void reset(int idx);
-    int addMaterial(Material& material);
-    Material& getMaterial(int idx);
-    int getCount();
+    bool            init    (IGpu* gpu, Queue queue, Command cmd, Buffer uploadBuffer, int materialTextureCount, int materialCount);
+    MaterialTexture create  (const char* name, vec4 color);
+    MaterialTexture create  (const char* name, const uint8_t* data, uint32_t size);
+    Material        create  (const char* name, MaterialDesc& desc);
+    void            destroy (MaterialTexture materialTexture);
+    void            destroy (Material material);
+    MaterialData&   get     (Material material);
+
 private:
-    gpu::Gpu* gpu;
-    std::vector<Material> materials;
+    bool upload(Texture texture, const std::vector<ResourceData>& subresources);
+    IGpu*                                       gpu;
+    Queue                                       queue;
+    Command                                     cmd;
+    Buffer                                      uploadBuffer;
+    Vec<MaterialTexture, MaterialTextureData>   materialTextures;
+    Vec<Material, MaterialData>                 materials;
+    MaterialTexture                             defaultBaseColorMap;
+    MaterialTexture                             defaultORMMap;
+    MaterialTexture                             defaultEmissiveMap;
+    MaterialTexture                             defaultNormalMap;
 };
 
 

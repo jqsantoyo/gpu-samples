@@ -143,26 +143,37 @@ public:
         return 1;
     }
     
-    void trs2Transform(int count, const Trs* trs, mat4* transforms) {
+    Buffer create(const char* name, uint32_t size, const uint8_t* data) {
+        return { -1 };
     }
     
-    void setFillMode(FillMode mode) {
+    Mesh create(const MeshData& desc) {
+        return { -1 };
+    }
+
+    MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) {
+        return { -1 };
     }
     
-    int addBuffer(const BufferDesc& desc) {
-        return -1;
+    Material create(const char* name, MaterialDesc& desc) {
+        return { -1 };
     }
     
-    int addMesh(const MeshDesc& desc) {
-        return -1;
+    void destroy(Buffer buffer) {
+    }
+    
+    void destroy(MaterialTexture materialTexture) {
+    }
+    
+    void destroy(Material material) {
     }
 
 private:
     Instance                            instance;
     Surface                             surface;
     PhysicalDevice                      physicalDevice;
-    Swapchain                           swapchain;
-    Gpu                              gpu;
+    SwapchainVk                         swapchain;
+    Gpu                                 gpu;
     VkRenderPass                        renderPass;
     std::vector<VkFramebuffer>          framebuffers;
     VkPipelineLayout                    pipelineLayout;

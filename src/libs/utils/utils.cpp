@@ -7,7 +7,9 @@
 #include <shellapi.h>
 #include <string>
 #include <stdio.h>
+#include <directxmath.h>
 
+using namespace DirectX;
 namespace gpu {
 
 uint32_t toUint(vec4 v) {
@@ -16,6 +18,76 @@ uint32_t toUint(vec4 v) {
          + (static_cast<uint32_t>(255.0f * v.z) <<  8)
          +  static_cast<uint32_t>(255.0f * v.w);
 }
+
+
+void FreeList::init(int size) {
+    allocated.resize(size);
+    freeList.reserve(size);
+}
+
+void FreeList::reset() {
+    nextFree = 0;
+    count = 0;
+    freeList.clear();
+    std::fill(allocated.begin(), allocated.end(), false);
+}
+
+int FreeList::alloc() {
+    if (freeList.size() > 0) {
+        int idx = freeList.back();
+        freeList.pop_back();
+        allocated[idx] = true;
+        count++;
+        return idx;
+    } else if (nextFree < freeList.capacity()) {
+        int idx = nextFree++;
+        allocated[idx] = true;
+        count++;
+        return idx;
+    } else {
+        return -1;
+    }
+}
+
+void FreeList::free(int idx) {
+    if (allocated[idx]) {
+        allocated[idx] = false;
+        freeList.push_back(idx);
+        count--;
+    }
+}
+
+size_t FreeList::size() {
+    return count;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 std::wstring getAssetsPathW() {
     wchar_t exePath[MAX_PATH];
@@ -62,5 +134,23 @@ vec3 spherical2Cartesian(float r, float theta, float phi) {
     float h = r * cosf(phi);
     return { h * cosf(theta), r * sinf(phi), h * sinf(theta) };
 }
+
+
+
+
+
+
+void trs2Transform(int count, const Trs* trs, mat4* transforms) {
+    for (int i = 0; i < count; i++, trs++, transforms++) {
+        XMVECTOR q = XMVectorSet(trs->rotation.x, trs->rotation.y, -trs->rotation.z, -trs->rotation.w);
+        q = XMQuaternionNormalize(q);
+        XMMATRIX S = XMMatrixScaling(trs->scale.x, trs->scale.y, -trs->scale.z);
+        XMMATRIX R = XMMatrixRotationQuaternion(q);
+        XMMATRIX T = XMMatrixTranslation(trs->position.x, trs->position.y, -trs->position.z);
+        XMMATRIX transformMat = S * R * T;
+        XMStoreFloat4x4(reinterpret_cast<XMFLOAT4X4*>(transforms->v), transformMat);
+    }
+}
+
 
 }

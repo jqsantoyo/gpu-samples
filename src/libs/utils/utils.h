@@ -2,9 +2,12 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
+#include <cassert>
 
 namespace gpu {
 
+#define ASSERT(x)             { assert(x); }
 #define GMAIN(x)              if (!(x)) {  printf("Error: "#x"\n"); return 0; }
 #define GUARD(x)              if (!(x)) {  printf("Error: "#x"\n"); return false; }
 #define GUARDM(x, fmt, ...)   if (!(x)) {  printf("Error: " fmt "\n", ##__VA_ARGS__);  return false; }
@@ -29,29 +32,94 @@ uint32_t toUint(vec4 v);
 
 
 
+class FreeList {
+public:
+    void    init(int size);
+    int     alloc();
+    void    reset();
+    void    free(int idx);
+    size_t  size();
+private:
+    size_t              count = 0;
+    int                 nextFree = 0;
+    std::vector<int>    freeList;
+    std::vector<bool>   allocated;
+};
+
+
 template<typename Id, typename Data>
-class Vec : public std::vector<Data> {
+class Vec {
 public:
 
-    void init(int size) {
-        this->resize(size);
+    Vec() {}
+    
+    void init(uint32_t size) {
+        freeList.init(size);
+        vector.resize(size);
+        names.resize(size);
+        map.reserve(size);
     }
 
-    Id add() {
-        int idx = this->size();
-        this->push_back(Data{});
+    void reset() {
+        int size = vector.size();
+        vector.clear();
+        names.clear();
+        map.clear();
+        vector.resize(size);
+        names.resize(size);
+        map.reserve(size);
+        freeList.reset();
+    }
+
+    size_t size() {
+        return freeList.size();
+    }
+
+    Id alloc(const std::string& name) {
+        auto it = map.find(name);
+        ASSERT(it == map.end());
+        int idx = freeList.alloc();
+        names[idx] = name;
+        std::string_view nameView = names[idx]; // MUST reference string in names vector!
+        map[nameView] = { idx };
         return { idx };
     }
 
+    Id alloc() {
+        int idx = freeList.alloc();
+        return { idx };
+    }
+
+    void free(Id id) {
+        std::string_view key = names[id.idx];
+        map.erase(key);     // may or may not find and erase the entry
+        names[id.idx] = "";
+        freeList.free(id.idx);
+    }
+
+    Id get(const std::string& name) {
+        auto it = map.find(name);
+        if (it != map.end()) {
+            return it->second;
+        } else {
+            return { -1 };
+        }
+    }
+
     Data& operator[](Id id){
-        return this->data()[id.idx];
+        return vector[id.idx];
     }
 
     Data& operator[](int idx){
-        return this->data()[idx];
+        return vector[idx];
     }
-};
 
+private:
+    FreeList                                    freeList;
+    std::vector<Data>                           vector;
+    std::unordered_map<std::string_view, Id>    map; // string_view as key avoids duplicating string
+    std::vector<std::string>                    names;
+};
 
 
 std::wstring getAssetsPathW();
@@ -72,5 +140,6 @@ std::unique_ptr<IExecutor> createExecutor();
 
 vec3 spherical2Cartesian(float r, float theta, float phi);
 
+void trs2Transform(int count, const Trs* trs, mat4* transforms);
 
 }

@@ -1,6 +1,6 @@
+
 #include "renderer.h"
 #include <app/app.h>
-#include <rendererInterface/renderer.h>
 #include <scene/sceneLoader.h>
 #include <scene/camera.h>
 #include <string>
@@ -29,7 +29,7 @@ public:
 
         renderer->init(window, width, height);
         sceneLoader->init(scene.get(), renderer.get());
-        sceneSelector->init(scene.get(), renderer.get(), {
+        sceneSelector->init(sceneLoader.get(), {
             [&]() {
                 scene->addCamera("defaultCamera", 1, 3.1416 / 2, 0, 3.14159 / 4.0f, 1, 0.1f, 100.0f);
                 float aspect = 1;
@@ -41,26 +41,25 @@ public:
                     0.0f, 1.0f, 0.0f,
                     0.0f, 0.0f, 1.0f
                 };
-                BufferDesc bufferDesc = { 0, sizeof(vertices), reinterpret_cast<uint8_t*>(vertices) };
-                int bufferId = renderer->addBuffer(bufferDesc);
-                MeshDesc meshDesc = {
-                    .bufferId   = bufferId,
+                Buffer buffer = renderer->create("Triangle", sizeof(vertices), reinterpret_cast<uint8_t*>(vertices));
+                sceneLoader->record(buffer);
+                MeshData meshDesc = {
                     .vCount     = 3,
-                    .indices    = { 0, 0 },
-                    .position   = { 0, sizeof(float) * 3 * 3 },
-                    .normal     = { 0, 0 },
-                    .uv         = { 0, 0 },
-                    .color      = { sizeof(float) * 3 * 3, sizeof(float) * 3 * 3 },
+                    .indices    = { buffer, 0, 0, Format::Unknown },
+                    .position   = { buffer, 0, sizeof(float) * 3 * 3, sizeof(float) * 3 },
+                    .normal     = { buffer, 0, 0, 0 },
+                    .uv         = { buffer, 0, 0, 0 },
+                    .color      = { buffer, sizeof(float) * 3 * 3, sizeof(float) * 3 * 3, sizeof(float) * 3 },
                 };
-                int meshId = renderer->addMesh(meshDesc);
-                int objectIdx = scene->addObject("object.0", { 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1 }, meshId, 0);
+                Mesh mesh = renderer->create(meshDesc);
+                int objectIdx = scene->addObject("object.0", { 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1 }, mesh.idx, 0);
                 return true;
             },
             [&](){ return sceneLoader->load("cube/cube.gltf"); },
             [&](){ return sceneLoader->load("shapes/shapes.gltf"); },
         });
 
-        sceneSelector->load(0);
+        sceneSelector->load(2);
         renderer->wait();
         return true;
     }
@@ -68,7 +67,7 @@ public:
     bool update() {
         FrameData frame = getFrameData();
         setWindowText("%s: fps: %f period: %.5f", title, 1 / frame.dtAvg, frame.dtAvg);
-        renderer->trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
+        trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
         RenderView view = {
             .clearColor = { 0.1f, 0.1f, 0.1f, 1.0f },
             .fillMode   = Fill,
