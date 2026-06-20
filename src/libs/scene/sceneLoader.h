@@ -3,7 +3,7 @@
 #include <string>
 #include <app/app.h>
 #include <scene/scene.h>
-#include <rendererInterface/renderer.h>
+#include <renderer/renderer.h>
 #include <functional>
 
 
@@ -14,7 +14,7 @@ class SceneLoader {
 public:
     void init    (Scene* scene, IRenderer* renderer);
     void reset   ();
-    void record  (Buffer buffer);
+    void record  (StaticBuffer staticBuffer);
     void record  (Mesh mesh);
     void record  (MaterialTexture materialTexture);
     void record  (Material material);
@@ -22,7 +22,7 @@ public:
 private:
     Scene* scene;
     IRenderer* renderer;
-    std::vector<Buffer>             buffers;
+    std::vector<StaticBuffer>       staticBuffers;
     std::vector<Mesh>               meshes;
     std::vector<MaterialTexture>    materialTextures;
     std::vector<Material>           materials;

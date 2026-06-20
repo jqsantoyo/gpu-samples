@@ -50,8 +50,8 @@ void SceneLoader::reset() {
     renderer->wait();
     renderer->reset(); // erases all meshes
     scene->reset();
-    for (int i = 0; i < buffers.size(); i++) {
-        renderer->destroy(buffers[i]);
+    for (int i = 0; i < staticBuffers.size(); i++) {
+        renderer->destroy(staticBuffers[i]);
     }
     for (int i = 0; i < materialTextures.size(); i++) {
         renderer->destroy(materialTextures[i]);
@@ -59,14 +59,14 @@ void SceneLoader::reset() {
     for (int i = 0; i < materials.size(); i++) {
         renderer->destroy(materials[i]);
     }
-    buffers.clear();
-    buffers.clear();
+    staticBuffers.clear();
+    staticBuffers.clear();
     materialTextures.clear();
     materials.clear();
 }
 
-void SceneLoader::record(Buffer buffer) {
-    buffers.push_back(buffer);
+void SceneLoader::record(StaticBuffer staticBuffer) {
+    staticBuffers.push_back(staticBuffer);
 }
 
 void SceneLoader::record(Mesh mesh) {
@@ -119,19 +119,18 @@ bool SceneLoader::load(const std::string& filename) {
         }
     }
     std::vector<MaterialTexture>& materialTextureMap = ctx.materialTextureMap;
-    std::vector<Buffer>             bufferMap           (model.buffers.size(),   {-1});
-    std::vector<Mesh>               meshMap             (model.meshes.size(),    {-1});
-    std::vector<Material>           materialMap         (model.materials.size(), {-1});
+    std::vector<StaticBuffer>   bufferMap  (model.buffers.size(),   {-1});
+    std::vector<Mesh>           meshMap    (model.meshes.size(),    {-1});
+    std::vector<Material>       materialMap(model.materials.size(), {-1});
 
     cameraCount = std::max(cameraCount, 1); // we still create a default camera if none was found
     scene->init(cameraCount, lightCount, objectCount);
 
-    int bufferId = 0; // expceted only 1 buffer
     for (int i = 0; i < model.buffers.size(); i++) {
         const tinygltf::Buffer& buffer = model.buffers[i];
         printf("Assets:: model[%s]::buffer[%d]: size: %zu\n", filename.c_str(), i, buffer.data.size());
         std::string name = filename + ":" + buffer.name + ":" + std::to_string(i);
-        Buffer buff = renderer->create(name.c_str(), buffer.data.size(), buffer.data.data());
+        StaticBuffer buff = renderer->create(name.c_str(), buffer.data.size(), buffer.data.data());
         bufferMap[i] = buff;
         record(buff);
     }
@@ -195,15 +194,23 @@ bool SceneLoader::load(const std::string& filename) {
 
 
         std::string key = filename + m.name;
-        Buffer buffer = bufferId != -1 ? bufferMap[bufferId] : Buffer{ -1 };
-        MeshData meshDesc = {
-            .vCount = vCount,
-            .indices  = { buffer,  indicesView.byteOffset, static_cast<uint32_t>( indicesView.byteLength), format },
-            .position = { buffer, positionView.byteOffset, static_cast<uint32_t>(positionView.byteLength), sizeof(float) * 3 },
-            .normal   = { buffer,   normalView.byteOffset, static_cast<uint32_t>(  normalView.byteLength), sizeof(float) * 3 },
-            .uv       = { buffer,       uvView.byteOffset, static_cast<uint32_t>(      uvView.byteLength), sizeof(float) * 2 },
-            .tangent  = { buffer,  tangentView.byteOffset, static_cast<uint32_t>( tangentView.byteLength), sizeof(float) * 4 },
-            .color    = { buffer,    colorView.byteOffset, static_cast<uint32_t>(   colorView.byteLength), sizeof(float) * 3 },
+        StaticBuffer staticBuffer = bufferMap[indicesView.buffer];
+        MeshDesc meshDesc = {
+            .staticBuffer   = staticBuffer,
+            .vCount         = vCount,
+            .formatIndices  = format,
+            .offsetIndices  =  indicesView.byteOffset,
+            .offsetPosition = positionView.byteOffset,
+            .offsetNormal   =   normalView.byteOffset,
+            .offsetUv       =       uvView.byteOffset,
+            .offsetTangent  =  tangentView.byteOffset,
+            .offsetColor    =    colorView.byteOffset,
+            .sizeIndices    = static_cast<uint32_t>( indicesView.byteLength),
+            .sizePosition   = static_cast<uint32_t>(positionView.byteLength),
+            .sizeNormal     = static_cast<uint32_t>(  normalView.byteLength),
+            .sizeUv         = static_cast<uint32_t>(      uvView.byteLength),
+            .sizeTangent    = static_cast<uint32_t>( tangentView.byteLength),
+            .sizeColor      = static_cast<uint32_t>(   colorView.byteLength),
         };
         Mesh mesh = renderer->create(meshDesc);
         meshMap[i] = mesh;

@@ -1,4 +1,5 @@
-#include <rendererInterface/renderer.h>
+#include <renderer/renderer.h>
+#include <renderer/rendererBase.h>
 #include <gpu/gpu.h>
 #include <app/app.h>
 #include <directxmath.h>
@@ -29,55 +30,44 @@ struct PassData {
 
 
 
-class Renderer : public IRenderer {
+class Renderer : public RendererBase {
 public:
-    Renderer(bool vulkan) : vulkan(vulkan) {}
 
-    bool init(void* window, uint32_t width, uint32_t height) {
-        viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
-        scissorRect = { 0, 0, width, height };
-        uint32_t frameCount = 2;
+    void init2() {
+        uint32_t width  = static_cast<uint32_t>(viewport.width);
+        uint32_t height = static_cast<uint32_t>(viewport.height);
         uint32_t materialData = align256(sizeof(MaterialData));
         uint32_t passData = align256(sizeof(PassData));
         uint32_t objectMemory = sizeof(ObjectData);
         uint32_t alignedObjectMemory = align256(objectMemory);
         uint32_t maxFrameMemory = passData + 10 * materialData + 100 * alignedObjectMemory;
 
-        gpu       = createGpu();
-        queue     = gpu->createQueue();
-        swapchain = gpu->createSwapchain(queue, window, width, height, frameCount);
-
         PsoGraphicsDesc pipelineDesc = {
             .vs                 = "shaders_v",
             .ps                 = "shaders_p",
-            .fillMode           = FillMode::Solid,
-            .cullMode           = CullMode::None,
-            .enableDepth        = true,
-            .topologyType       = PrimitiveTopologyType::Triangle,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f,  0, 0 },
                 { "NORMAL",   0, Format::RGB32f,  1, 0 },
                 { "UV",       0, Format::RG32f,   2, 0 },
                 { "TANGENT",  0, Format::RGBA32f, 3, 0 },
             },
-            .renderTargets      = { { Format::RGBA8un, true } },
-            .dsvFormat          = Format::D32,
-            .samples            = 1,
         };
 
         PsoGraphicsDesc pipelineWireDesc = {
             .vs                 = "shadersWire_v",
             .ps                 = "shadersWire_p",
             .fillMode           = FillMode::Wireframe,
-            .cullMode           = CullMode::None,
-            .enableDepth        = true,
-            .topologyType       = PrimitiveTopologyType::Triangle,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
             },
-            .renderTargets      = { { Format::RGBA8un, false } },
-            .dsvFormat          = Format::D32,
-            .samples            = 1,
+        };
+        PsoGraphicsDesc pipelineShadowDesc = {
+            .vs                 = "shadow_v",
+            .ps                 = "shadow_p",
+            .inputElements      = {
+                { "POSITION", 0, Format::RGB32f,  0, 0 },
+            },
+            .dsvFormat          = Format::D24S8,
         };
         root = gpu->createRoot({
                 RootParam::binding(RootBinding::Constant, 0),
@@ -91,43 +81,28 @@ public:
                 { 1, Filter::Linear      },
             }
         );
-        pipeline     = gpu->createPipeline(root, pipelineDesc);
-        pipelineWire = gpu->createPipeline(root, pipelineWireDesc);
-        mainCommand  = gpu->createCommand();
-        uploadBuffer = gpu->createBuffer("UploadBuffer", BufferUpload, 2048 * 2048 * 4);
+        pipeline        = gpu->createPipeline(root, pipelineDesc);
+        pipelineWire    = gpu->createPipeline(root, pipelineWireDesc);
+        pipelineShadow  = gpu->createPipeline(root, pipelineShadowDesc);
 
-        frameControl.init(gpu.get(), 2, maxFrameMemory);
-        depthTexture = gpu->createTexture2("depth", TextureUsage::DepthStencil, Format::D32, { width, height, 1 }, 1, 1, { 1, 0u });
-        depthView    = gpu->createDepthView(depthTexture);
-        meshRegistry    .init(gpu.get(), 100);
-        materialRegistry.init(gpu.get(), queue, mainCommand, uploadBuffer, 100, 50);
-        shadow          .init(gpu.get(), root, 1024, 1024);
+        depthTexture    = gpu->createTexture2("depth", TextureUsage::DepthStencil, Format::D32, { width, height, 1 }, 1, 1, { 1, 0u });
+        depthView       = gpu->createDepthView(depthTexture);
 
-        reset();
-        return true;
+        shadowTexture   = gpu->createTexture2("ShadowTex", TextureUsage::DepthStencil, Format::D24S8, { width, height, 1 }, 1, 1, ClearValue(1.0f, 0u));
+        shadowDepthView = gpu->createDepthView(shadowTexture);
+        shadowReadView  = gpu->createTextureView(shadowTexture);
     }
 
-    void terminate() {
-        gpu->wait(queue);
+    void terminate2() {
     }
 
-    void reset() {
-        wait();
-        meshRegistry.reset();
+    void reset2() {
     }
 
-    void wait() {
-        gpu->wait(queue);
+    void resize2(int width, int height) {
     }
 
-    bool resize(int width, int height) {
-        return 1;
-    }
-
-    bool render(const RenderView& view) {
-        static uint64_t frameIdx = 0;
-        beginEvent("Render %llu", frameIdx);
-        SwapTarget target = gpu->next(swapchain);
+    void render2(SwapTarget target, Command cmd, const RenderView& view) {
 
 
         Light light0 = { { -5, 2, 5 },  2, {  1, -1, -1 }, 10, { 3.0f, 3.0f, 3.0f }, 1 };
@@ -145,7 +120,7 @@ public:
             },
             .deltaTime = 0,
             .absoluteTime = t,
-            .shadowMap = gpu->getTextureViewBind(shadow.readView),
+            .shadowMap = gpu->getTextureViewBind(shadowReadView),
         };
 
         {
@@ -167,22 +142,19 @@ public:
         XMStoreFloat4x4(&passData.view,         viewMat);
         XMStoreFloat4x4(&passData.proj,         projMat);
         XMStoreFloat4x4(&passData.viewProj,     viewProjMat);
-        
-        Command cmd = frameControl.next();
+
         gpu->wait(queue, cmd);
         gpu->begin(cmd);
         gpu->bindHeap(cmd);
 
         if (view.enableShadows) {
-            Viewport shadowViewport = { 0.0f, 0.0f, static_cast<float>(1024), static_cast<float>(1024), 0, 1 };
-            Rect shadowScissor = { 0, 0, long(1024), long(1024) };
-            gpu->viewport     (cmd, shadowViewport);
-            gpu->scissor      (cmd, shadowScissor);
-            gpu->barrier      (cmd, shadow.target, State::DepthWrite);
-            gpu->targets      (cmd, {-1}, shadow.depthView);
-            gpu->clear        (cmd, {-1}, {}, shadow.depthView, 1, 0);
+            gpu->viewport     (cmd, viewport);
+            gpu->scissor      (cmd, scissorRect);
+            gpu->barrier      (cmd, shadowTexture, State::DepthWrite);
+            gpu->targets      (cmd, {-1}, shadowDepthView);
+            gpu->clear        (cmd, {-1}, {}, shadowDepthView, 1, 0);
 
-            gpu->pipeline          (cmd, shadow.pipeline);
+            gpu->pipeline          (cmd, pipelineShadow);
             gpu->graphicsRoot (cmd, root);
             gpu->graphicsCbv  (cmd, 2, passData);
             gpu->graphicsTable(cmd, 3, 0);
@@ -195,7 +167,7 @@ public:
                 if (meshId < 0) {
                     continue;
                 }
-                MeshData& m = meshRegistry.get({meshId});
+                MeshData& m = meshes[meshId];
 
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(transform.v));
                 ObjectData objectData = {};
@@ -206,11 +178,11 @@ public:
                 gpu->vertexBuffer (cmd, 0, m.position);
                 gpu->drawIndexed  (cmd, m.vCount, 1, 0, 0, 0);
             }
-            gpu->barrier(cmd, shadow.target, State::GenericRead);
+            gpu->barrier(cmd, shadowTexture, State::GenericRead);
         } else {
-            gpu->barrier(cmd, shadow.target, State::DepthWrite);
-            gpu->clear  (cmd, {-1}, {}, shadow.depthView, 1, 0);
-            gpu->barrier(cmd, shadow.target, State::GenericRead);
+            gpu->barrier(cmd, shadowTexture, State::DepthWrite);
+            gpu->clear  (cmd, {-1}, {}, shadowDepthView, 1, 0);
+            gpu->barrier(cmd, shadowTexture, State::GenericRead);
         }
 
 
@@ -234,8 +206,8 @@ public:
                 if (meshId < 0) {
                     continue;
                 }
-                MeshData&     m   = meshRegistry.get({meshId});
-                MaterialData& mat = materialRegistry.get({materialId});
+                MeshData&     m    = meshes[meshId];
+                MaterialData& mat  = materials[materialId];
                 MaterialData  mat2 = mat;
                 mat2.baseColorMap    = gpu->getTextureViewBind({ mat.baseColorMap });
                 mat2.ormMap          = gpu->getTextureViewBind({ mat.ormMap });
@@ -267,65 +239,22 @@ public:
         gpu->execute(queue, cmd);
         gpu->present(swapchain, false);
         gpu->signal(queue, cmd);
-        gpu->printErrors();
-        endEvent();
-        frameIdx++;
-        return 1;
-    }
-
-    Buffer create(const char* name, uint32_t size, const uint8_t* data) {
-        wait();
-        Buffer buffer = gpu->createBuffer(name, BufferUpload, size);
-        gpu->write(buffer, 0, size, data);
-        return buffer;
-    }
-    
-    Mesh create(const MeshData& desc) {
-        return meshRegistry.create(desc);
-    }
-
-    MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) {
-        return materialRegistry.create(name, data, size);
-    }
-    
-    Material create(const char* name, MaterialDesc& desc) {
-        return materialRegistry.create(name, desc);
-    }
-    
-    void destroy(Buffer buffer) {
-        gpu->destroy(buffer);
-    }
-    
-    void destroy(MaterialTexture materialTexture) {
-        materialRegistry.destroy(materialTexture);
-    }
-    
-    void destroy(Material material) {
-        materialRegistry.destroy(material);
     }
 
 
 private:
-    bool                    vulkan;
-    std::unique_ptr<IGpu>   gpu;
-    Swapchain               swapchain;
-    Queue                   queue;
-    Buffer                  uploadBuffer;
-    Command                 mainCommand;
     Root                    root;
     Pipeline                pipeline;
     Pipeline                pipelineWire;
-    FrameControl            frameControl;
-    MeshRegistry            meshRegistry;
-    MaterialRegistry        materialRegistry;
+    Pipeline                pipelineShadow;
     Texture                 depthTexture;
     TextureView             depthView;
-    Shadow                  shadow;
-    Viewport                viewport;
-    Rect                    scissorRect;
+    Texture                 shadowTexture;
+    TextureView             shadowDepthView;
+    TextureView             shadowReadView;
 };  
 
-std::unique_ptr<IRenderer> createRendererPbr(bool vulkan) {
-    return std::make_unique<Renderer>(vulkan);
+std::unique_ptr<IRenderer> createRendererPbr() {
+    return std::make_unique<Renderer>();
 }
 }

@@ -2,7 +2,7 @@
 #include <utils/utils.h>
 #include <app/app.h>
 #include <scene/scene.h>
-#include <rendererInterface/renderer.h>
+#include <renderer/renderer.h>
 #include <memory>
 
 namespace gpu {

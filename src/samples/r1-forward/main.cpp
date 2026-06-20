@@ -20,13 +20,18 @@ public:
         bool useVulkan = argBool("-vk");
         title = useVulkan ? "01-forward-vk" : "01-forward";
 
-        renderer        = createRendererPbr(useVulkan);
+        renderer        = createRendererPbr();
         scene           = std::make_unique<Scene>();
         cameraCtrl      = std::make_unique<CameraCtrl>();
         sceneLoader     = std::make_unique<SceneLoader>();
         sceneSelector   = std::make_unique<SceneSelector>();
 
-        renderer->init(window, width, height);
+        RendererBaseDesc renderDesc = {
+            .vulkan     = useVulkan,
+            .window     = window,
+            .windowSize = { width, height },
+        };
+        renderer->init(renderDesc);
         sceneLoader->init(scene.get(), renderer.get());
         sceneSelector->init(sceneLoader.get(), {
             // [&]() {
@@ -65,7 +70,8 @@ public:
             .transforms     = scene->objects.getTransform(),
             .models         = scene->objects.getModel(),
         };
-        return renderer->render(view);
+        renderer->render(view);
+        return true;
     }
 
     bool resize(int width, int height) {

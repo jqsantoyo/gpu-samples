@@ -1,4 +1,5 @@
-#include <rendererInterface/renderer.h>
+#include <renderer/renderer.h>
+#include <renderer/rendererBase.h>
 #include <gpu/gpu.h>
 #include <app/app.h>
 #include <directxmath.h>
@@ -14,55 +15,35 @@ struct ObjectData {
 
 
 
-class Renderer : public IRenderer {
+class Renderer : public RendererBase {
 public:
-    Renderer(bool vulkan) : vulkan(vulkan) {}
 
-    bool init(void* window, uint32_t width, uint32_t height) {
-        viewport = { 0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0, 1 };
-        scissorRect = { 0, 0, width, height };
+    void init2() {
+        uint32_t width  = static_cast<uint32_t>(viewport.width);
+        uint32_t height = static_cast<uint32_t>(viewport.height);
         uint32_t frameCount = 2;
         uint32_t objectMemory = sizeof(ObjectData);
         uint32_t alignedObjectMemory = align256(objectMemory);
         uint32_t maxFrameMemory = 100 * alignedObjectMemory;
 
-        
-        gpu       = createGpu();
-        queue     = gpu->createQueue();
-        swapchain = gpu->createSwapchain(queue, window, width, height, frameCount);
-        frameControl.init(gpu.get(), 2, maxFrameMemory);
 
         PsoGraphicsDesc psoFillDesc = {
             .vs                 = "shaders_v",
             .ps                 = "shaders_p",
-            .fillMode           = FillMode::Solid,
-            .cullMode           = CullMode::None,
-            .enableDepth        = true,
-            .topologyType       = PrimitiveTopologyType::Triangle,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
                 { "COLOR",    0, Format::RGB32f, 1, 0 }
             },
-            .renderTargets      = { { Format::RGBA8un, true } },
-            .dsvFormat          = Format::D32,
-            .samples            = 1,
         };
 
         PsoGraphicsDesc psoWireDesc = {
             .vs                 = "shadersWire_v",
             .ps                 = "shadersWire_p",
             .fillMode           = FillMode::Wireframe,
-            .cullMode           = CullMode::None,
-            .enableDepth        = true,
-            .topologyType       = PrimitiveTopologyType::Triangle,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
             },
-            .renderTargets      = { { Format::RGBA8un, false } },
-            .dsvFormat          = Format::D32,
-            .samples            = 1,
         };
-
 
         root         = gpu->createRoot({
             RootParam::binding(RootBinding::Constant, 0)
@@ -71,32 +52,18 @@ public:
         psoWire      = gpu->createPipeline(root, psoWireDesc);
         depthTexture = gpu->createTexture2("depth", TextureUsage::DepthStencil, Format::D32, { width, height, 1 }, 1, 1, { 1, 0u });
         depthView    = gpu->createDepthView(depthTexture);
-        meshRegistry.init(gpu.get(), 100);
-
-        reset();
-        return true;
     }
 
-    void terminate() {
-        gpu->wait(queue);
+    void terminate2() {
     }
 
-    void reset() {
-        wait();
-        meshRegistry.reset();
+    void reset2() {
     }
 
-    void wait() {
-        gpu->wait(queue);
+    void resize2(int width, int height) {
     }
 
-    bool resize(int width, int height) {
-        return 1;
-    }
-
-    bool render(const RenderView& view) {
-        static uint64_t frameIdx = 0;
-        beginEvent("Render %llu", frameIdx);
+    void render2(SwapTarget target, Command cmd, const RenderView& view) {
         
         
         XMVECTOR posVec      = XMVectorSet(view.camera->pos.x,    view.camera->pos.y,    view.camera->pos.z,    1.0f);
@@ -106,10 +73,6 @@ public:
         XMMATRIX projMat     = XMMatrixPerspectiveFovLH(view.camera->fovY, view.camera->aspect, view.camera->nearZ, view.camera->farZ);
         XMMATRIX viewProjMat = viewMat * projMat;
 
-
-        SwapTarget target = gpu->next(swapchain);
-
-        Command cmd = frameControl.next();
         gpu->wait(queue, cmd);
         gpu->begin(cmd);
 
@@ -127,7 +90,7 @@ public:
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
-                MeshData& m = meshRegistry.get({model.meshId});
+                MeshData& m = meshes[model.meshId];
     
                 ObjectData objectData = {};
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(&transform));
@@ -156,7 +119,7 @@ public:
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
-                MeshData& m = meshRegistry.get({model.meshId});
+                MeshData& m = meshes[model.meshId];
 
                 
                 ObjectData objectData = {};
@@ -184,58 +147,19 @@ public:
         gpu->execute(queue, cmd);
         gpu->present(swapchain, false);
         gpu->signal(queue, cmd);
-        endEvent();
-        frameIdx++;
-        return 1;
-    }
-
-    Buffer create(const char* name, uint32_t size, const uint8_t* data) {
-        Buffer buffer = gpu->createBuffer(name, BufferUpload, size);
-        gpu->write(buffer, 0, size, data);
-        return buffer;
-    }
-    
-    Mesh create(const MeshData& desc) {
-        return meshRegistry.create(desc);
-    }
-
-    MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) {
-        return { -1 };
-    }
-    
-    Material create(const char* name, MaterialDesc& desc) {
-        return { -1 };
-    }
-    
-    void destroy(Buffer buffer) {
-        gpu->destroy(buffer);
-    }
-    
-    void destroy(MaterialTexture materialTexture) {
-    }
-    
-    void destroy(Material material) {
     }
 
 
 private:
-    bool                    vulkan;
-    std::unique_ptr<IGpu>   gpu;
-    Queue                   queue;
-    Swapchain               swapchain;
     Root                    root;
     Pipeline                psoFill;
     Pipeline                psoWire;
-    FrameControl            frameControl;
-    MeshRegistry            meshRegistry;
     Texture                 depthTexture;
     TextureView             depthView;
-    Viewport                viewport;
-    Rect                    scissorRect;
 };
 
-std::unique_ptr<IRenderer> createRendererBasic(bool vulkan) {
-    return std::make_unique<Renderer>(vulkan);
+std::unique_ptr<IRenderer> createRendererBasic() {
+    return std::make_unique<Renderer>();
 }
 }
 

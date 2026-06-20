@@ -20,14 +20,19 @@ public:
         bool useVulkan = argBool("-vk");
         title = useVulkan ? "r0-color-vk" : "r0-color";
         
-        renderer        = createRendererBasic(useVulkan);
+        renderer        = createRendererBasic();
         scene           = std::make_unique<Scene>();
         cameraCtrl      = std::make_unique<CameraCtrl>();
         sceneLoader     = std::make_unique<SceneLoader>();
         sceneSelector   = std::make_unique<SceneSelector>();
 
 
-        renderer->init(window, width, height);
+        RendererBaseDesc renderDesc = {
+            .vulkan     = useVulkan,
+            .window     = window,
+            .windowSize = { width, height },
+        };
+        renderer->init(renderDesc);
         sceneLoader->init(scene.get(), renderer.get());
         sceneSelector->init(sceneLoader.get(), {
             [&]() {
@@ -41,15 +46,24 @@ public:
                     0.0f, 1.0f, 0.0f,
                     0.0f, 0.0f, 1.0f
                 };
-                Buffer buffer = renderer->create("Triangle", sizeof(vertices), reinterpret_cast<uint8_t*>(vertices));
+                StaticBuffer buffer = renderer->create("Triangle", sizeof(vertices), reinterpret_cast<uint8_t*>(vertices));
                 sceneLoader->record(buffer);
-                MeshData meshDesc = {
-                    .vCount     = 3,
-                    .indices    = { buffer, 0, 0, Format::Unknown },
-                    .position   = { buffer, 0, sizeof(float) * 3 * 3, sizeof(float) * 3 },
-                    .normal     = { buffer, 0, 0, 0 },
-                    .uv         = { buffer, 0, 0, 0 },
-                    .color      = { buffer, sizeof(float) * 3 * 3, sizeof(float) * 3 * 3, sizeof(float) * 3 },
+                MeshDesc meshDesc = {
+                    .staticBuffer   = buffer,
+                    .vCount         = 3,
+                    .formatIndices  = Format::Unknown,
+                    .offsetIndices  = 0,
+                    .offsetPosition = 0,
+                    .offsetNormal   = 0,
+                    .offsetUv       = 0,
+                    .offsetTangent  = 0,
+                    .offsetColor    = sizeof(float) * 3 * 3,
+                    .sizeIndices    = 0,
+                    .sizePosition   = sizeof(float) * 3 * 3,
+                    .sizeNormal     = 0,
+                    .sizeUv         = 0,
+                    .sizeTangent    = 0,
+                    .sizeColor      = sizeof(float) * 3 * 3,
                 };
                 Mesh mesh = renderer->create(meshDesc);
                 int objectIdx = scene->addObject("object.0", { 0, 0, 0 }, { 0, 0, 0, 1 }, { 1, 1, 1 }, mesh.idx, 0);
@@ -78,7 +92,7 @@ public:
             .transforms = scene->objects.getTransform(),
             .models     = scene->objects.getModel(),
         };
-        return renderer->render(view);
+        renderer->render(view);
         return true;
     }
 

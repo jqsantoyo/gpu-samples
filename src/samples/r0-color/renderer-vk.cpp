@@ -1,342 +1,342 @@
-#include <utils/utils.h>
-#include <app/app.h>
-#include <rendererInterface/renderer.h>
-#include <gpuVk/gpu.h>
-#include <iostream>
-#include <fstream>
-#include <stdexcept>
-#include <algorithm>
-#include <vector>
-#include <cstring>
-#include <cstdlib>
-#include <cstdint>
-#include <limits>
-#include <optional>
-#include <set>
+// #include <utils/utils.h>
+// #include <app/app.h>
+// #include <renderer/renderer.h>
+// #include <gpuVk/gpu.h>
+// #include <iostream>
+// #include <fstream>
+// #include <stdexcept>
+// #include <algorithm>
+// #include <vector>
+// #include <cstring>
+// #include <cstdlib>
+// #include <cstdint>
+// #include <limits>
+// #include <optional>
+// #include <set>
 
-using namespace gpu::vk;
-namespace gpu {
+// using namespace gpu::vk;
+// namespace gpu {
 
-uint16_t indices[] = { 0, 1, 2 };//, 1, 3, 2 };
-float vertices[] = {
-     0.0f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
-     0.5f,  0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
-    -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
-    // -0.5f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
-    //  0.5f, -0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
-    // -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
-    //  0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
-};
+// uint16_t indices[] = { 0, 1, 2 };//, 1, 3, 2 };
+// float vertices[] = {
+//      0.0f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
+//      0.5f,  0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
+//     -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+//     // -0.5f, -0.5f,  0.0f,    1.0f, 1.0f, 1.0f,
+//     //  0.5f, -0.5f,  0.0f,    0.0f, 1.0f, 0.0f,
+//     // -0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+//     //  0.5f,  0.5f,  0.0f,    0.0f, 0.0f, 1.0f,
+// };
 
 
-class RendererVk : public IRenderer {
-public:
-    bool init(void* window, uint32_t width, uint32_t height) {
+// class RendererVk : public IRenderer {
+// public:
+//     void init(const RendererBaseDesc& desc) {
 
-        GUARD(instance.init("04-objects-vk", VK_MAKE_VERSION(1, 0, 0), true, {}));
-        GUARD(surface.init(instance.instance, window));
-        GUARD(physicalDevice.init(instance.instance, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, true, false, &surface));
-        GUARD(gpu.init(physicalDevice, true, false));
-        GUARD(swapchain.init(gpu.gpu, &surface, physicalDevice.physicalDevice, physicalDevice.gIdx, physicalDevice.pIdx, gpu.pQ));
-        GUARD(frameControl.init(gpu.gpu, physicalDevice.gIdx, gpu.gQ, 2));
-        GUARD(createPipeline());
+//         GUARD(instance.init("04-objects-vk", VK_MAKE_VERSION(1, 0, 0), true, {}));
+//         GUARD(surface.init(instance.instance, window));
+//         GUARD(physicalDevice.init(instance.instance, { VK_KHR_SWAPCHAIN_EXTENSION_NAME }, true, false, &surface));
+//         GUARD(gpu.init(physicalDevice, true, false));
+//         GUARD(swapchain.init(gpu.gpu, &surface, physicalDevice.physicalDevice, physicalDevice.gIdx, physicalDevice.pIdx, gpu.pQ));
+//         GUARD(frameControl.init(gpu.gpu, physicalDevice.gIdx, gpu.gQ, 2));
+//         GUARD(createPipeline());
         
-        framebuffers.resize(swapchain.imageViews.size());
-        for (size_t i = 0; i < swapchain.imageViews.size(); i++) {
-            VkImageView attachments[] = {
-                swapchain.imageViews[i],
-            };
-            VkFramebufferCreateInfo framebufferInfo = {
-                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
-                .renderPass = renderPass,
-                .attachmentCount = 1,
-                .pAttachments = attachments,
-                .width = swapchain.extent.width,
-                .height = swapchain.extent.height,
-                .layers = 1,
-            };
-            GUARDV(vkCreateFramebuffer(gpu.gpu, &framebufferInfo, nullptr, &framebuffers[i]));
-        }
+//         framebuffers.resize(swapchain.imageViews.size());
+//         for (size_t i = 0; i < swapchain.imageViews.size(); i++) {
+//             VkImageView attachments[] = {
+//                 swapchain.imageViews[i],
+//             };
+//             VkFramebufferCreateInfo framebufferInfo = {
+//                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+//                 .renderPass = renderPass,
+//                 .attachmentCount = 1,
+//                 .pAttachments = attachments,
+//                 .width = swapchain.extent.width,
+//                 .height = swapchain.extent.height,
+//                 .layers = 1,
+//             };
+//             GUARDV(vkCreateFramebuffer(gpu.gpu, &framebufferInfo, nullptr, &framebuffers[i]));
+//         }
 
-        GUARD(meshRegistry.init(&gpu));
-        GUARD(meshRegistry.addMesh(vertices, sizeof(vertices), indices, sizeof(indices), mesh));
+//         GUARD(meshRegistry.init(&gpu));
+//         GUARD(meshRegistry.addMesh(vertices, sizeof(vertices), indices, sizeof(indices), mesh));
 
-        return 1;
-    }
+//         return 1;
+//     }
 
-    void terminate() {
-        vkDeviceWaitIdle (gpu.gpu);
-        meshRegistry.terminate();
-        vkDestroyPipeline (gpu.gpu, graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout (gpu.gpu, pipelineLayout, nullptr);
-        vkDestroyRenderPass (gpu.gpu, renderPass, nullptr);
-        frameControl.terminate();
-        swapchain.terminate();
-        gpu.terminate();
-        surface.terminate();
-        instance.terminate();
-    }
+//     void terminate() {
+//         vkDeviceWaitIdle (gpu.gpu);
+//         meshRegistry.terminate();
+//         vkDestroyPipeline (gpu.gpu, graphicsPipeline, nullptr);
+//         vkDestroyPipelineLayout (gpu.gpu, pipelineLayout, nullptr);
+//         vkDestroyRenderPass (gpu.gpu, renderPass, nullptr);
+//         frameControl.terminate();
+//         swapchain.terminate();
+//         gpu.terminate();
+//         surface.terminate();
+//         instance.terminate();
+//     }
     
-    void reset() {
+//     void reset() {
 
-    }
+//     }
 
-    void wait() {
-        vkDeviceWaitIdle (gpu.gpu);
-    }
+//     void wait() {
+//         vkDeviceWaitIdle (gpu.gpu);
+//     }
 
-    bool resize(int width, int height) {
-        this->width = width;
-        this->height = height;
-        sizeChanged = true;
-        return 1;
-    }
+//     bool resize(int width, int height) {
+//         this->width = width;
+//         this->height = height;
+//         sizeChanged = true;
+//         return 1;
+//     }
 
 
-    bool render(const RenderView& view) {
-        Frame frame = frameControl.next();
-        GUARD(swapchain.next(frame.imageReady));
-        if (swapchain.recreated()) {
-            // renderTarget.recreateFramebuffers(swapchain);
-        }
-        frameControl.begin();
+//     bool render(const RenderView& view) {
+//         Frame frame = frameControl.next();
+//         GUARD(swapchain.next(frame.imageReady));
+//         if (swapchain.recreated()) {
+//             // renderTarget.recreateFramebuffers(swapchain);
+//         }
+//         frameControl.begin();
         
     
-        VkClearValue vkClearColor = { {{view.clearColor.x, view.clearColor.y, view.clearColor.z, view.clearColor.w}} };
-        VkRenderPassBeginInfo renderPassInfo = {
-            .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .renderPass           = renderPass,
-            .framebuffer          = framebuffers[swapchain.idx],
-            .renderArea           = { .offset = { 0, 0 }, .extent = swapchain.extent },
-            .clearValueCount      = 1,
-            .pClearValues         = &vkClearColor,
-        };
-        vkCmdBeginRenderPass(frame.cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-        vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-        VkViewport viewport = {
-            .x          = 0.0f,
-            .y          = 0.0f,
-            .width      = static_cast<float>(swapchain.extent.width),
-            .height     = static_cast<float>(swapchain.extent.height),
-            .minDepth   = 0.0f,
-            .maxDepth   = 1.0f,
-        };
-        vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
-        VkRect2D scissor = {
-            .offset = { 0, 0 },
-            .extent = swapchain.extent,
-        };
-        vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
+//         VkClearValue vkClearColor = { {{view.clearColor.x, view.clearColor.y, view.clearColor.z, view.clearColor.w}} };
+//         VkRenderPassBeginInfo renderPassInfo = {
+//             .sType                = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+//             .renderPass           = renderPass,
+//             .framebuffer          = framebuffers[swapchain.idx],
+//             .renderArea           = { .offset = { 0, 0 }, .extent = swapchain.extent },
+//             .clearValueCount      = 1,
+//             .pClearValues         = &vkClearColor,
+//         };
+//         vkCmdBeginRenderPass(frame.cmdBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+//         vkCmdBindPipeline(frame.cmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
+//         VkViewport viewport = {
+//             .x          = 0.0f,
+//             .y          = 0.0f,
+//             .width      = static_cast<float>(swapchain.extent.width),
+//             .height     = static_cast<float>(swapchain.extent.height),
+//             .minDepth   = 0.0f,
+//             .maxDepth   = 1.0f,
+//         };
+//         vkCmdSetViewport(frame.cmdBuffer, 0, 1, &viewport);
+//         VkRect2D scissor = {
+//             .offset = { 0, 0 },
+//             .extent = swapchain.extent,
+//         };
+//         vkCmdSetScissor(frame.cmdBuffer, 0, 1, &scissor);
 
-        vk::Mesh& m = meshRegistry.getMesh(mesh);
-        VkBuffer buffers[] = { m.buffer };
-        VkDeviceSize offsets[] = { 0 };
-        vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
-        vkCmdBindIndexBuffer(frame.cmdBuffer, m.idxBuffer, 0, VK_INDEX_TYPE_UINT16);
+//         vk::Mesh& m = meshRegistry.getMesh(mesh);
+//         VkBuffer buffers[] = { m.buffer };
+//         VkDeviceSize offsets[] = { 0 };
+//         vkCmdBindVertexBuffers(frame.cmdBuffer, 0, 1, buffers, offsets);
+//         vkCmdBindIndexBuffer(frame.cmdBuffer, m.idxBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-        vkCmdDrawIndexed(frame.cmdBuffer, 3, 1, 0, 0, 0);
-        vkCmdEndRenderPass(frame.cmdBuffer);
-        GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
+//         vkCmdDrawIndexed(frame.cmdBuffer, 3, 1, 0, 0, 0);
+//         vkCmdEndRenderPass(frame.cmdBuffer);
+//         GUARDV(vkEndCommandBuffer(frame.cmdBuffer));
         
-        frameControl.end(swapchain.renderReady);
-        swapchain.present();
-        return 1;
-    }
+//         frameControl.end(swapchain.renderReady);
+//         swapchain.present();
+//         return 1;
+//     }
     
-    Buffer create(const char* name, uint32_t size, const uint8_t* data) {
-        return { -1 };
-    }
+//     StaticBuffer create(const char* name, uint32_t size, const uint8_t* data) {
+//         return { -1 };
+//     }
     
-    Mesh create(const MeshData& desc) {
-        return { -1 };
-    }
+//     Mesh create(const MeshData& desc) {
+//         return { -1 };
+//     }
 
-    MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) {
-        return { -1 };
-    }
+//     MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) {
+//         return { -1 };
+//     }
     
-    Material create(const char* name, MaterialDesc& desc) {
-        return { -1 };
-    }
+//     Material create(const char* name, MaterialDesc& desc) {
+//         return { -1 };
+//     }
     
-    void destroy(Buffer buffer) {
-    }
+//     void destroy(Buffer buffer) {
+//     }
     
-    void destroy(MaterialTexture materialTexture) {
-    }
+//     void destroy(MaterialTexture materialTexture) {
+//     }
     
-    void destroy(Material material) {
-    }
+//     void destroy(Material material) {
+//     }
 
-private:
-    Instance                            instance;
-    Surface                             surface;
-    PhysicalDevice                      physicalDevice;
-    SwapchainVk                         swapchain;
-    Gpu                                 gpu;
-    VkRenderPass                        renderPass;
-    std::vector<VkFramebuffer>          framebuffers;
-    VkPipelineLayout                    pipelineLayout;
-    VkPipeline                          graphicsPipeline;
-    vk::FrameControl                        frameControl;
-    vk::MeshRegistry                        meshRegistry;
-    int                                 mesh;
-    int                                 width;
-    int                                 height;
-    bool                                sizeChanged = false;
+// private:
+//     Instance                            instance;
+//     Surface                             surface;
+//     PhysicalDevice                      physicalDevice;
+//     SwapchainVk                         swapchain;
+//     Gpu                                 gpu;
+//     VkRenderPass                        renderPass;
+//     std::vector<VkFramebuffer>          framebuffers;
+//     VkPipelineLayout                    pipelineLayout;
+//     VkPipeline                          graphicsPipeline;
+//     vk::FrameControl                        frameControl;
+//     vk::MeshRegistry                        meshRegistry;
+//     int                                 mesh;
+//     int                                 width;
+//     int                                 height;
+//     bool                                sizeChanged = false;
 
-    bool createPipeline() {
-        VkAttachmentDescription colorAttachment = {
-            .format                 = swapchain.format,
-            .samples                = VK_SAMPLE_COUNT_1_BIT,
-            .loadOp                 = VK_ATTACHMENT_LOAD_OP_CLEAR,
-            .storeOp                = VK_ATTACHMENT_STORE_OP_STORE,
-            .stencilLoadOp          = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-            .stencilStoreOp         = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-            .initialLayout          = VK_IMAGE_LAYOUT_UNDEFINED,
-            .finalLayout            = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-        };
-        VkAttachmentReference colorAttachmentRef = {
-            .attachment             = 0,
-            .layout                 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-        };
-        VkSubpassDescription subpass = {
-            .pipelineBindPoint      = VK_PIPELINE_BIND_POINT_GRAPHICS,
-            .colorAttachmentCount   = 1,
-            .pColorAttachments      = &colorAttachmentRef,
-        };
-        VkSubpassDependency dependency = {
-            .srcSubpass             = VK_SUBPASS_EXTERNAL,
-            .dstSubpass             = 0,
-            .srcStageMask           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .dstStageMask           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-            .srcAccessMask          = 0,
-            .dstAccessMask          = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-        };
-        VkRenderPassCreateInfo renderPassInfo = {
-            .sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-            .attachmentCount        = 1,
-            .pAttachments           = &colorAttachment,
-            .subpassCount           = 1,
-            .pSubpasses             = &subpass,
-            .dependencyCount        = 1,
-            .pDependencies          = &dependency,
-        };
-        GUARDV(vkCreateRenderPass(gpu.gpu, &renderPassInfo, nullptr, &renderPass));
+//     bool createPipeline() {
+//         VkAttachmentDescription colorAttachment = {
+//             .format                 = swapchain.format,
+//             .samples                = VK_SAMPLE_COUNT_1_BIT,
+//             .loadOp                 = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//             .storeOp                = VK_ATTACHMENT_STORE_OP_STORE,
+//             .stencilLoadOp          = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+//             .stencilStoreOp         = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+//             .initialLayout          = VK_IMAGE_LAYOUT_UNDEFINED,
+//             .finalLayout            = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+//         };
+//         VkAttachmentReference colorAttachmentRef = {
+//             .attachment             = 0,
+//             .layout                 = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+//         };
+//         VkSubpassDescription subpass = {
+//             .pipelineBindPoint      = VK_PIPELINE_BIND_POINT_GRAPHICS,
+//             .colorAttachmentCount   = 1,
+//             .pColorAttachments      = &colorAttachmentRef,
+//         };
+//         VkSubpassDependency dependency = {
+//             .srcSubpass             = VK_SUBPASS_EXTERNAL,
+//             .dstSubpass             = 0,
+//             .srcStageMask           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+//             .dstStageMask           = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+//             .srcAccessMask          = 0,
+//             .dstAccessMask          = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+//         };
+//         VkRenderPassCreateInfo renderPassInfo = {
+//             .sType                  = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+//             .attachmentCount        = 1,
+//             .pAttachments           = &colorAttachment,
+//             .subpassCount           = 1,
+//             .pSubpasses             = &subpass,
+//             .dependencyCount        = 1,
+//             .pDependencies          = &dependency,
+//         };
+//         GUARDV(vkCreateRenderPass(gpu.gpu, &renderPassInfo, nullptr, &renderPass));
 
-        Shader vertShader;
-        Shader fragShader;
-        GUARD(vertShader.load(gpu.gpu, "shader.vert", VK_SHADER_STAGE_VERTEX_BIT));
-        GUARD(fragShader.load(gpu.gpu, "shader.frag", VK_SHADER_STAGE_FRAGMENT_BIT));
-        VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
+//         Shader vertShader;
+//         Shader fragShader;
+//         GUARD(vertShader.load(gpu.gpu, "shader.vert", VK_SHADER_STAGE_VERTEX_BIT));
+//         GUARD(fragShader.load(gpu.gpu, "shader.frag", VK_SHADER_STAGE_FRAGMENT_BIT));
+//         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShader.getInfo(), fragShader.getInfo() };
 
 
-        VkVertexInputBindingDescription bindingDesc = {
-            .binding = 0,
-            .stride = sizeof(float) * (3 + 3),
-            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
-        };
-        VkVertexInputAttributeDescription attributeDesc[] = {
-            {
-                .location = 0,
-                .binding = 0,
-                .format = VK_FORMAT_R32G32B32_SFLOAT,
-                .offset = 0,
-            },
-            {
-                .location = 1,
-                .binding = 0,
-                .format = VK_FORMAT_R32G32B32_SFLOAT,
-                .offset = sizeof(float) * 3,
-            }
-        };
-        VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
-            .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-            .vertexBindingDescriptionCount   = 1,
-            .pVertexBindingDescriptions      = &bindingDesc,
-            .vertexAttributeDescriptionCount = 2,
-            .pVertexAttributeDescriptions    = attributeDesc,
-        };
-        VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
-            .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-            .primitiveRestartEnable = VK_FALSE,
-        };
-        VkPipelineViewportStateCreateInfo viewportState = {
-            .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
-            .viewportCount = 1,
-            .scissorCount  = 1,
-        };
-        VkPipelineRasterizationStateCreateInfo rasterizer = {
-            .sType                    = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-            .depthClampEnable         = VK_FALSE,
-            .rasterizerDiscardEnable  = VK_FALSE,
-            .polygonMode              = VK_POLYGON_MODE_FILL,
-            .cullMode                 = VK_CULL_MODE_BACK_BIT,
-            .frontFace                = VK_FRONT_FACE_CLOCKWISE,
-            .depthBiasEnable          = VK_FALSE,
-            .lineWidth                = 1.0f,
-        };
-        VkPipelineMultisampleStateCreateInfo multisampling = {
-            .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
-            .rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT,
-            .sampleShadingEnable   = VK_FALSE,
-        };
-        VkPipelineColorBlendAttachmentState colorBlendAttachment = {
-            .blendEnable    = VK_FALSE,
-            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-        };
-        VkPipelineColorBlendStateCreateInfo colorBlending = {
-            .sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-            .logicOpEnable     = VK_FALSE,
-            .logicOp           = VK_LOGIC_OP_COPY,
-            .attachmentCount   = 1,
-            .pAttachments      = &colorBlendAttachment,
-            .blendConstants    = { 0, 0, 0, 0 },
-        };
-        std::vector<VkDynamicState> dynamicStates = {
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR,
-        };
-        VkPipelineDynamicStateCreateInfo dynamicState = {
-            .sType              = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount  = static_cast<uint32_t>(dynamicStates.size()),
-            .pDynamicStates     = dynamicStates.data(),
-        };
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
-            .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .setLayoutCount         = 0,
-            .pushConstantRangeCount = 0,
-        };
-        if (vkCreatePipelineLayout(gpu.gpu, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            printf("failed to create pipeline layout");
-            return 0;
-        }
-        VkGraphicsPipelineCreateInfo pipelineInfo = {
-            .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .stageCount          = 2,
-            .pStages             = shaderStages,
-            .pVertexInputState   = &vertexInputInfo,
-            .pInputAssemblyState = &inputAssembly,
-            .pViewportState      = &viewportState,
-            .pRasterizationState = &rasterizer,
-            .pMultisampleState   = &multisampling,
-            .pColorBlendState    = &colorBlending,
-            .pDynamicState       = &dynamicState,
-            .layout              = pipelineLayout,
-            .renderPass          = renderPass,
-            .subpass             = 0,
-            .basePipelineHandle  = VK_NULL_HANDLE,
-        };
-        if (vkCreateGraphicsPipelines(gpu.gpu, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-            printf("failed to create graphics pipeline");
-            return 0;
-        }
-        return true;
-    }
-};
+//         VkVertexInputBindingDescription bindingDesc = {
+//             .binding = 0,
+//             .stride = sizeof(float) * (3 + 3),
+//             .inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+//         };
+//         VkVertexInputAttributeDescription attributeDesc[] = {
+//             {
+//                 .location = 0,
+//                 .binding = 0,
+//                 .format = VK_FORMAT_R32G32B32_SFLOAT,
+//                 .offset = 0,
+//             },
+//             {
+//                 .location = 1,
+//                 .binding = 0,
+//                 .format = VK_FORMAT_R32G32B32_SFLOAT,
+//                 .offset = sizeof(float) * 3,
+//             }
+//         };
+//         VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+//             .sType                           = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+//             .vertexBindingDescriptionCount   = 1,
+//             .pVertexBindingDescriptions      = &bindingDesc,
+//             .vertexAttributeDescriptionCount = 2,
+//             .pVertexAttributeDescriptions    = attributeDesc,
+//         };
+//         VkPipelineInputAssemblyStateCreateInfo inputAssembly = {
+//             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+//             .topology               = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+//             .primitiveRestartEnable = VK_FALSE,
+//         };
+//         VkPipelineViewportStateCreateInfo viewportState = {
+//             .sType         = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+//             .viewportCount = 1,
+//             .scissorCount  = 1,
+//         };
+//         VkPipelineRasterizationStateCreateInfo rasterizer = {
+//             .sType                    = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+//             .depthClampEnable         = VK_FALSE,
+//             .rasterizerDiscardEnable  = VK_FALSE,
+//             .polygonMode              = VK_POLYGON_MODE_FILL,
+//             .cullMode                 = VK_CULL_MODE_BACK_BIT,
+//             .frontFace                = VK_FRONT_FACE_CLOCKWISE,
+//             .depthBiasEnable          = VK_FALSE,
+//             .lineWidth                = 1.0f,
+//         };
+//         VkPipelineMultisampleStateCreateInfo multisampling = {
+//             .sType                 = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+//             .rasterizationSamples  = VK_SAMPLE_COUNT_1_BIT,
+//             .sampleShadingEnable   = VK_FALSE,
+//         };
+//         VkPipelineColorBlendAttachmentState colorBlendAttachment = {
+//             .blendEnable    = VK_FALSE,
+//             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+//         };
+//         VkPipelineColorBlendStateCreateInfo colorBlending = {
+//             .sType             = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+//             .logicOpEnable     = VK_FALSE,
+//             .logicOp           = VK_LOGIC_OP_COPY,
+//             .attachmentCount   = 1,
+//             .pAttachments      = &colorBlendAttachment,
+//             .blendConstants    = { 0, 0, 0, 0 },
+//         };
+//         std::vector<VkDynamicState> dynamicStates = {
+//             VK_DYNAMIC_STATE_VIEWPORT,
+//             VK_DYNAMIC_STATE_SCISSOR,
+//         };
+//         VkPipelineDynamicStateCreateInfo dynamicState = {
+//             .sType              = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+//             .dynamicStateCount  = static_cast<uint32_t>(dynamicStates.size()),
+//             .pDynamicStates     = dynamicStates.data(),
+//         };
+//         VkPipelineLayoutCreateInfo pipelineLayoutInfo = {
+//             .sType                  = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+//             .setLayoutCount         = 0,
+//             .pushConstantRangeCount = 0,
+//         };
+//         if (vkCreatePipelineLayout(gpu.gpu, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+//             printf("failed to create pipeline layout");
+//             return 0;
+//         }
+//         VkGraphicsPipelineCreateInfo pipelineInfo = {
+//             .sType               = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+//             .stageCount          = 2,
+//             .pStages             = shaderStages,
+//             .pVertexInputState   = &vertexInputInfo,
+//             .pInputAssemblyState = &inputAssembly,
+//             .pViewportState      = &viewportState,
+//             .pRasterizationState = &rasterizer,
+//             .pMultisampleState   = &multisampling,
+//             .pColorBlendState    = &colorBlending,
+//             .pDynamicState       = &dynamicState,
+//             .layout              = pipelineLayout,
+//             .renderPass          = renderPass,
+//             .subpass             = 0,
+//             .basePipelineHandle  = VK_NULL_HANDLE,
+//         };
+//         if (vkCreateGraphicsPipelines(gpu.gpu, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+//             printf("failed to create graphics pipeline");
+//             return 0;
+//         }
+//         return true;
+//     }
+// };
 
-std::unique_ptr<IRenderer> createRendererVk() {
-    return std::make_unique<RendererVk>();
-}
-}
+// std::unique_ptr<IRenderer> createRendererVk() {
+//     return std::make_unique<RendererVk>();
+// }
+// }

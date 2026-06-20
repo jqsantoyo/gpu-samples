@@ -163,15 +163,74 @@ The current design is scalable in 2 ways:
 
 
 
-### Renderer
+### Gpu
 
 The repo started with bare API code in a hello world sample, but such code is highly unmantainable, verbose and not portable.
-Later on, utilities for D3D12 and Vulkan were gradually created, ultimately evolving into an `RHI`, implemented by the `Gpu` class in the `gpu` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and bufferViews/textureViews). Each of this objects is associated with a handle for persistent reference. `Gpu` is API agnostic, and so far has a D3D12 backend, with a Vulkan backend coming next (Vulkan code in `gpuVk` library is out of date).
+Later on, utilities for D3D12 and Vulkan were gradually created, ultimately evolving into an `RHI`, implemented by the `Gpu` class in the `gpu` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and views). Each of these objects is associated with a handle for persistent reference. `Gpu` is API agnostic, and so far has a D3D12 backend, with a Vulkan backend coming next (Vulkan code in `gpuVk` library is out of date).
 
-The `IRenderer` interface is the contract all renderer samples in this repo comply with, for uniformity.
-The most important method is  `IRenderer::render`, which takes a `RenderView` argument that describes the contents and settings of the scene to be rendered.
-The caller extracts and passes a `RenderView` to the renderer from the above mentioned `Scene` object, but it could come from anywhere, so the renderer is not coupled with `Scene`.
-A renderer object owns a `Gpu` object to communicate with the GPU.
+Usage examples:
+```
+std::unique_ptr<IGpu> gpu          = createGpu();
+Queue                 queue        = gpu->createQueue();
+Swapchain             swapchain    = gpu->createSwapchain(queue, window, windowSize.x, windowSize.y, frameCount);
+Command               mainCommand  = gpu->createCommand();
+Buffer                uploadBuffer = gpu->createBuffer("UploadBuffer", BufferUpload, 2048 * 2048 * 4);
+```
+
+```
+gpu->wait           (queue, cmd);
+gpu->begin          (cmd);
+gpu->viewport       (cmd, viewport);
+gpu->scissor        (cmd, scissorRect);
+gpu->barrier        (cmd, swapTexture, State::RenderTarget);
+gpu->targets        (cmd, swapRenderView, depthView);
+gpu->clear          (cmd, swapRenderView, clearColor, depthView, 1, 0);
+gpu->pipeline       (cmd, pso);
+gpu->graphicsRoot   (cmd, root);
+gpu->topology       (cmd, PrimitiveTopology::TriangleList);
+gpu->vertexBuffer   (cmd, 0, m.position);
+gpu->draw           (cmd, m.vCount, 1, 0, 0);
+gpu->barrier        (cmd, swapTexture, State::Present);
+gpu->end            (cmd);
+gpu->execute        (queue, cmd);
+gpu->present        (swapchain, false);
+gpu->signal         (queue, cmd);
+```
+
+
+### Renderer
+
+Each sample contains an API agnostic renderer, leveraging  a `Gpu` object, and complying with the `IRenderer` interface.
+
+```
+class IRenderer {
+public:
+    virtual ~IRenderer() = default;
+    virtual void init(const RendererBaseDesc& desc) = 0;
+    virtual void terminate() = 0;
+    virtual void reset() = 0;
+    virtual void resize(int width, int height) = 0;
+    virtual void render(const RenderView& view) = 0;
+    virtual void wait() = 0;
+
+    virtual StaticBuffer    create(const char* name, uint32_t size, const uint8_t* data) = 0;
+    virtual Mesh            create(const MeshDesc& desc) = 0;
+    virtual MaterialTexture create(const char* name, const uint8_t* data, uint32_t size) = 0;
+    virtual Material        create(const char* name, MaterialDesc& desc) = 0;
+    virtual void            destroy(StaticBuffer staticBuffer) = 0;
+    virtual void            destroy(MaterialTexture materialTexture) = 0;
+    virtual void            destroy(Material material) = 0;
+};
+```
+
+In particular:
+* Resource management is exposed with `IRenderer::create/destroy` methods, and it is the responsibility of the caller to determine their exact lifetimes.
+* `IRenderer::render` issues draw calls by traversing a `RenderView` object that describes the scene. The caller builds a `RenderView` from the above mentioned `Scene` object and passes it to the renderer, but it could come from anywhere, so the renderer is not coupled with `Scene`.
+
+Additionally, each renderer inherits from `RendererBase:IRenderer`, to reuse code around gpu setup, resource creation and frame scheduling.
+The split between `IRenderer` and `RendererBase` is done to keep `IRenderer` opaque and to keep `RendererBase`'s implementation hidden.
+In a given project, `RendererBase` would be superfluous, but here it is favourable due to having multiple renderers.
+
 
 ... *more documentation soon* ...
 
