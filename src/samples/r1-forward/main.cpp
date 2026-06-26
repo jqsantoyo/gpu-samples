@@ -18,6 +18,7 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
+        Backend backend = useVulkan ? Backend::Vulkan : Backend::DirectX;
         title = useVulkan ? "01-forward-vk" : "01-forward";
 
         renderer        = createRendererPbr();
@@ -27,7 +28,7 @@ public:
         sceneSelector   = std::make_unique<SceneSelector>();
 
         RendererBaseDesc renderDesc = {
-            .vulkan     = useVulkan,
+            .backend    = backend,
             .window     = window,
             .windowSize = { width, height },
         };

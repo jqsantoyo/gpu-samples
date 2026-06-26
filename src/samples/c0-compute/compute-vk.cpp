@@ -1,34 +1,33 @@
 #include "compute.h"
-#include <gpuVk/gpu.h>
+#include <gpu/gpu.h>
 #include <vector>
 
-using namespace gpu::vk;
 namespace gpu {
 
 class Compute : public ICompute {
 public:
     bool init() {
-        GUARD(instance.init("c0-compute-vk", VK_MAKE_VERSION(1, 0, 0), false, {}));
+        // GUARD(instance.init("c0-compute-vk", VK_MAKE_VERSION(1, 0, 0), false, {}));
         
-        std::vector<const char*> deviceExtensions = {};
-        GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
+        // std::vector<const char*> deviceExtensions = {};
+        // GUARD(physicalDevice.init(instance.instance, deviceExtensions, false, true, nullptr));
 
-        // GUARD(gpu.init(computeWrap.physicalDevice, computeWrap.cIdx, gpu, computeQueue));
+        // // GUARD(gpu.init(computeWrap.physicalDevice, computeWrap.cIdx, gpu, computeQueue));
 
-        const char* shaderDir = "02-compute-shaders-vk";
-        Shader shader;
-        // GUARD(shader.load(gpu, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
+        // const char* shaderDir = "02-compute-shaders-vk";
+        // Shader shader;
+        // // GUARD(shader.load(gpu, shaderDir, "shader.comp.spv", VK_SHADER_STAGE_COMPUTE_BIT));
 
-        VkComputePipelineCreateInfo computePipelineCreateInfo = {
-            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .stage = shader.getInfo(),
-            .layout = 0,
-            // .baePipelineHandle = 0,
-            .basePipelineIndex = 0,
-        };
-        // vkCreateComputePipelines(gpu, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
+        // VkComputePipelineCreateInfo computePipelineCreateInfo = {
+        //     .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+        //     .pNext = nullptr,
+        //     .flags = 0,
+        //     .stage = shader.getInfo(),
+        //     .layout = 0,
+        //     // .baePipelineHandle = 0,
+        //     .basePipelineIndex = 0,
+        // };
+        // // vkCreateComputePipelines(gpu, 0, 1, &computePipelineCreateInfo, nullptr, &computePipeline);
 
         return true;
     }
@@ -38,15 +37,15 @@ public:
     }
 
     void terminate() {
-        instance.terminate();
+        // instance.terminate();
     }
 
 private:
-    Instance        instance;
-    PhysicalDevice  physicalDevice;
-    Gpu          gpu;
-    VkQueue         computeQueue;
-    VkPipeline      computePipeline;
+    // Instance        instance;
+    // PhysicalDevice  physicalDevice;
+    // Gpu          gpu;
+    // VkQueue         computeQueue;
+    // VkPipeline      computePipeline;
 
 
 };

@@ -278,6 +278,26 @@ void setResourceName(ID3D12Resource* resource, const char* name) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /// INTERFACE //////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -430,10 +450,10 @@ void deviceMessage(
 
 
 
-class Gpu : public IGpu {
+class GpuD3D : public IGpu {
 public:
 
-Gpu(const GpuDesc& desc) {
+GpuD3D(const GpuDesc& desc) {
     // Factory & adapter list initialization
     DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
     ASSERT_DX(CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&factory)));
@@ -525,7 +545,7 @@ Gpu(const GpuDesc& desc) {
     // DXGI_SAMPLE_DESC sampleDesc = { .Count = 4, .Quality = qualityLevels.NumQualityLevels - 1 }; 
 }
 
-~Gpu() {
+~GpuD3D() {
     terminate();
 }
 
@@ -1084,7 +1104,7 @@ Pipeline createPipeline(Root root, PsoGraphicsDesc desc) {
         .RasterizerState            = {
             .FillMode               = getNativeFillMode(desc.fillMode),
             .CullMode               = getNativeCullMode(desc.cullMode),
-            .FrontCounterClockwise  = FALSE,
+            .FrontCounterClockwise  = TRUE,
             .DepthBias              = D3D12_DEFAULT_DEPTH_BIAS,
             .DepthBiasClamp         = D3D12_DEFAULT_DEPTH_BIAS_CLAMP,
             .SlopeScaledDepthBias   = D3D12_DEFAULT_SLOPE_SCALED_DEPTH_BIAS,
@@ -1781,8 +1801,8 @@ void endEvent() {
 
 
 
-std::unique_ptr<IGpu> createGpu(const GpuDesc& desc) {
-    return std::make_unique<Gpu>(desc);
+std::unique_ptr<IGpu> createGpuD3D(const GpuDesc& desc) {
+    return std::make_unique<GpuD3D>(desc);
 }
 
 }

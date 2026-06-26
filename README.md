@@ -165,12 +165,14 @@ The current design is scalable in 2 ways:
 
 ### Gpu
 
-The repo started with bare API code in a hello world sample, but such code is highly unmantainable, verbose and not portable.
-Later on, utilities for D3D12 and Vulkan were gradually created, ultimately evolving into an `RHI`, implemented by the `Gpu` class in the `gpu` library. Said class initializes the device and lets the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and views). Each of these objects is associated with a handle for persistent reference. `Gpu` is API agnostic, and so far has a D3D12 backend, with a Vulkan backend coming next (Vulkan code in `gpuVk` library is out of date).
+The repo started with bare API code in a hello world sample, but such code is highly unmantainable and verbose.
+Later on, utilities for D3D12 and Vulkan were gradually created, evolving into an `RHI`, implemented by the `GpuD3D/GpuVk` classes in the `gpu` library. Said classes initialize the device and let the user create resources (queues, commands, swapchain, root signatures, pipelines, buffers, textures, and views). Each of these objects is associated with a handle for persistent reference. `GpuD3D/GpuVk` is exposed through an API agnostic interface: `Gpu`.
+This `RHI` was first created with D3D12 in mind, and the current Vulkan implementation is missing some components.
+Next steps are bumping up to Vulkan 1.3/1.4, completing the missing Vulkan bits and improving a shared binding model.
 
 Usage examples:
 ```
-std::unique_ptr<IGpu> gpu          = createGpu();
+std::unique_ptr<IGpu> gpu          = createGpu({ .window = window }, backend);
 Queue                 queue        = gpu->createQueue();
 Swapchain             swapchain    = gpu->createSwapchain(queue, window, windowSize.x, windowSize.y, frameCount);
 Command               mainCommand  = gpu->createCommand();
@@ -228,7 +230,7 @@ In particular:
 * `IRenderer::render` issues draw calls by traversing a `RenderView` object that describes the scene. The caller builds a `RenderView` from the above mentioned `Scene` object and passes it to the renderer, but it could come from anywhere, so the renderer is not coupled with `Scene`.
 
 Additionally, each renderer inherits from `RendererBase:IRenderer`, to reuse code around gpu setup, resource creation and frame scheduling.
-The split between `IRenderer` and `RendererBase` is done to keep `IRenderer` opaque and to keep `RendererBase`'s implementation hidden.
+The split between `IRenderer` and `RendererBase` is done to keep `IRenderer` opaque and to keep `RendererBase`'s implementation visible only to derived classes.
 In a given project, `RendererBase` would be superfluous, but here it is favourable due to having multiple renderers.
 
 

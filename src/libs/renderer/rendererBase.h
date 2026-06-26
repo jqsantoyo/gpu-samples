@@ -62,7 +62,7 @@ protected:
 
     bool upload(Texture texture, const std::vector<ResourceData>& subresources);
 
-    bool                                        vulkan;
+    Backend                                     backend;
     std::unique_ptr<IGpu>                       gpu;
     Queue                                       queue;
     Swapchain                                   swapchain;

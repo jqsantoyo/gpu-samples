@@ -17,6 +17,12 @@ struct Buffer      { int idx; };
 struct Texture     { int idx; };
 struct TextureView { int idx; };
 
+enum Backend {
+    DirectX,
+    Metal,
+    Vulkan,
+};
+
 enum class CullMode {
     None,
     Front,
@@ -232,8 +238,10 @@ struct RenderTargetDesc {
 struct PsoGraphicsDesc {
     const char*                     vs;
     const char*                     ps;
+    const char*                     vs2;
+    const char*                     ps2;
     FillMode                        fillMode        = FillMode::Solid;
-    CullMode                        cullMode        = CullMode::None;
+    CullMode                        cullMode        = CullMode::Back;
     bool                            enableDepth     = true;
     bool                            enableStencil   = false;
     PrimitiveTopologyType           topologyType    = PrimitiveTopologyType::Triangle;
@@ -254,6 +262,7 @@ enum BufferUsage {
     BufferDefault,
     BufferWrite,
     BufferRead,
+    BufferConstant,
 };
 
 enum class TextureUsage {
@@ -299,6 +308,7 @@ struct ResourceData {
 };
 
 struct GpuDesc {
+    void*    window         = nullptr;
     uint32_t queueCount     = 8;
     uint32_t commandCount   = 8;
     uint32_t rootCount      = 8;
@@ -386,7 +396,7 @@ void beginEvent(const char* fmt, ...);
 void endEvent();
 
 
-std::unique_ptr<IGpu> createGpu(const GpuDesc& desc = {});
+std::unique_ptr<IGpu> createGpu(const GpuDesc& desc = {}, Backend backend = DirectX);
 
 
 

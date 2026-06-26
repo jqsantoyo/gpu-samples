@@ -45,6 +45,8 @@ public:
         PsoGraphicsDesc pipelineDesc = {
             .vs                 = "shaders_v",
             .ps                 = "shaders_p",
+            .vs2                = "shader.vert",
+            .ps2                = "shader.frag",
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f,  0, 0 },
                 { "NORMAL",   0, Format::RGB32f,  1, 0 },
@@ -56,6 +58,8 @@ public:
         PsoGraphicsDesc pipelineWireDesc = {
             .vs                 = "shadersWire_v",
             .ps                 = "shadersWire_p",
+            .vs2                = "shaderWire.vert",
+            .ps2                = "shaderWire.frag",
             .fillMode           = FillMode::Wireframe,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
@@ -64,6 +68,8 @@ public:
         PsoGraphicsDesc pipelineShadowDesc = {
             .vs                 = "shadow_v",
             .ps                 = "shadow_p",
+            .vs2                = "shader.vert",
+            .ps2                = "shader.frag",
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f,  0, 0 },
             },

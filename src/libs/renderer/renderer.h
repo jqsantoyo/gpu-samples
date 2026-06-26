@@ -85,14 +85,14 @@ struct MaterialDesc {
 };
 
 struct RendererBaseDesc {
-    bool  vulkan               = false;
-    void* window               = nullptr;
-    uvec2 windowSize           = { 512, 512 };
-    int   staticBufferCount    = 50;
-    int   meshCount            = 100;
-    int   materialTextureCount = 100;
-    int   materialCount        = 50;
-    int   frameMemory          = 1000000;
+    Backend backend              = DirectX;
+    void*   window               = nullptr;
+    uvec2   windowSize           = { 512, 512 };
+    int     staticBufferCount    = 50;
+    int     meshCount            = 100;
+    int     materialTextureCount = 100;
+    int     materialCount        = 50;
+    int     frameMemory          = 1000000;
 };
 
 class IRenderer {

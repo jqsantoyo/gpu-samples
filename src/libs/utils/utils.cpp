@@ -61,6 +61,14 @@ size_t FreeList::size() {
     return count;
 }
 
+size_t FreeList::end() {
+    return nextFree;
+}
+
+bool FreeList::exists(int idx) {
+    return allocated[idx];
+}
+
 
 
 

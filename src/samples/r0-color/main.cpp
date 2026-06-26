@@ -18,6 +18,7 @@ public:
 
     bool init(void* window, uint32_t width, uint32_t height) {
         bool useVulkan = argBool("-vk");
+        Backend backend = useVulkan ? Backend::Vulkan : Backend::DirectX;
         title = useVulkan ? "r0-color-vk" : "r0-color";
         
         renderer        = createRendererBasic();
@@ -28,7 +29,7 @@ public:
 
 
         RendererBaseDesc renderDesc = {
-            .vulkan     = useVulkan,
+            .backend    = backend,
             .window     = window,
             .windowSize = { width, height },
         };
@@ -73,7 +74,7 @@ public:
             [&](){ return sceneLoader->load("shapes/shapes.gltf"); },
         });
 
-        sceneSelector->load(2);
+        sceneSelector->load(0);
         renderer->wait();
         return true;
     }
@@ -84,7 +85,7 @@ public:
         trs2Transform(scene->objects.size(), scene->objects.getTrs(), scene->objects.getTransform());
         RenderView view = {
             .clearColor = { 0.1f, 0.1f, 0.1f, 1.0f },
-            .fillMode   = Fill,
+            .fillMode   = FillWire,
             .lightCount = 0,
             .modelCount = scene->objects.size(),
             .camera     = scene->cameras.getCamera(),

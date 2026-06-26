@@ -12,9 +12,6 @@ struct ObjectData {
     XMFLOAT4X4 mvp;
 };
 
-
-
-
 class Renderer : public RendererBase {
 public:
 
@@ -30,6 +27,8 @@ public:
         PsoGraphicsDesc psoFillDesc = {
             .vs                 = "shaders_v",
             .ps                 = "shaders_p",
+            .vs2                = "shader.vert",
+            .ps2                = "shader.frag",
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
                 { "COLOR",    0, Format::RGB32f, 1, 0 }
@@ -39,6 +38,8 @@ public:
         PsoGraphicsDesc psoWireDesc = {
             .vs                 = "shadersWire_v",
             .ps                 = "shadersWire_p",
+            .vs2                = "shaderWire.vert",
+            .ps2                = "shaderWire.frag",
             .fillMode           = FillMode::Wireframe,
             .inputElements      = {
                 { "POSITION", 0, Format::RGB32f, 0, 0 },
@@ -83,14 +84,14 @@ public:
         gpu->clear    (cmd, target.renderView, view.clearColor, depthView, 1, 0);
         
         if (view.fillMode == Fill || view.fillMode == FillWire) {
-            // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Fill %llu", frameIdx);
+        //     // PIXBeginEvent(queue.obj.Get(), PIX_COLOR_DEFAULT, "Fill %llu", frameIdx);
             gpu->pipeline     (cmd, psoFill);
             gpu->graphicsRoot (cmd, root);
             gpu->topology     (cmd, PrimitiveTopology::TriangleList);
             for (int i = 0; i < view.modelCount; i++) {
                 const Model& model = view.models[i];
                 const mat4& transform = view.transforms[i];
-                MeshData& m = meshes[model.meshId];
+                const MeshData& m = meshes[model.meshId];
     
                 ObjectData objectData = {};
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(&transform));
@@ -108,7 +109,7 @@ public:
                     gpu->draw(cmd, m.vCount, 1, 0, 0);
                 }
             }
-            // PIXEndEvent(queue.obj.Get());
+        //     // PIXEndEvent(queue.obj.Get());
         }
 
         if (view.fillMode == Wire || view.fillMode == FillWire) {
@@ -121,7 +122,6 @@ public:
                 const mat4& transform = view.transforms[i];
                 MeshData& m = meshes[model.meshId];
 
-                
                 ObjectData objectData = {};
                 XMMATRIX modelMat = XMLoadFloat4x4(reinterpret_cast<const XMFLOAT4X4*>(&transform));
                 XMMATRIX mvpMat = modelMat * viewMat * projMat;

@@ -39,6 +39,8 @@ public:
     void    reset();
     void    free(int idx);
     size_t  size();
+    size_t  end();
+    bool    exists(int idx);
 private:
     size_t              count = 0;
     int                 nextFree = 0;
@@ -69,6 +71,14 @@ public:
         names.resize(size);
         map.reserve(size);
         freeList.reset();
+    }
+
+    bool exists(int idx) {
+        return freeList.exists(idx);
+    }
+
+    size_t end() {
+        return freeList.end();
     }
 
     size_t size() {

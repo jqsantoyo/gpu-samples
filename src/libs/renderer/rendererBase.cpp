@@ -5,12 +5,13 @@ namespace gpu {
 
 
 void RendererBase::init(const RendererBaseDesc& desc) {
+    backend = desc.backend;
     viewport = { 0.0f, 0.0f, static_cast<float>(desc.windowSize.x), static_cast<float>(desc.windowSize.y), 0, 1 };
     scissorRect = { 0, 0, desc.windowSize.x, desc.windowSize.y };
     uint32_t frameCount = 2;
 
 
-    gpu          = createGpu();
+    gpu          = createGpu({ .window = desc.window }, desc.backend);
     queue        = gpu->createQueue();
     swapchain    = gpu->createSwapchain(queue, desc.window, desc.windowSize.x, desc.windowSize.y, frameCount);
     mainCommand  = gpu->createCommand();
@@ -23,14 +24,17 @@ void RendererBase::init(const RendererBaseDesc& desc) {
 
     staticBuffers   .init(desc.staticBufferCount);
     meshes          .init(desc.meshCount);
-    materials       .init(desc.materialCount);
-    materialTextures.init(desc.materialTextureCount);
-    
-    // defaultBaseColorMap = createDefault({1, 1, 0, 1});   // default base color (magenta)
-    defaultBaseColorMap = create("defaultColor", { 1, 1, 1, 1 });   // default base color
-    defaultORMMap       = create("defaultOrm", { 1, 1, 0, 1 });   // default ORM
-    defaultNormalMap    = create("defaultNormal", { 1, .5, .5, 1 }); // default normals
-    defaultEmissiveMap  = create("defaultEmissive", { 1, 0, 0, 0 });   // default emissive
+
+    if (backend != Backend::Vulkan) {
+        materials       .init(desc.materialCount);
+        materialTextures.init(desc.materialTextureCount);
+        
+        // defaultBaseColorMap = createDefault({1, 1, 0, 1});   // default base color (magenta)
+        defaultBaseColorMap = create("defaultColor", { 1, 1, 1, 1 });   // default base color
+        defaultORMMap       = create("defaultOrm", { 1, 1, 0, 1 });   // default ORM
+        defaultNormalMap    = create("defaultNormal", { 1, .5, .5, 1 }); // default normals
+        defaultEmissiveMap  = create("defaultEmissive", { 1, 0, 0, 0 });   // default emissive
+    }
     init2();
     reset();
 }
@@ -55,9 +59,8 @@ void RendererBase::render(const RenderView& view) {
     static uint64_t frameIdx = 0;
     beginEvent("Render %llu", frameIdx);
     SwapTarget target = gpu->next(swapchain);
-    frameIdx++;
-    frameIdx %= cmds.size();
-    Command cmd = cmds[frameIdx];
+    int cmdIdx = frameIdx % cmds.size();
+    Command cmd = cmds[cmdIdx];
     render2(target, cmd, view);
     gpu->printErrors();
     endEvent();
@@ -95,6 +98,7 @@ Mesh RendererBase::create(const MeshDesc& desc) {
 }
 
 MaterialTexture RendererBase::create(const char* name, vec4 color) {
+    if (backend == Backend::Vulkan) return { -1 };
     MaterialTexture      materialTexture     = materialTextures.alloc();
     MaterialTextureData& materialTextureData = materialTextures[materialTexture];
     materialTextureData.texture     = gpu->createTexture2(name, TextureUsage::Default, Format::RGBA8un, { 1, 1, 1});
@@ -106,6 +110,7 @@ MaterialTexture RendererBase::create(const char* name, vec4 color) {
 }
 
 MaterialTexture RendererBase::create(const char* name, const uint8_t* data, uint32_t size) {
+    if (backend == Backend::Vulkan) return { -1 };
     MaterialTexture      materialTexture     = materialTextures.alloc();
     MaterialTextureData& materialTextureData = materialTextures[materialTexture];
     std::vector<ResourceData> subresources;
@@ -117,6 +122,7 @@ MaterialTexture RendererBase::create(const char* name, const uint8_t* data, uint
 }
 
 Material RendererBase::create(const char* name, MaterialDesc& desc) {
+    if (backend == Backend::Vulkan) return { -1 };
     Material material = materials.alloc(name);
     MaterialData& materialData = materials[material];
     MaterialTexture baseColorMap  = desc.baseColorMap.idx != -1 ? desc.baseColorMap : defaultBaseColorMap;
