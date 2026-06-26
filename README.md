@@ -7,7 +7,7 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 
 | Render sample         | Shading      | Camera | Lights | Shadows | D3D12 status | Vulkan status |
 |-----------------------|--------------|--------|------- |---------|--------------|---------------|
-| **r0-color**          | vertex color | ✓      |        |         | ✓            | WIP           |
+| **r0-color**          | vertex color | ✓      |        |         | ✓            | ✓             |
 | **r1-forward**        | PBR          | ✓      | ✓      | ✓       | ✓            | ...           |
 
 
@@ -16,21 +16,21 @@ Each sample supports both backends, using D3D12 by default, or using Vulkan when
 | **c0-compute**       | WIP          | ...           |
 
 
-| Library           | Internal |
-|-------------------|----------|
-| app               | ✓        |
-| utils             | ✓        |
-| gpuVk             | ✓        |
-| gpuD3D            | ✓        |
-| rendererInterface | ✓        |
-| vulkan            |          |
-| d3d12             |          |
-| dxgi              |          |
-| d3dcompiler       |          |
-| d3dx12            |          |
-| ddsTextureLoader  |          |
-| pixEvents         |          |
-| tinygltf          |          |
+| Library            | Internal |
+|--------------------|----------|
+| app                | ✓        |
+| utils              | ✓        |
+| gpu                | ✓        |
+| renderer           | ✓        |
+| scene              | ✓        |
+| vulkan             |          |
+| d3d12              |          |
+| dxgi               |          |
+| d3dcompiler        |          |
+| d3dx12             |          |
+| ddsTextureLoader   |          |
+| pixEvents          |          |
+| tinygltf           |          |
 
 
 | Asset         | Original Author | Original asset | License | Notes |
